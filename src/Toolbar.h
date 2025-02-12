@@ -30,7 +30,7 @@ public:
     Toolbar();  
     void begin();  
     void setButtonLabel(ButtonID button, String label);  
-    ButtonID getPressedButton();  
+    bool getPressedButton(ButtonID button);
     void draw();  
 };
 

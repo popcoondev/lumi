@@ -7,17 +7,14 @@ ActionBar::ActionBar()
 void ActionBar::begin() {
     M5.Lcd.fillRect(0, 0, M5.Lcd.width(), barHeight, NAVY);  // 背景色
     backButton.begin();
-    draw();
 }
 
 void ActionBar::setTitle(String newTitle) {
     title = newTitle;
-    draw();
 }
 
 void ActionBar::setStatus(String newStatus) {
     status = newStatus;
-    draw();
 }
 
 void ActionBar::draw() {
@@ -35,9 +32,9 @@ void ActionBar::draw() {
     M5.Lcd.print(title);
 
     // ステータス
-    M5.Lcd.setCursor(M5.Lcd.width() - 100, 8);
-    M5.Lcd.setTextSize(textSize);
-    M5.Lcd.setTextColor(WHITE, NAVY);
+    M5.Lcd.setCursor(M5.Lcd.width() - 40, 8);
+    M5.Lcd.setTextSize(textSize-1);
+    M5.Lcd.setTextColor(YELLOW, NAVY);
     M5.Lcd.print(status);
 }
 

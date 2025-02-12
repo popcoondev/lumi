@@ -14,6 +14,7 @@ Toolbar toolbar;
 #define STABLE_THRESHOLD 0.2 
 #define STABLE_DURATION 1000 
 #define TIMEOUT_DURATION 120000
+bool isViewUpdate = false;
 
 // LED設定
 #define LED_PIN 8    
@@ -32,7 +33,6 @@ struct FaceData {
 };
 FaceData faceList[20];  
 int calibratedFaces = 0;
-int count = 0;
 // システム状態
 enum State { STATE_NONE, STATE_DETECTION, STATE_CALIBRATION, STATE_LED_CONTROL };
 State currentState = STATE_NONE;
@@ -107,22 +107,26 @@ void processCalibrationState() {
 void processState() {
     switch (currentState) {
         case STATE_DETECTION:
-            mainTextView.setText("Detecting Mode");
+            actionBar.setTitle("Face Detection");
             break;
         case STATE_CALIBRATION:
-            mainTextView.setText("Calibration Mode");
+            actionBar.setTitle("Face Calibration");
             break;
         case STATE_LED_CONTROL:
-            mainTextView.setText("LED Control Mode");
+            actionBar.setTitle("LED Control");
             break;
         default:
             break;
     }
+
 }
 
 // ステート変更
 void changeState(State newState) {
+    Serial.println("Change state: " + String(newState));
     currentState = newState;
+    isViewUpdate = true;
+    
 }
 
 void setup() {
@@ -131,6 +135,7 @@ void setup() {
     actionBar.begin();
     actionBar.setTitle("Main Menu");
     actionBar.setStatus("Ready");
+    actionBar.draw();
 
     mainTextView.begin();
     mainTextView.setPosition(0, ACTIONBAR_HEIGHT, SCREEN_WIDTH/3*2, SCREEN_HEIGHT-ACTIONBAR_HEIGHT-TOOLBAR_HEIGHT);
@@ -139,6 +144,14 @@ void setup() {
     mainTextView.setBackgroundColor(BLACK);
     mainTextView.setText("System Ready");
     mainTextView.draw();
+
+    subTextView.begin();
+    subTextView.setPosition(SCREEN_WIDTH/3*2, ACTIONBAR_HEIGHT, SCREEN_WIDTH/3, SCREEN_HEIGHT-ACTIONBAR_HEIGHT-TOOLBAR_HEIGHT);
+    subTextView.setFontSize(2);
+    subTextView.setColor(WHITE);
+    subTextView.setBackgroundColor(BLACK);
+    subTextView.setText("Sub View");
+    subTextView.draw();
 
     toolbar.begin();
     toolbar.setButtonLabel(BTN_A, "Detect");
@@ -152,13 +165,20 @@ void loop() {
         Serial.println("Back button pressed!");
         currentState = STATE_NONE;
         actionBar.setTitle("Main Menu");
-        actionBar.setStatus(String(count));
-        count++;
+        actionBar.setStatus("Ready");
+        actionBar.draw();
     }
 
-    if (toolbar.getPressedButton() == BTN_A) changeState(STATE_DETECTION);
-    if (toolbar.getPressedButton() == BTN_B) changeState(STATE_CALIBRATION);
-    if (toolbar.getPressedButton() == BTN_C) changeState(STATE_LED_CONTROL);
+    if (toolbar.getPressedButton(BTN_A)) changeState(STATE_DETECTION);
+    if (toolbar.getPressedButton(BTN_B)) changeState(STATE_CALIBRATION);
+    if (toolbar.getPressedButton(BTN_C)) changeState(STATE_LED_CONTROL);
     processState();
+
+    if (isViewUpdate) {
+        mainTextView.draw();
+        actionBar.draw();
+        toolbar.draw();
+        isViewUpdate = false;
+    }
     delay(200);
 }
