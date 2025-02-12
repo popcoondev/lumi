@@ -22,35 +22,34 @@ void Toolbar::setButtonLabel(ButtonID button, String label) {
 
 // タッチ検知 & ボタンイベント取得
 ButtonID Toolbar::getPressedButton() {
-    M5.update();
+    M5.update(); // **タッチイベントを更新**
+
     if (M5.Touch.getCount() > 0) {
         auto touch = M5.Touch.getDetail();
         int x = touch.x;
         int y = touch.y;
 
-        Serial.printf("Touch Detected at (%d, %d)\n", x, y); // タップ位置を出力
+        Serial.printf("Touch Detected at (%d, %d)\n", x, y); // タップ位置をデバッグ出力
 
         // **ツールバーの範囲外なら無視**
         if (y < SCREEN_HEIGHT - TOOLBAR_HEIGHT) {
             return BTN_NONE;
         }
 
-        // **ボタン領域の範囲内で判定**
-        if (touch.wasPressed()) {
-            if (x >= 0 && x < BUTTON_WIDTH) {
-                Serial.println("Button A Pressed");
-                lastPressed = BTN_A;
-            } else if (x >= BUTTON_WIDTH && x < BUTTON_WIDTH * 2) {
-                Serial.println("Button B Pressed");
-                lastPressed = BTN_B;
-            } else if (x >= BUTTON_WIDTH * 2 && x < SCREEN_WIDTH) {
-                Serial.println("Button C Pressed");
-                lastPressed = BTN_C;
-            } else {
-                return BTN_NONE;  // **範囲外なら無視**
-            }
-            return lastPressed;
+        // **ボタンの範囲内で判定**
+        if (x >= 0 && x < BUTTON_WIDTH) {
+            Serial.println("Button A Pressed");
+            lastPressed = BTN_A;
+        } else if (x >= BUTTON_WIDTH && x < BUTTON_WIDTH * 2) {
+            Serial.println("Button B Pressed");
+            lastPressed = BTN_B;
+        } else if (x >= BUTTON_WIDTH * 2 && x < SCREEN_WIDTH) {
+            Serial.println("Button C Pressed");
+            lastPressed = BTN_C;
+        } else {
+            return BTN_NONE;  // **範囲外なら無視**
         }
+        return lastPressed;
     }
     return BTN_NONE;
 }
