@@ -5,15 +5,15 @@
 #include "Button.h"
 
 #define ACTIONBAR_BACK_BUTTON_WIDTH 60
-#define ACTIONBAR_HEIGHT 30
+#define ACTIONBAR_HEIGHT 40
 #define ACTIONBAR_TEXT_SIZE 2
 
 class ActionBar {
 public:
     ActionBar();
     void begin();
-    void setTitle(const char* title);
-    void setStatus(const char* status);
+    void setTitle(String title);
+    void setStatus(String status);
     void draw();
     bool isBackPressed();
 

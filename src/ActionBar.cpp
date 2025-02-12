@@ -10,12 +10,12 @@ void ActionBar::begin() {
     draw();
 }
 
-void ActionBar::setTitle(const char* newTitle) {
+void ActionBar::setTitle(String newTitle) {
     title = newTitle;
     draw();
 }
 
-void ActionBar::setStatus(const char* newStatus) {
+void ActionBar::setStatus(String newStatus) {
     status = newStatus;
     draw();
 }

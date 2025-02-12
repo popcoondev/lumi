@@ -35,8 +35,8 @@ bool Button::isPressed() {
         if (touch.x >= posX && touch.x <= posX + width &&
             touch.y >= posY && touch.y <= posY + height) {
 
-            // チャタリング防止（300ms 以内の連続タップを無視）
-            if (millis() - lastPressTime < 300) {
+            // チャタリング防止（200ms 以内の連続タップを無視）
+            if (millis() - lastPressTime < 200) {
                 return false;
             }
             lastPressTime = millis();

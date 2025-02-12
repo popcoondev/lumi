@@ -32,7 +32,7 @@ struct FaceData {
 };
 FaceData faceList[20];  
 int calibratedFaces = 0;
-
+int count = 0;
 // システム状態
 enum State { STATE_NONE, STATE_DETECTION, STATE_CALIBRATION, STATE_LED_CONTROL };
 State currentState = STATE_NONE;
@@ -152,6 +152,8 @@ void loop() {
         Serial.println("Back button pressed!");
         currentState = STATE_NONE;
         actionBar.setTitle("Main Menu");
+        actionBar.setStatus(String(count));
+        count++;
     }
 
     if (toolbar.getPressedButton() == BTN_A) changeState(STATE_DETECTION);
