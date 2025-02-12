@@ -7,7 +7,7 @@ class TextView {
 public:
     TextView();
     void begin();
-    void setText(const char* text);
+    void setText(String text);
     void setPosition(int x, int y, int width, int height);
     void setFontSize(int size);
     void setColor(uint16_t color);

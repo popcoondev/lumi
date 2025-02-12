@@ -8,7 +8,7 @@ void TextView::begin() {
 
 }
 
-void TextView::setText(const char* text) {
+void TextView::setText(String text) {
     if (this->currentText != text) {
         this->currentText = text;
         wrapText(); // 自動改行

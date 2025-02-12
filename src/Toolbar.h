@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <M5Unified.h>
+#include "Button.h"
 
 // 画面サイズ
 #define SCREEN_WIDTH  320
@@ -19,15 +20,18 @@ enum ButtonID { BTN_A, BTN_B, BTN_C, BTN_NONE };
 // ツールバークラス
 class Toolbar {
 private:
-    String buttonLabels[BUTTON_COUNT];  // ボタンのラベル
-    ButtonID lastPressed;
-
+    Button buttons[BUTTON_COUNT] = {
+        Button(0, SCREEN_HEIGHT - TOOLBAR_HEIGHT, BUTTON_WIDTH, TOOLBAR_HEIGHT, "A"),
+        Button(BUTTON_WIDTH, SCREEN_HEIGHT - TOOLBAR_HEIGHT, BUTTON_WIDTH, TOOLBAR_HEIGHT, "B"),
+        Button(BUTTON_WIDTH * 2, SCREEN_HEIGHT - TOOLBAR_HEIGHT, BUTTON_WIDTH, TOOLBAR_HEIGHT, "C")
+    };
+    
 public:
-    Toolbar();  // コンストラクタ
-    void begin();  // 初期化
-    void setButtonLabel(ButtonID button, String label);  // ボタンラベル設定
-    ButtonID getPressedButton();  // ボタンの検知
-    void draw();  // UIの描画
+    Toolbar();  
+    void begin();  
+    void setButtonLabel(ButtonID button, String label);  
+    ButtonID getPressedButton();  
+    void draw();  
 };
 
-#endif
+#endif // TOOLBAR_H
