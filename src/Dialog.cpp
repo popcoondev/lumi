@@ -14,12 +14,12 @@ void Dialog::showDialog(const String& titleText, const String& messageText, Dial
 
 DialogResult Dialog::getResult() {
     if (okButton.isPressed()) {
-        Serial.println("OK Button Pressed!");
+        // Serial.println("OK Button Pressed!");
         hideDialog();
         return DIALOG_OK_PRESSED;
     }
     if (cancelButton.isPressed()) {
-        Serial.println("Cancel Button Pressed!");
+        // Serial.println("Cancel Button Pressed!");
         hideDialog();
         return DIALOG_CANCEL_PRESSED;
     }
