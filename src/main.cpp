@@ -52,21 +52,33 @@ enum State_calibration {
 };
 State_calibration calibrationState = STATE_CALIBRATION_INIT;
 
-// 最も近い面を探す
+// 内積を利用して最も近い面を判定
 int getNearestFace(float x, float y, float z) {
-    int closestFace = -1;
-    float minDistance = 9999;
+    int nearestFace = -1;
+    float maxSimilarity = -1;  // 内積の最大値（-1から1の範囲）
+
     for (int i = 0; i < calibratedFaces; i++) {
-        float dx = faceList[i].x - x;
-        float dy = faceList[i].y - y;
-        float dz = faceList[i].z - z;
-        float distance = sqrt(dx * dx + dy * dy + dz * dz);
-        if (distance < minDistance) {
-            minDistance = distance;
-            closestFace = faceList[i].id;
+        // 正規化された法線ベクトル
+        float Nx = faceList[i].x;
+        float Ny = faceList[i].y;
+        float Nz = faceList[i].z;
+
+        // 内積を計算（cosθに相当）
+        float dotProduct = x * Nx + y * Ny + z * Nz;
+
+        // 内積が最大（最も類似した面）を採用
+        if (dotProduct > maxSimilarity) {
+            maxSimilarity = dotProduct;
+            nearestFace = faceList[i].id;
         }
     }
-    return closestFace;
+
+    // cosθ（dotProduct）がしきい値以上の場合のみ採用
+    if (maxSimilarity > 0.95) {  // 0.95は誤差の許容範囲
+        return nearestFace;
+    } else {
+        return -1;
+    }
 }
 
 // キャリブレーションの処理
@@ -78,6 +90,14 @@ void processCalibrationState() {
         case STATE_CALIBRATION_INIT:
             mainTextView.setText("STATE_CALIBRATION_INIT");
             calibrationState = STATE_CALIBRATION_WAIT_STABLE;
+            
+            // 前回値のリセット
+            prevAccX = 0;
+            prevAccY = 0;
+            prevAccZ = 0;
+
+            // toolBarの更新
+            toolbar.setButtonLabel(BTN_A, "FINISH");
             break;
 
         case STATE_CALIBRATION_WAIT_STABLE:

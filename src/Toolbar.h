@@ -10,7 +10,7 @@
 #define SCREEN_HEIGHT 240
 
 // ツールバーの設定
-#define TOOLBAR_HEIGHT 50
+#define TOOLBAR_HEIGHT 60
 #define BUTTON_COUNT 3
 #define BUTTON_WIDTH (SCREEN_WIDTH / BUTTON_COUNT)
 
