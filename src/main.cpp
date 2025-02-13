@@ -23,10 +23,13 @@ bool isViewUpdate = false;
 
 // LED設定
 #define LED_PIN 8    
-#define NUM_LEDS 30  
+#define NUM_FACES 20  // 最大面数
+#define NUM_LEDS 30   // LEDテープ全体のLED数
+// LEDリスト
+CRGB leds[NUM_LEDS];
+
 uint8_t brightness = 255;  
 bool ledState = false;
-CRGB leds[NUM_LEDS];
 
 // IMUデータ
 float accX, accY, accZ;
@@ -36,11 +39,23 @@ float prevAccX, prevAccY, prevAccZ;
 
 // Faceデータ
 struct FaceData {
-    int id;
-    float x, y, z;
+    int id;               // 面のID
+    float x, y, z;        // センサー値（重力加速度）
+    int ledAddress[3];    // 面に対応するLEDテープのアドレス（最大3つ）
+    int numLEDs;          // 使用するLEDの数
+    int ledBrightness;    // LEDの明るさ (0~255)
+    int ledColor;         // LEDの色（RGB値）
+    int ledState;         // LEDの状態（ON=1, OFF=0）
+    int ledPattern;       // LEDの点灯パターン（0=固定, 1=点滅, 2=フェード）
+    int ledFadeSpeed;     // フェード/点滅速度
+    unsigned long ledUpdateTime; // LEDの最終更新時刻（ミリ秒単位）
+    bool isActive;        // この面がアクティブか（デバッグや非アクティブ化用）
 };
-FaceData faceList[20];  
+
+FaceData faceList[NUM_FACES];  
 int calibratedFaces = 0;
+int beforeDetectedFace = -1; // 前回検出した面
+
 // システム状態
 enum State { STATE_NONE, STATE_DETECTION, STATE_CALIBRATION, STATE_LED_CONTROL };
 State currentState = STATE_NONE;
@@ -61,6 +76,38 @@ enum State_calibration {
     STATE_CALIBRATION_COMPLETE
 };
 State_calibration calibrationState = STATE_CALIBRATION_INIT;
+
+// LED制御のサブステート
+enum State_led_control { 
+    STATE_LED_CONTROL_INIT, 
+    STATE_LED_CONTROL_DETECT_FACE, 
+    STATE_LED_CONTROL_UPDATE_LED,
+    STATE_LED_CONTROL_COMPLETE
+};
+State_led_control ledControlState = STATE_LED_CONTROL_INIT;
+
+// 面データを追加する関数
+void addFace(int faceID, float x, float y, float z, int led1, int led2, int led3) {
+    if (calibratedFaces >= NUM_FACES) return;
+
+    faceList[calibratedFaces].id = faceID;
+    faceList[calibratedFaces].x = x;
+    faceList[calibratedFaces].y = y;
+    faceList[calibratedFaces].z = z;
+    faceList[calibratedFaces].ledAddress[0] = led1;
+    faceList[calibratedFaces].ledAddress[1] = led2;
+    faceList[calibratedFaces].ledAddress[2] = led3;
+    faceList[calibratedFaces].numLEDs = 3;  // LED 3つ使用
+    faceList[calibratedFaces].ledBrightness = 255;
+    faceList[calibratedFaces].ledColor = CRGB::White;
+    faceList[calibratedFaces].ledState = 0;
+    faceList[calibratedFaces].ledPattern = 0;
+    faceList[calibratedFaces].ledFadeSpeed = 0;
+    faceList[calibratedFaces].ledUpdateTime = 0;
+    faceList[calibratedFaces].isActive = true;
+    
+    calibratedFaces++;
+}
 
 // 内積を利用して最も近い面を判定
 int getNearestFace(float x, float y, float z) {
@@ -127,8 +174,6 @@ void processDetectionState() {
             delay(100);
             break;
 
-        default:
-            break;
     }
 }
 
@@ -188,7 +233,7 @@ void processCalibrationState() {
             normZ = accZ / mag;
             detectedFace = getNearestFace(normX, normY, normZ);
 
-            if (calibratedFaces >= 20) {
+            if (calibratedFaces >=NUM_FACES) {
                 String message = "Face list is full. Please save or reset.";
                 dialog.showDialog("Info", message, DIALOG_OK);
                 DialogResult dialogResult = DIALOG_NONE;
@@ -220,8 +265,10 @@ void processCalibrationState() {
                 }
                 if (dialogResult == DIALOG_OK_PRESSED) {
                     Serial.println("DIALOG_OK_PRESSED");
-                    faceList[calibratedFaces] = {calibratedFaces + 1, normX, normY, normZ};
-                    calibratedFaces++;
+
+                    // LEDアドレスの設定
+                    // faceList[calibratedFaces] = {calibratedFaces + 1, normX, normY, normZ};
+                    addFace(calibratedFaces, normX, normY, normZ, calibratedFaces, calibratedFaces + 1, calibratedFaces + 2);
                     calibrationState = STATE_CALIBRATION_WAIT_STABLE;
                 } else {
                     Serial.println("DIALOG_CANCEL_PRESSED");
@@ -274,9 +321,6 @@ void resetFaces() {
 
 // 面データの保存
 // SDカードに保存する
-#include <ArduinoJson.h>
-
-// 面データの保存
 void saveFaces() {
     Serial.println("Save faces");
 
@@ -289,6 +333,18 @@ void saveFaces() {
         faceObj["x"] = faceList[i].x;
         faceObj["y"] = faceList[i].y;
         faceObj["z"] = faceList[i].z;
+        faceObj["led1"] = faceList[i].ledAddress[0];
+        faceObj["led2"] = faceList[i].ledAddress[1];
+        faceObj["led3"] = faceList[i].ledAddress[2];
+        faceObj["numLEDs"] = faceList[i].numLEDs;
+        faceObj["brightness"] = faceList[i].ledBrightness;
+        faceObj["color"] = faceList[i].ledColor;
+        faceObj["state"] = faceList[i].ledState;
+        faceObj["pattern"] = faceList[i].ledPattern;
+        faceObj["fadeSpeed"] = faceList[i].ledFadeSpeed;
+        faceObj["updateTime"] = faceList[i].ledUpdateTime;
+        faceObj["isActive"] = faceList[i].isActive;
+    
     }
 
     if (!SD.begin(GPIO_NUM_4, SPI, 25000000)) {
@@ -337,16 +393,156 @@ void loadFaces() {
     JsonArray faceArray = jsonDoc["faces"].as<JsonArray>();
     calibratedFaces = 0;
     for (JsonObject faceObj : faceArray) {
-        if (calibratedFaces >= 20) break;
+        if (calibratedFaces >= NUM_FACES) break;
         faceList[calibratedFaces].id = faceObj["id"];
         faceList[calibratedFaces].x = faceObj["x"];
         faceList[calibratedFaces].y = faceObj["y"];
         faceList[calibratedFaces].z = faceObj["z"];
+        faceList[calibratedFaces].ledAddress[0] = faceObj["led1"];
+        faceList[calibratedFaces].ledAddress[1] = faceObj["led2"];
+        faceList[calibratedFaces].ledAddress[2] = faceObj["led3"];
+        faceList[calibratedFaces].numLEDs = faceObj["numLEDs"];
+        faceList[calibratedFaces].ledBrightness = faceObj["brightness"];
+        faceList[calibratedFaces].ledColor = faceObj["color"];
+        faceList[calibratedFaces].ledState = faceObj["state"];
+        faceList[calibratedFaces].ledPattern = faceObj["pattern"];
+        faceList[calibratedFaces].ledFadeSpeed = faceObj["fadeSpeed"];
+        faceList[calibratedFaces].ledUpdateTime = faceObj["updateTime"];
+        faceList[calibratedFaces].isActive = faceObj["isActive"];
+
         calibratedFaces++;
     }
     file.close();
 }
 
+
+void lightUpFace(int faceID) {
+    for (int i = 0; i < calibratedFaces; i++) {
+        if (faceList[i].id == faceID && faceList[i].isActive) {
+            for (int j = 0; j < faceList[i].numLEDs; j++) {
+                int ledIndex = faceList[i].ledAddress[j];
+                if (ledIndex >= 0 && ledIndex < NUM_LEDS) {
+                    // LEDの状態に応じて色を決定
+                    if (faceList[i].ledState == 1) {
+                        leds[ledIndex] = faceList[i].ledColor;
+                        
+
+                    } else {
+                        leds[ledIndex] = CRGB::Black;
+                    }
+                }
+            }
+            FastLED.show();
+            return;
+        }
+    }
+}
+
+void lightDownFace(int faceID) {
+    for (int i = 0; i < calibratedFaces; i++) {
+        if (faceList[i].id == faceID && faceList[i].isActive) {
+            for (int j = 0; j < faceList[i].numLEDs; j++) {
+                int ledIndex = faceList[i].ledAddress[j];
+                if (ledIndex >= 0 && ledIndex < NUM_LEDS) {
+                    leds[ledIndex] = CRGB::Black;
+                }
+            }
+            FastLED.show();
+            return;
+        }
+    }
+}
+
+// 面の検出→その面を点灯させてみる→実際の面と一致していない場合にledAddressを修正する必要がある
+// そのためのキャリブレーション
+void processLEDControlState() {
+    float mag, normX, normY, normZ;
+    int detectedFace = -1;  // 事前に初期化
+    int faceId = -1;
+    switch (ledControlState) {
+        case STATE_LED_CONTROL_INIT:
+            mainTextView.setText("LED Control Init");
+            toolbar.setButtonLabel(BTN_A, "prev");
+            toolbar.setButtonLabel(BTN_B, "next");
+            toolbar.setButtonLabel(BTN_C, "update");
+            isViewUpdate = true;
+            ledControlState = STATE_LED_CONTROL_DETECT_FACE;
+            break;
+        case STATE_LED_CONTROL_DETECT_FACE:
+            mainTextView.setText("Detecting face...");
+            // 面が検出されたら、その顔に対応するLEDを点灯させる
+            M5.Imu.getAccel(&accX, &accY, &accZ);
+            subTextView.setText("x=" + String(accX) + "\ny=" + String(accY) + "\nz=" + String(accZ));
+
+            mag = sqrt(accX * accX + accY * accY + accZ * accZ);
+            normX = accX / mag;
+            normY = accY / mag;
+            normZ = accZ / mag;
+            detectedFace = getNearestFace(normX, normY, normZ);
+
+            // faceListに登録されている場合
+            if (detectedFace != -1) {
+                lightUpFace(detectedFace);
+                beforeDetectedFace = detectedFace;
+                ledControlState = STATE_LED_CONTROL_UPDATE_LED;
+            }
+            
+            delay(100);
+            break;
+        
+        case STATE_LED_CONTROL_UPDATE_LED:
+            faceId = faceList[beforeDetectedFace].id;
+            mainTextView.setText("ID:" + String(faceId) + "\nLED Address: " + String(faceList[beforeDetectedFace].ledAddress[0]) + ", " + String(faceList[beforeDetectedFace].ledAddress[1]) + ", " + String(faceList[beforeDetectedFace].ledAddress[2]));
+            // toolbarでprev, next, updateを待機
+            // LEDアドレスを3つずつずらしてみる（NUM_LED以上になったら0に戻る、-1以下になったらNUM_LED-1に戻る）
+            if (toolbar.getPressedButton(BTN_A)) {
+                lightDownFace(beforeDetectedFace);
+                if (faceList[beforeDetectedFace].ledAddress[0] == 0 ) {
+                    faceList[beforeDetectedFace].ledAddress[0] = NUM_LEDS - 3;
+                    faceList[beforeDetectedFace].ledAddress[1] = NUM_LEDS - 2;
+                    faceList[beforeDetectedFace].ledAddress[2] = NUM_LEDS - 1;
+                } else {
+                    faceList[beforeDetectedFace].ledAddress[0] -= 3;
+                    faceList[beforeDetectedFace].ledAddress[1] -= 3;
+                    faceList[beforeDetectedFace].ledAddress[2] -= 3;
+                }
+                lightUpFace(beforeDetectedFace);
+                mainTextView.setText("ID:" + String(faceId) + "\nLED Address: " + String(faceList[beforeDetectedFace].ledAddress[0]) + ", " + String(faceList[beforeDetectedFace].ledAddress[1]) + ", " + String(faceList[beforeDetectedFace].ledAddress[2]));
+            }
+            if (toolbar.getPressedButton(BTN_B)) {
+                lightDownFace(beforeDetectedFace);
+                if (faceList[beforeDetectedFace].ledAddress[2] == NUM_LEDS - 1) {
+                    faceList[beforeDetectedFace].ledAddress[0] = 0;
+                    faceList[beforeDetectedFace].ledAddress[1] = 1;
+                    faceList[beforeDetectedFace].ledAddress[2] = 2;
+                } else {
+                    faceList[beforeDetectedFace].ledAddress[0] += 3;
+                    faceList[beforeDetectedFace].ledAddress[1] += 3;
+                    faceList[beforeDetectedFace].ledAddress[2] += 3;
+                }
+                lightUpFace(beforeDetectedFace);
+                mainTextView.setText("ID:" + String(faceId) + "\nLED Address: " + String(faceList[beforeDetectedFace].ledAddress[0]) + ", " + String(faceList[beforeDetectedFace].ledAddress[1]) + ", " + String(faceList[beforeDetectedFace].ledAddress[2]));
+            }
+            if (toolbar.getPressedButton(BTN_C)) {
+                // faceListの更新
+                saveFaces();
+                // 対象の面を点滅させる
+                for (int i = 0; i < 2; i++) {
+                    lightUpFace(beforeDetectedFace);
+                    delay(100);
+                    lightDownFace(beforeDetectedFace);
+                    delay(100);
+                }
+
+                ledControlState = STATE_LED_CONTROL_DETECT_FACE;
+                beforeDetectedFace = -1;
+            }
+            break;
+        
+        default:
+            break;
+    }
+}
 
 // メインループの処理
 void processState() {
@@ -361,6 +557,7 @@ void processState() {
             break;
         case STATE_LED_CONTROL:
             actionBar.setTitle("LED Control");
+            processLEDControlState();
             break;
         default:
             break;
@@ -379,6 +576,11 @@ void changeState(State newState) {
 void setup() {
     M5.begin();
     Serial.begin(115200);
+
+    FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, NUM_LEDS);
+    FastLED.clear();
+    FastLED.show();
+
     actionBar.begin();
     actionBar.setTitle("Main Menu");
     actionBar.setStatus("Ready");
@@ -420,6 +622,8 @@ void loop() {
         currentState = STATE_NONE;
         detectState = STATE_DETECTION_INIT;
         calibrationState = STATE_CALIBRATION_INIT;
+        ledControlState = STATE_LED_CONTROL_INIT;
+
         actionBar.setTitle("Main Menu");
         actionBar.setStatus("Ready");
         actionBar.draw();
@@ -438,7 +642,6 @@ void loop() {
             if (toolbar.getPressedButton(BTN_A)) resetFaces();
             if (toolbar.getPressedButton(BTN_B)) saveFaces();
             if (toolbar.getPressedButton(BTN_C)) loadFaces();
-
             break;
         case STATE_LED_CONTROL:
             break;
