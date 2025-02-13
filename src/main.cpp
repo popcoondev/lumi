@@ -45,6 +45,13 @@ int calibratedFaces = 0;
 enum State { STATE_NONE, STATE_DETECTION, STATE_CALIBRATION, STATE_LED_CONTROL };
 State currentState = STATE_NONE;
 
+// Detectionのサブステート
+enum State_detection { 
+    STATE_DETECTION_INIT, 
+    STATE_DETECTION_DETECT_FACE
+};
+State_detection detectState = STATE_DETECTION_INIT;
+
 // キャリブレーションのサブステート
 enum State_calibration { 
     STATE_CALIBRATION_INIT, 
@@ -81,6 +88,47 @@ int getNearestFace(float x, float y, float z) {
         return nearestFace;
     } else {
         return -1;
+    }
+}
+
+// 面検出の処理
+void processDetectionState() {
+    float mag, normX, normY, normZ;
+    int detectedFace = -1;  // 事前に初期化
+
+    switch (detectState) {
+        case STATE_DETECTION_INIT:
+            mainTextView.setText("STATE_DETECTION_INIT");
+            detectState = STATE_DETECTION_DETECT_FACE;
+            // toolBarの更新
+            toolbar.setButtonLabel(BTN_A, "");
+            toolbar.setButtonLabel(BTN_B, "");
+            toolbar.setButtonLabel(BTN_C, "");
+            break;
+
+        case STATE_DETECTION_DETECT_FACE:
+            M5.Imu.getAccel(&accX, &accY, &accZ);
+            subTextView.setText("x=" + String(accX) + "\ny=" + String(accY) + "\nz=" + String(accZ));
+
+            mag = sqrt(accX * accX + accY * accY + accZ * accZ);
+            normX = accX / mag;
+            normY = accY / mag;
+            normZ = accZ / mag;
+            detectedFace = getNearestFace(normX, normY, normZ);
+
+            // faceListに登録されている場合
+            if (detectedFace != -1) {
+                mainTextView.setText("Detected face: " + String(detectedFace));
+            }
+            else {
+                mainTextView.setText("");
+            }
+            
+            delay(100);
+            break;
+
+        default:
+            break;
     }
 }
 
@@ -305,6 +353,7 @@ void processState() {
     switch (currentState) {
         case STATE_DETECTION:
             actionBar.setTitle("Face Detection");
+            processDetectionState();
             break;
         case STATE_CALIBRATION:
             actionBar.setTitle("Face Calibration");
@@ -369,6 +418,7 @@ void loop() {
     if (actionBar.isBackPressed()) {
         Serial.println("Back button pressed!");
         currentState = STATE_NONE;
+        detectState = STATE_DETECTION_INIT;
         calibrationState = STATE_CALIBRATION_INIT;
         actionBar.setTitle("Main Menu");
         actionBar.setStatus("Ready");
