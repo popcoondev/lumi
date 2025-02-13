@@ -17,7 +17,7 @@ Dialog dialog;
 
 // センサーしきい値
 #define STABLE_THRESHOLD 0.2 
-#define STABLE_DURATION 1000 * 5
+#define STABLE_DURATION 1000 * 2
 #define TIMEOUT_DURATION 120000
 bool isViewUpdate = false;
 
@@ -155,7 +155,7 @@ void processCalibrationState() {
             break;
 
         case STATE_CALIBRATION_WAIT_STABLE:
-            mainTextView.setText("STATE_CALIBRATION_WAIT_STABLE\n" + String(sizeof(faceList) / sizeof(faceList[0])) + " faces calibrated");
+            mainTextView.setText("STATE_CALIBRATION_WAIT_STABLE\n" + String(calibratedFaces) + " faces calibrated");
             
             M5.Imu.getAccel(&accX, &accY, &accZ);
             static unsigned long stableStartTime = millis();
@@ -188,7 +188,7 @@ void processCalibrationState() {
             normZ = accZ / mag;
             detectedFace = getNearestFace(normX, normY, normZ);
 
-            if (calibratedFaces >= 19) {
+            if (calibratedFaces >= 20) {
                 String message = "Face list is full. Please save or reset.";
                 dialog.showDialog("Info", message, DIALOG_OK);
                 DialogResult dialogResult = DIALOG_NONE;
