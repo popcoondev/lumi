@@ -17,7 +17,7 @@ Dialog dialog;
 
 // センサーしきい値
 #define STABLE_THRESHOLD 0.2 
-#define STABLE_DURATION 1000 * 2
+#define STABLE_DURATION 1000 * 4
 #define TIMEOUT_DURATION 120000
 bool isViewUpdate = false;
 
