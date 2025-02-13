@@ -145,7 +145,7 @@ void processDetectionState() {
 
     switch (detectState) {
         case STATE_DETECTION_INIT:
-            mainTextView.setText("STATE_DETECTION_INIT");
+            mainTextView.setText("Detection mode initialized");
             detectState = STATE_DETECTION_DETECT_FACE;
             // toolBarの更新
             toolbar.setButtonLabel(BTN_A, "");
@@ -155,7 +155,7 @@ void processDetectionState() {
 
         case STATE_DETECTION_DETECT_FACE:
             M5.Imu.getAccel(&accX, &accY, &accZ);
-            subTextView.setText("x=" + String(accX) + "\ny=" + String(accY) + "\nz=" + String(accZ));
+            subTextView.setText("Detecting face... \nx=" + String(accX) + "\ny=" + String(accY) + "\nz=" + String(accZ));
 
             mag = sqrt(accX * accX + accY * accY + accZ * accZ);
             normX = accX / mag;
@@ -184,7 +184,7 @@ void processCalibrationState() {
 
     switch (calibrationState) {
         case STATE_CALIBRATION_INIT:
-            mainTextView.setText("STATE_CALIBRATION_INIT");
+            mainTextView.setText("Calibration mode initialized");
             calibrationState = STATE_CALIBRATION_WAIT_STABLE;
             
             // 前回値のリセット
@@ -200,7 +200,7 @@ void processCalibrationState() {
             break;
 
         case STATE_CALIBRATION_WAIT_STABLE:
-            mainTextView.setText("STATE_CALIBRATION_WAIT_STABLE\n" + String(calibratedFaces) + " faces calibrated");
+            mainTextView.setText("Waiting for calibration...\n" + String(calibratedFaces) + " faces calibrated");
             
             M5.Imu.getAccel(&accX, &accY, &accZ);
             static unsigned long stableStartTime = millis();
@@ -223,7 +223,7 @@ void processCalibrationState() {
             break;
 
         case STATE_CALIBRATION_DETECT_FACE:
-            mainTextView.setText("STATE_CALIBRATION_DETECT_FACE\n" + String(calibratedFaces) + " faces calibrated");
+            mainTextView.setText("Detected face\n" + String(calibratedFaces) + " faces calibrated");
             M5.Imu.getAccel(&accX, &accY, &accZ);
             subTextView.setText("x=" + String(accX) + "\ny=" + String(accY) + "\nz=" + String(accZ));
 
@@ -282,14 +282,6 @@ void processCalibrationState() {
             prevAccZ = 0;
 
             isViewUpdate = true;
-            break;
-
-        case STATE_CALIBRATION_CONFIRM_NEW_FACE:
-            mainTextView.setText("STATE_CALIBRATION_CONFIRM_NEW_FACE");
-            break;
-
-        case STATE_CALIBRATION_COMPLETE:
-            mainTextView.setText("STATE_CALIBRATION_COMPLETE");
             break;
 
         default:
@@ -461,7 +453,7 @@ void processLEDControlState() {
     int faceId = -1;
     switch (ledControlState) {
         case STATE_LED_CONTROL_INIT:
-            mainTextView.setText("LED Control Init");
+            mainTextView.setText("LED Control mode initialized");
             toolbar.setButtonLabel(BTN_A, "prev");
             toolbar.setButtonLabel(BTN_B, "next");
             toolbar.setButtonLabel(BTN_C, "update");
