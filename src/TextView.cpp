@@ -5,13 +5,12 @@ TextView::TextView()
 
 void TextView::begin() {
     M5.Lcd.setTextSize(fontSize);
-
 }
 
 void TextView::setText(String text) {
     if (this->currentText != text) {
         this->currentText = text;
-        wrapText(); // 自動改行
+        wrapText(); // 自動改行を適用
         this->needsUpdate = true;
     }
     draw();
@@ -52,15 +51,18 @@ void TextView::draw() {
         M5.Lcd.fillRect(posX, posY, width, height, backgroundColor);
         M5.Lcd.setCursor(posX, posY);
         M5.Lcd.setTextSize(fontSize);
+        M5.Lcd.setTextColor(color, backgroundColor);
 
-        // 改行済みテキストを順に描画
+        // 行ごとに表示
         int lineSpacing = fontSize * 8;
         int textY = posY;
         for (const auto& line : wrappedText) {
             M5.Lcd.setCursor(posX, textY);
-            M5.Lcd.setTextColor(color, backgroundColor);
             M5.Lcd.printf("%s", line.c_str());
             textY += lineSpacing;
+
+            // 高さを超えたら表示を打ち切る
+            if (textY + lineSpacing > posY + height) break;
         }
 
         this->needsUpdate = false;
@@ -86,10 +88,18 @@ void TextView::wrapText() {
                 currentLine += word + " ";
             }
             word = "";
+
+            // "\n"なら強制改行
+            if (c == '\n') {
+                wrappedText.push_back(currentLine);
+                currentLine = "";
+            }
         } else {
             word += c;
         }
     }
+
+    // 残りの単語を処理
     if (!word.isEmpty()) {
         if (currentLine.length() + word.length() > maxChars) {
             wrappedText.push_back(currentLine);

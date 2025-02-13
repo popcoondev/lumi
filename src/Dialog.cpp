@@ -1,4 +1,5 @@
 #include "Dialog.h"
+#include "TextView.h"
 
 Dialog::Dialog() : isVisible(false), result(DIALOG_NONE) {}
 
@@ -11,20 +12,6 @@ void Dialog::showDialog(const String& titleText, const String& messageText, Dial
     draw();
 }
 
-// DialogResult Dialog::getResult() {
-//     if (okButton.isPressed()) {
-//         result = DIALOG_OK_PRESSED;
-//         hideDialog();
-//     }
-//     else if (cancelButton.isPressed()) {
-//         result = DIALOG_CANCEL_PRESSED;
-//         hideDialog();
-//     }
-//     else {
-//         result = DIALOG_NONE;
-//     }
-//     return result;
-// }
 DialogResult Dialog::getResult() {
     if (okButton.isPressed()) {
         Serial.println("OK Button Pressed!");
@@ -52,15 +39,22 @@ void Dialog::draw() {
     M5.Lcd.drawRect(DIALOG_X, DIALOG_Y, DIALOG_WIDTH, DIALOG_HEIGHT, DARKGREY);
 
     // タイトル
-    M5.Lcd.setCursor(DIALOG_X + 10, DIALOG_Y + 10);
-    M5.Lcd.setTextSize(2);
-    M5.Lcd.setTextColor(BLACK);
-    M5.Lcd.print(title);
+    TextView titleView;
+    titleView.setPosition(DIALOG_X + 10, DIALOG_Y + 10, DIALOG_WIDTH - 20, 30);
+    titleView.setFontSize(2);
+    titleView.setBackgroundColor(WHITE);
+    titleView.setColor(BLACK);
+    titleView.setText(title);
+    titleView.draw();
 
     // メッセージ
-    M5.Lcd.setCursor(DIALOG_X + 10, DIALOG_Y + 40);
-    M5.Lcd.setTextSize(1);
-    M5.Lcd.print(message);
+    TextView messageView;
+    messageView.setPosition(DIALOG_X + 10, DIALOG_Y + 40, DIALOG_WIDTH - 20, 100);
+    messageView.setFontSize(1);
+    messageView.setBackgroundColor(WHITE);
+    messageView.setColor(BLACK);
+    messageView.setText(message);
+    messageView.draw();
 
     // ボタン描画
     if (type == DIALOG_OK) {
