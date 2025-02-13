@@ -4,15 +4,17 @@
 #include <FastLED.h>
 #include "TextView.h"
 #include "ActionBar.h"
+#include "Dialog.h"
 
 ActionBar actionBar;
 TextView mainTextView;
 TextView subTextView;
 Toolbar toolbar;
+Dialog dialog;
 
 // センサーしきい値
 #define STABLE_THRESHOLD 0.2 
-#define STABLE_DURATION 1000 
+#define STABLE_DURATION 1000 * 5
 #define TIMEOUT_DURATION 120000
 bool isViewUpdate = false;
 
@@ -25,6 +27,9 @@ CRGB leds[NUM_LEDS];
 
 // IMUデータ
 float accX, accY, accZ;
+
+// 前回値
+float prevAccX, prevAccY, prevAccZ;
 
 // Faceデータ
 struct FaceData {
@@ -66,40 +71,96 @@ int getNearestFace(float x, float y, float z) {
 
 // キャリブレーションの処理
 void processCalibrationState() {
+    float mag, normX, normY, normZ;
+    int detectedFace = -1;  // 事前に初期化
+
     switch (calibrationState) {
         case STATE_CALIBRATION_INIT:
-            mainTextView.setText("Calibrating... Hold still.");
+            mainTextView.setText("STATE_CALIBRATION_INIT");
             calibrationState = STATE_CALIBRATION_WAIT_STABLE;
-            // toolbar を更新, 
             break;
 
         case STATE_CALIBRATION_WAIT_STABLE:
+            mainTextView.setText("STATE_CALIBRATION_WAIT_STABLE\n" + String(calibratedFaces) + " faces calibrated");
             M5.Imu.getAccel(&accX, &accY, &accZ);
-            // 安定状態を判定 (簡単な例: 一定時間変化なし)
             static unsigned long stableStartTime = millis();
-            if (millis() - stableStartTime > STABLE_DURATION) {
-                calibrationState = STATE_CALIBRATION_DETECT_FACE;
+            subTextView.setText("x=" + String(accX) + "\ny=" + String(accY) + "\nz=" + String(accZ)
+                + "\n" + String(millis() - stableStartTime) + "ms");
+
+            if (abs(accX - prevAccX) < STABLE_THRESHOLD &&
+                abs(accY - prevAccY) < STABLE_THRESHOLD &&
+                abs(accZ - prevAccZ) < STABLE_THRESHOLD) {
+                if (millis() - stableStartTime > STABLE_DURATION) {
+                    calibrationState = STATE_CALIBRATION_DETECT_FACE;
+                }
+            } else {
+                stableStartTime = millis();
             }
+
+            prevAccX = accX;
+            prevAccY = accY;
+            prevAccZ = accZ;
             break;
 
         case STATE_CALIBRATION_DETECT_FACE:
+            mainTextView.setText("STATE_CALIBRATION_DETECT_FACE\n" + String(calibratedFaces) + " faces calibrated");
             M5.Imu.getAccel(&accX, &accY, &accZ);
-            float mag = sqrt(accX * accX + accY * accY + accZ * accZ);
-            float normX = accX / mag;
-            float normY = accY / mag;
-            float normZ = accZ / mag;
-            int detectedFace = getNearestFace(normX, normY, normZ);
-            if (detectedFace == -1) {
-                mainTextView.setText("Detect new face. Add?");
-                toolbar.setButtonLabel(BTN_A, "OK");
-                toolbar.setButtonLabel(BTN_B, "Cancel");
-                calibrationState = STATE_CALIBRATION_CONFIRM_NEW_FACE;
+            subTextView.setText("x=" + String(accX) + "\ny=" + String(accY) + "\nz=" + String(accZ));
+
+            mag = sqrt(accX * accX + accY * accY + accZ * accZ);
+            normX = accX / mag;
+            normY = accY / mag;
+            normZ = accZ / mag;
+            detectedFace = getNearestFace(normX, normY, normZ);
+
+            if (detectedFace != -1) {
+                String message = "Detected existing face: " + String(detectedFace) + "\n detect value: " + String(normX) + ", " + String(normY) + ", " + String(normZ);
+                dialog.showDialog("Info", message, DIALOG_OK);
+                DialogResult dialogResult = DIALOG_NONE;
+                while (dialogResult == DIALOG_NONE) {
+                    dialogResult = dialog.getResult();
+                    delay(100);
+                }
+                if (dialogResult == DIALOG_OK_PRESSED) {
+                    calibrationState = STATE_CALIBRATION_WAIT_STABLE;
+                }
             } else {
-                mainTextView.setText(String("Detected Face: ") + detectedFace);
-                calibrationState = STATE_CALIBRATION_COMPLETE;
+                String message = "New face detected. Add to list?\n detect value: " + String(normX) + ", " + String(normY) + ", " + String(normZ);
+                dialog.showDialog("Confirm", message, DIALOG_OK_CANCEL);
+                DialogResult dialogResult = DIALOG_NONE;
+                while (dialogResult == DIALOG_NONE) {
+                    dialogResult = dialog.getResult();
+                    delay(100);
+                }
+                if (dialogResult == DIALOG_OK_PRESSED) {
+                    Serial.println("DIALOG_OK_PRESSED");
+                    faceList[calibratedFaces] = {calibratedFaces + 1, normX, normY, normZ};
+                    calibratedFaces++;
+                    calibrationState = STATE_CALIBRATION_WAIT_STABLE;
+                } else {
+                    Serial.println("DIALOG_CANCEL_PRESSED");
+                    calibrationState = STATE_CALIBRATION_WAIT_STABLE;
+                }
             }
+
+            // 前回値のリセット
+            prevAccX = 0;
+            prevAccY = 0;
+            prevAccZ = 0;
+
+            isViewUpdate = true;
             break;
 
+        case STATE_CALIBRATION_CONFIRM_NEW_FACE:
+            mainTextView.setText("STATE_CALIBRATION_CONFIRM_NEW_FACE");
+            break;
+
+        case STATE_CALIBRATION_COMPLETE:
+            mainTextView.setText("STATE_CALIBRATION_COMPLETE");
+            break;
+
+        default:
+            break;
     }
 }
 
@@ -111,6 +172,7 @@ void processState() {
             break;
         case STATE_CALIBRATION:
             actionBar.setTitle("Face Calibration");
+            processCalibrationState();
             break;
         case STATE_LED_CONTROL:
             actionBar.setTitle("LED Control");
@@ -147,10 +209,10 @@ void setup() {
 
     subTextView.begin();
     subTextView.setPosition(SCREEN_WIDTH/3*2, ACTIONBAR_HEIGHT, SCREEN_WIDTH/3, SCREEN_HEIGHT-ACTIONBAR_HEIGHT-TOOLBAR_HEIGHT);
-    subTextView.setFontSize(2);
+    subTextView.setFontSize(1);
     subTextView.setColor(WHITE);
     subTextView.setBackgroundColor(BLACK);
-    subTextView.setText("Sub View");
+    subTextView.setText("");
     subTextView.draw();
 
     toolbar.begin();
@@ -158,15 +220,23 @@ void setup() {
     toolbar.setButtonLabel(BTN_B, "Calib");
     toolbar.setButtonLabel(BTN_C, "LED");
     toolbar.draw();
+
+    prevAccX = 0;
+    prevAccY = 0;
+    prevAccZ = 0;
+
 }
 
 void loop() {
     if (actionBar.isBackPressed()) {
         Serial.println("Back button pressed!");
         currentState = STATE_NONE;
+        calibrationState = STATE_CALIBRATION_INIT;
         actionBar.setTitle("Main Menu");
         actionBar.setStatus("Ready");
         actionBar.draw();
+        mainTextView.setText("System Ready");
+        subTextView.setText("");
     }
 
     if (toolbar.getPressedButton(BTN_A)) changeState(STATE_DETECTION);

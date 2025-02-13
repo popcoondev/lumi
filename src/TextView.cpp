@@ -14,6 +14,7 @@ void TextView::setText(String text) {
         wrapText(); // 自動改行
         this->needsUpdate = true;
     }
+    draw();
 }
 
 void TextView::setPosition(int x, int y, int w, int h) {
@@ -58,7 +59,7 @@ void TextView::draw() {
         for (const auto& line : wrappedText) {
             M5.Lcd.setCursor(posX, textY);
             M5.Lcd.setTextColor(color, backgroundColor);
-            M5.Lcd.print(line);
+            M5.Lcd.printf("%s", line.c_str());
             textY += lineSpacing;
         }
 
