@@ -7,6 +7,7 @@
 #include "Dialog.h"
 #include <ArduinoJson.h>
 #include <SD.h>
+#include "M5StackChanFace.h"
 
 #define _3D_MODEL
 #ifdef _3D_MODEL
@@ -19,6 +20,7 @@ IcosahedronView icosahedron;
 #define SPEAKER_PIN 25  // M5Stack CoreS3のスピーカー
 const int notes[] = {262, 294, 330, 349, 392, 440, 494, 523}; // ドレミファソラシド
 
+M5StackChanFace face(0, ACTIONBAR_HEIGHT + (SCREEN_HEIGHT - ACTIONBAR_HEIGHT - TOOLBAR_HEIGHT)/2, SCREEN_WIDTH/2, (SCREEN_HEIGHT - ACTIONBAR_HEIGHT - TOOLBAR_HEIGHT)/2);
 
 ActionBar actionBar;
 TextView mainTextView;
@@ -663,6 +665,8 @@ void setup() {
 bool isLEDTest = true;
 
 void loop() {
+    face.update();
+
     // LED検査用
     if (isLEDTest) {
         for (int i = 0; i < NUM_LEDS; i++) {
@@ -733,5 +737,6 @@ void loop() {
 
     #endif
 
+    face.draw();
     delay(200);
 }
