@@ -8,6 +8,17 @@
 #include <ArduinoJson.h>
 #include <SD.h>
 
+#define _3D_MODEL
+#ifdef _3D_MODEL
+#include "IcosahedronView.h"
+IcosahedronView icosahedron;
+
+#endif
+
+// スピーカー用のピンと音階
+#define SPEAKER_PIN 25  // M5Stack CoreS3のスピーカー
+const int notes[] = {262, 294, 330, 349, 392, 440, 494, 523}; // ドレミファソラシド
+
 
 ActionBar actionBar;
 TextView mainTextView;
@@ -24,11 +35,11 @@ bool isViewUpdate = false;
 // LED設定
 #define LED_PIN 8    
 #define NUM_FACES 20  // 最大面数
-#define NUM_LEDS 30   // LEDテープ全体のLED数
+#define NUM_LEDS 20   // LEDテープ全体のLED数
 // LEDリスト
 CRGB leds[NUM_LEDS];
 
-uint8_t brightness = 255;  
+uint8_t brightness = 10;  
 bool ledState = false;
 
 // IMUデータ
@@ -85,6 +96,19 @@ enum State_led_control {
     STATE_LED_CONTROL_COMPLETE
 };
 State_led_control ledControlState = STATE_LED_CONTROL_INIT;
+
+// 音を鳴らす関数
+void playNoteFromFaceID(int faceID) {
+    if (faceID < 0 || faceID >= 8) {
+        Serial.println("Invalid faceID for note");
+        return;
+    }
+
+    int frequency = notes[faceID]; 
+    Serial.println("Playing note for faceID: " + String(faceID) + " Frequency: " + String(frequency));
+    M5.Speaker.setVolume(150);
+    M5.Speaker.tone(frequency, 200); // 200ms 再生
+}
 
 // 面データを追加する関数
 void addFace(int faceID, float x, float y, float z, int led1, int led2, int led3) {
@@ -166,6 +190,8 @@ void processDetectionState() {
             // faceListに登録されている場合
             if (detectedFace != -1) {
                 mainTextView.setText("Detected face: " + String(detectedFace));
+                playNoteFromFaceID(detectedFace % 8);
+
             }
             else {
                 mainTextView.setText("");
@@ -407,6 +433,24 @@ void loadFaces() {
     file.close();
 }
 
+void lightUpFaceAll() {
+    for (int i = 0; i < calibratedFaces; i++) {
+        if (faceList[i].isActive) {
+            for (int j = 0; j < faceList[i].numLEDs; j++) {
+                int ledIndex = faceList[i].ledAddress[j];
+                if (ledIndex >= 0 && ledIndex < NUM_LEDS) {
+                    // LEDの状態に応じて色を決定
+                    if (faceList[i].ledState == 1) {
+                        leds[ledIndex] = faceList[i].ledColor;
+                    } else {
+                        leds[ledIndex] = CRGB::Black;
+                    }
+                }
+            }
+        }
+    }
+    FastLED.show();
+}
 
 void lightUpFace(int faceID) {
     for (int i = 0; i < calibratedFaces; i++) {
@@ -570,9 +614,8 @@ void setup() {
     Serial.begin(115200);
 
     FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, NUM_LEDS);
-    FastLED.clear();
-    FastLED.show();
-
+    FastLED.setBrightness(brightness);
+    
     actionBar.begin();
     actionBar.setTitle("Main Menu");
     actionBar.setStatus("Ready");
@@ -586,13 +629,18 @@ void setup() {
     mainTextView.setText("System Ready");
     mainTextView.draw();
 
+    int subViewHeight = (SCREEN_HEIGHT-ACTIONBAR_HEIGHT-TOOLBAR_HEIGHT)/2;
+
     subTextView.begin();
-    subTextView.setPosition(SCREEN_WIDTH/3*2, ACTIONBAR_HEIGHT, SCREEN_WIDTH/3, SCREEN_HEIGHT-ACTIONBAR_HEIGHT-TOOLBAR_HEIGHT);
+    subTextView.setPosition(SCREEN_WIDTH/3*2, ACTIONBAR_HEIGHT, SCREEN_WIDTH/3, subViewHeight);
     subTextView.setFontSize(1);
     subTextView.setColor(WHITE);
     subTextView.setBackgroundColor(BLACK);
     subTextView.setText("");
     subTextView.draw();
+
+    // subTextViewの下に表示されるようにする
+    icosahedron.setViewPosition(SCREEN_WIDTH/3*2, ACTIONBAR_HEIGHT+subViewHeight, SCREEN_WIDTH/3, subViewHeight);
 
     toolbar.begin();
     toolbar.setButtonLabel(BTN_A, "Detect");
@@ -605,10 +653,33 @@ void setup() {
     prevAccZ = 0;
 
     loadFaces();
+    // lightUpFaceAll();
 
 }
 
+bool isLEDTest = true;
+
 void loop() {
+    // LED検査用
+    if (isLEDTest) {
+        for (int i = 0; i < NUM_LEDS; i++) {
+            leds[i] = CRGB::Blue;  // すべてのLEDを青色にする
+            FastLED.show();
+            // delay(1000);
+        }
+        isLEDTest = false;
+        delay(1000);
+    }
+    else {
+        for (int i = 0; i < NUM_LEDS; i++) {
+            leds[i] = CRGB::Black;  // すべてのLEDを消灯
+            FastLED.show();
+            // delay(1000);
+        }
+        isLEDTest = true;
+        delay(1000);
+    }
+
     if (actionBar.isBackPressed()) {
         Serial.println("Back button pressed!");
         currentState = STATE_NONE;
@@ -652,5 +723,12 @@ void loop() {
         toolbar.draw();
         isViewUpdate = false;
     }
+
+    #ifdef _3D_MODEL
+    icosahedron.rotate(0.1, 0.12);  // 回転
+    icosahedron.draw();  // 描画
+
+    #endif
+
     delay(200);
 }
