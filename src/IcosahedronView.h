@@ -23,6 +23,7 @@ private:
     float angleX, angleY;  // 回転角度
     int projected[12][2];  // 2D投影座標
     int backgrountColor;
+    int highlightedFace;
 
     void project3D(float x, float y, float z, int &px, int &py);
     void rotate3D(float &x, float &y, float &z, float angleX, float angleY);
@@ -33,6 +34,8 @@ public:
     void draw();
     void rotate(float dAngleX, float dAngleY);
     void setBackgroundColor(uint16_t color);
+    void setHighlightedFace(int faceID);
+
 };
 
 #endif // ICOSAHEDRON_VIEW_H

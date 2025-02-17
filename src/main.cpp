@@ -190,11 +190,14 @@ void processDetectionState() {
             // faceListに登録されている場合
             if (detectedFace != -1) {
                 mainTextView.setText("Detected face: " + String(detectedFace));
-                playNoteFromFaceID(detectedFace % 8);
-
+                // playNoteFromFaceID(detectedFace % 8);
+                // ハイライト対象の面を設定
+                icosahedron.setHighlightedFace(detectedFace);
             }
             else {
                 mainTextView.setText("");
+                // 検出できなかった場合はハイライト解除
+                icosahedron.setHighlightedFace(-1);
             }
             
             delay(100);

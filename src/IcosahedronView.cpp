@@ -5,7 +5,8 @@
 
 // コンストラクタ：頂点、エッジ、面リストの初期化
 IcosahedronView::IcosahedronView() 
-    : angleX(0), angleY(0), viewX(0), viewY(0), viewWidth(320), viewHeight(240), vertices(), edges(), faces(), depth(), backgrountColor(BLACK)
+    : angleX(0), angleY(0), viewX(0), viewY(0), viewWidth(320), viewHeight(240), vertices(), edges(), faces(), depth(), backgrountColor(BLACK), highlightedFace(-1)
+
 {
     const float PHI = (1.0f + sqrt(5.0f)) / 2.0f;
 
@@ -159,7 +160,7 @@ void IcosahedronView::draw() {
         int v1 = faces[f][1];
         int v2 = faces[f][2];
 
-        // 簡易ライティング用に法線ベクトルを計算
+        // 法線計算（簡易ライティング用）
         float ax = vertices[v1][0] - vertices[v0][0];
         float ay = vertices[v1][1] - vertices[v0][1];
         float az = vertices[v1][2] - vertices[v0][2];
@@ -168,16 +169,19 @@ void IcosahedronView::draw() {
         float by = vertices[v2][1] - vertices[v0][1];
         float bz = vertices[v2][2] - vertices[v0][2];
 
-        // 外積で法線ベクトルを求める
         float nx = ay * bz - az * by;
         float ny = az * bx - ax * bz;
         float nz = ax * by - ay * bx;
 
-        // 照明方向（上方からの光と仮定）に対する明るさを計算
-        float light = (ny + 1.0f) / 2.0f;  // -1～1 の範囲を 0～1 に正規化
-        uint16_t color = M5.Lcd.color565(255 * light, 100 * light, 100 * light);
+        // 上方からの光と仮定して明るさを計算
+        float light = (ny + 1.0f) / 2.0f;  // 0～1に正規化
+        uint16_t color = BLACK; //M5.Lcd.color565(255 * light, 100 * light, 100 * light);
 
-        // 塗りつぶし三角形を描画
+        // ハイライト対象の場合は、色を上書き（例：緑色）
+        if (f == highlightedFace) {
+            color = M5.Lcd.color565(0, 255, 0);
+        }
+
         M5.Lcd.fillTriangle(
             projected[v0][0], projected[v0][1],
             projected[v1][0], projected[v1][1],
@@ -185,6 +189,7 @@ void IcosahedronView::draw() {
             color
         );
     }
+
 
     // エッジ（輪郭）の描画
     for (int i = 0; i < 30; i++) {
@@ -202,4 +207,8 @@ void IcosahedronView::draw() {
 void IcosahedronView::rotate(float dAngleX, float dAngleY) {
     angleX += dAngleX;
     angleY += dAngleY;
+}
+
+void IcosahedronView::setHighlightedFace(int faceID) {
+    highlightedFace = faceID;
 }
