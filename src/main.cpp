@@ -35,13 +35,16 @@ Dialog dialog;
 bool isViewUpdate = false;
 
 // LED設定
-#define LED_PIN 8    
-#define NUM_FACES 20  // 最大面数
-#define NUM_LEDS 20   // LEDテープ全体のLED数
+// #define LED_PIN 1 // s3 port.a
+#define LED_PIN 8 // din base port.b
+// #define LED_PIN 18 // din base port.c
+#define NUM_FACES 8  // 最大面数
+#define LED_ADDRESS_OFFSET 1  // LEDアドレスのオフセット（0番は未使用）
+#define NUM_LEDS (8 * 2) + LED_ADDRESS_OFFSET  // LEDテープ全体のLED数 アドレス0番は未使用 8面 * 2 + 1
 // LEDリスト
 CRGB leds[NUM_LEDS];
 
-uint8_t brightness = 10;  
+uint8_t brightness = 255;  
 bool ledState = false;
 
 // IMUデータ
@@ -54,7 +57,7 @@ float prevAccX, prevAccY, prevAccZ;
 struct FaceData {
     int id;               // 面のID
     float x, y, z;        // センサー値（重力加速度）
-    int ledAddress[3];    // 面に対応するLEDテープのアドレス（最大3つ）
+    int ledAddress[NUM_LEDS];    // 面に対応するLEDテープのアドレス（最大3つ）
     int numLEDs;          // 使用するLEDの数
     int ledBrightness;    // LEDの明るさ (0~255)
     int ledColor;         // LEDの色（RGB値）
@@ -99,6 +102,23 @@ enum State_led_control {
 };
 State_led_control ledControlState = STATE_LED_CONTROL_INIT;
 
+#define LED_ADDRESS_OFFSET 1  // 例: 配列の1番目からLEDが始まる場合
+
+void lightFaceUpdate() {
+    for (int i = 0; i < NUM_FACES; i++) {
+        int ledIndex1 = LED_ADDRESS_OFFSET + (i * 2);
+        int ledIndex2 = LED_ADDRESS_OFFSET + (i * 2) + 1;
+        if (faceList[i].ledState == 1) {
+            leds[ledIndex1] = faceList[i].ledColor;
+            leds[ledIndex2] = faceList[i].ledColor;
+        } else {
+            leds[ledIndex1] = CRGB::Black;
+            leds[ledIndex2] = CRGB::Black;
+        }
+    }
+    FastLED.show();
+}
+
 // 音を鳴らす関数
 void playNoteFromFaceID(int faceID) {
     if (faceID < 0 || faceID >= 8) {
@@ -123,7 +143,7 @@ void addFace(int faceID, float x, float y, float z, int led1, int led2, int led3
     faceList[calibratedFaces].ledAddress[0] = led1;
     faceList[calibratedFaces].ledAddress[1] = led2;
     faceList[calibratedFaces].ledAddress[2] = led3;
-    faceList[calibratedFaces].numLEDs = 3;  // LED 3つ使用
+    faceList[calibratedFaces].numLEDs = 2;  // LED 3つ使用
     faceList[calibratedFaces].ledBrightness = 255;
     faceList[calibratedFaces].ledColor = CRGB::White;
     faceList[calibratedFaces].ledState = 0;
@@ -189,20 +209,26 @@ void processDetectionState() {
             normZ = accZ / mag;
             detectedFace = getNearestFace(normX, normY, normZ);
 
+            // 全ての面のLED状態をリセットする
+            for (int i = 0; i < calibratedFaces; i++) {
+                faceList[i].ledState = 0;
+            }
+
             // faceListに登録されている場合
             if (detectedFace != -1) {
-                mainTextView.setText("Detected face: " + String(detectedFace));
-                // playNoteFromFaceID(detectedFace % 8);
+                mainTextView.setText("Detected face: " + String(detectedFace) + "\nledAddress: " + faceList[detectedFace].ledAddress[0] + ", " + faceList[detectedFace].ledAddress[1] + "\nledState: " + faceList[detectedFace].ledState);
                 // ハイライト対象の面を設定
                 icosahedron.setHighlightedFace(detectedFace);
+                faceList[detectedFace].ledState = 1;
             }
             else {
-                mainTextView.setText("");
+                mainTextView.setText("No face detected");
                 // 検出できなかった場合はハイライト解除
                 icosahedron.setHighlightedFace(-1);
             }
             
-            delay(100);
+            lightFaceUpdate();
+            delay(50);
             break;
 
     }
@@ -423,7 +449,7 @@ void loadFaces() {
         faceList[calibratedFaces].z = faceObj["z"];
         faceList[calibratedFaces].ledAddress[0] = faceObj["led1"];
         faceList[calibratedFaces].ledAddress[1] = faceObj["led2"];
-        faceList[calibratedFaces].ledAddress[2] = faceObj["led3"];
+        // faceList[calibratedFaces].ledAddress[2] = faceObj["led3"];
         faceList[calibratedFaces].numLEDs = faceObj["numLEDs"];
         faceList[calibratedFaces].ledBrightness = faceObj["brightness"];
         faceList[calibratedFaces].ledColor = faceObj["color"];
@@ -433,65 +459,12 @@ void loadFaces() {
         faceList[calibratedFaces].ledUpdateTime = faceObj["updateTime"];
         faceList[calibratedFaces].isActive = faceObj["isActive"];
 
+        // calibratedFaces=0のときに、leds[1]とleds[2]に色を設定, 1のときに、leds[3]とleds[4]に色を設定
+        leds[1 + (calibratedFaces * 2)] = faceList[calibratedFaces].ledColor;
+        leds[1 + (calibratedFaces * 2 + 1)] = faceList[calibratedFaces].ledColor;
         calibratedFaces++;
     }
     file.close();
-}
-
-void lightUpFaceAll() {
-    for (int i = 0; i < calibratedFaces; i++) {
-        if (faceList[i].isActive) {
-            for (int j = 0; j < faceList[i].numLEDs; j++) {
-                int ledIndex = faceList[i].ledAddress[j];
-                if (ledIndex >= 0 && ledIndex < NUM_LEDS) {
-                    // LEDの状態に応じて色を決定
-                    if (faceList[i].ledState == 1) {
-                        leds[ledIndex] = faceList[i].ledColor;
-                    } else {
-                        leds[ledIndex] = CRGB::Black;
-                    }
-                }
-            }
-        }
-    }
-    FastLED.show();
-}
-
-void lightUpFace(int faceID) {
-    for (int i = 0; i < calibratedFaces; i++) {
-        if (faceList[i].id == faceID && faceList[i].isActive) {
-            for (int j = 0; j < faceList[i].numLEDs; j++) {
-                int ledIndex = faceList[i].ledAddress[j];
-                if (ledIndex >= 0 && ledIndex < NUM_LEDS) {
-                    // LEDの状態に応じて色を決定
-                    if (faceList[i].ledState == 1) {
-                        leds[ledIndex] = faceList[i].ledColor;
-                        
-
-                    } else {
-                        leds[ledIndex] = CRGB::Black;
-                    }
-                }
-            }
-            FastLED.show();
-            return;
-        }
-    }
-}
-
-void lightDownFace(int faceID) {
-    for (int i = 0; i < calibratedFaces; i++) {
-        if (faceList[i].id == faceID && faceList[i].isActive) {
-            for (int j = 0; j < faceList[i].numLEDs; j++) {
-                int ledIndex = faceList[i].ledAddress[j];
-                if (ledIndex >= 0 && ledIndex < NUM_LEDS) {
-                    leds[ledIndex] = CRGB::Black;
-                }
-            }
-            FastLED.show();
-            return;
-        }
-    }
 }
 
 // 面の検出→その面を点灯させてみる→実際の面と一致していない場合にledAddressを修正する必要がある
@@ -523,7 +496,8 @@ void processLEDControlState() {
 
             // faceListに登録されている場合
             if (detectedFace != -1) {
-                lightUpFace(detectedFace);
+                faceList[detectedFace].ledState = 1;
+                lightFaceUpdate();
                 beforeDetectedFace = detectedFace;
                 ledControlState = STATE_LED_CONTROL_UPDATE_LED;
             }
@@ -533,47 +507,29 @@ void processLEDControlState() {
         
         case STATE_LED_CONTROL_UPDATE_LED:
             faceId = faceList[beforeDetectedFace].id;
-            mainTextView.setText("ID:" + String(faceId) + "\nLED Address: " + String(faceList[beforeDetectedFace].ledAddress[0]) + ", " + String(faceList[beforeDetectedFace].ledAddress[1]) + ", " + String(faceList[beforeDetectedFace].ledAddress[2]));
+            mainTextView.setText("ID:" + String(faceId) + "\nLED Address: " + String(faceList[beforeDetectedFace].ledAddress[0]) + ", " + String(faceList[beforeDetectedFace].ledAddress[1]));
             // toolbarでprev, next, updateを待機
-            // LEDアドレスを3つずつずらしてみる（NUM_LED以上になったら0に戻る、-1以下になったらNUM_LED-1に戻る）
+            // LEDアドレスを2つずつずらしてみる（NUM_LED以上になったら1に戻る、-1以下になったらNUM_LED-1に戻る）
             if (toolbar.getPressedButton(BTN_A)) {
-                lightDownFace(beforeDetectedFace);
-                if (faceList[beforeDetectedFace].ledAddress[0] == 0 ) {
-                    faceList[beforeDetectedFace].ledAddress[0] = NUM_LEDS - 3;
-                    faceList[beforeDetectedFace].ledAddress[1] = NUM_LEDS - 2;
-                    faceList[beforeDetectedFace].ledAddress[2] = NUM_LEDS - 1;
-                } else {
-                    faceList[beforeDetectedFace].ledAddress[0] -= 3;
-                    faceList[beforeDetectedFace].ledAddress[1] -= 3;
-                    faceList[beforeDetectedFace].ledAddress[2] -= 3;
-                }
-                lightUpFace(beforeDetectedFace);
+                faceList[beforeDetectedFace].ledState = 0;
+                lightFaceUpdate();
                 mainTextView.setText("ID:" + String(faceId) + "\nLED Address: " + String(faceList[beforeDetectedFace].ledAddress[0]) + ", " + String(faceList[beforeDetectedFace].ledAddress[1]) + ", " + String(faceList[beforeDetectedFace].ledAddress[2]));
             }
             if (toolbar.getPressedButton(BTN_B)) {
-                lightDownFace(beforeDetectedFace);
-                if (faceList[beforeDetectedFace].ledAddress[2] == NUM_LEDS - 1) {
-                    faceList[beforeDetectedFace].ledAddress[0] = 0;
-                    faceList[beforeDetectedFace].ledAddress[1] = 1;
-                    faceList[beforeDetectedFace].ledAddress[2] = 2;
-                } else {
-                    faceList[beforeDetectedFace].ledAddress[0] += 3;
-                    faceList[beforeDetectedFace].ledAddress[1] += 3;
-                    faceList[beforeDetectedFace].ledAddress[2] += 3;
-                }
-                lightUpFace(beforeDetectedFace);
+                faceList[beforeDetectedFace].ledState = 0;
+                lightFaceUpdate();
                 mainTextView.setText("ID:" + String(faceId) + "\nLED Address: " + String(faceList[beforeDetectedFace].ledAddress[0]) + ", " + String(faceList[beforeDetectedFace].ledAddress[1]) + ", " + String(faceList[beforeDetectedFace].ledAddress[2]));
             }
             if (toolbar.getPressedButton(BTN_C)) {
                 // faceListの更新
                 saveFaces();
                 // 対象の面を点滅させる
-                for (int i = 0; i < 2; i++) {
-                    lightUpFace(beforeDetectedFace);
-                    delay(100);
-                    lightDownFace(beforeDetectedFace);
-                    delay(100);
-                }
+                // for (int i = 0; i < 2; i++) {
+                //     lightUpFace(beforeDetectedFace);
+                //     delay(100);
+                //     lightDownFace(beforeDetectedFace);
+                //     delay(100);
+                // }
 
                 ledControlState = STATE_LED_CONTROL_DETECT_FACE;
                 beforeDetectedFace = -1;
@@ -617,9 +573,6 @@ void changeState(State newState) {
 void setup() {
     M5.begin();
     Serial.begin(115200);
-
-    FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, NUM_LEDS);
-    FastLED.setBrightness(brightness);
     
     actionBar.begin();
     actionBar.setTitle("Main Menu");
@@ -658,33 +611,161 @@ void setup() {
     prevAccZ = 0;
 
     loadFaces();
-    // lightUpFaceAll();
+    FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, NUM_LEDS);
+    FastLED.setBrightness(brightness);
 
 }
 
 bool isLEDTest = true;
+bool testLed = false;
+
+// サンプル：8面を使ったイルミネーションパターン
+void runIlluminationTest() {
+  // パターンを無限ループで実行（終了条件は用途に合わせて変更してください）
+  while(true) {
+    // 1. 面1～8まで、1秒ごとに順次追加して点灯
+    for (int i = 0; i < NUM_FACES; i++) {
+      for (int j = 0; j < NUM_FACES; j++) {
+        int idx1 = LED_ADDRESS_OFFSET + (j * 2);
+        int idx2 = LED_ADDRESS_OFFSET + (j * 2) + 1;
+        if (j <= i) {
+          leds[idx1] = CRGB::White;
+          leds[idx2] = CRGB::White;
+        } else {
+          leds[idx1] = CRGB::Black;
+          leds[idx2] = CRGB::Black;
+        }
+      }
+      FastLED.show();
+      delay(1000);
+    }
+    
+    // 2. 8面全点灯後、1秒ごとに点灯／消灯を5秒間繰り返す
+    {
+      bool state = true;
+      unsigned long startTime = millis();
+      while(millis() - startTime < 5000) {
+        for (int i = 0; i < NUM_FACES; i++) {
+          int idx1 = LED_ADDRESS_OFFSET + (i * 2);
+          int idx2 = LED_ADDRESS_OFFSET + (i * 2) + 1;
+          if (state) {
+            leds[idx1] = CRGB::White;
+            leds[idx2] = CRGB::White;
+          } else {
+            leds[idx1] = CRGB::Black;
+            leds[idx2] = CRGB::Black;
+          }
+        }
+        FastLED.show();
+        state = !state;
+        delay(1000);
+      }
+    }
+    
+    // 3. 偶数面／奇数面を交互に、1秒ごとに点灯（5秒間）
+    {
+      bool toggle = false;  // toggle==false: even faces (番号2,4,6,8) lit, true: odd faces (番号1,3,5,7) lit
+      unsigned long startTime = millis();
+      while(millis() - startTime < 5000) {
+        toggle = !toggle;
+        for (int i = 0; i < NUM_FACES; i++) {
+          int idx1 = LED_ADDRESS_OFFSET + (i * 2);
+          int idx2 = LED_ADDRESS_OFFSET + (i * 2) + 1;
+          // 0-indexedの場合、i==0,2,4,6は「1,3,5,7面」、i==1,3,5,7は「2,4,6,8面」
+          if (toggle) {  // 奇数面（実際は0,2,4,6）
+            if (i % 2 == 0) {
+              leds[idx1] = CRGB::White;
+              leds[idx2] = CRGB::White;
+            } else {
+              leds[idx1] = CRGB::Black;
+              leds[idx2] = CRGB::Black;
+            }
+          } else {       // 偶数面（実際は1,3,5,7）
+            if (i % 2 == 1) {
+              leds[idx1] = CRGB::White;
+              leds[idx2] = CRGB::White;
+            } else {
+              leds[idx1] = CRGB::Black;
+              leds[idx2] = CRGB::Black;
+            }
+          }
+        }
+        FastLED.show();
+        delay(1000);
+      }
+    }
+    
+    // 4. 各面をランダムに色を変えて点灯（500ms間隔で5秒間）
+    {
+      unsigned long startTime = millis();
+      while(millis() - startTime < 5000) {
+        for (int i = 0; i < NUM_FACES; i++) {
+          int idx1 = LED_ADDRESS_OFFSET + (i * 2);
+          int idx2 = LED_ADDRESS_OFFSET + (i * 2) + 1;
+          CRGB randColor = CRGB(random(256), random(256), random(256));
+          leds[idx1] = randColor;
+          leds[idx2] = randColor;
+        }
+        FastLED.show();
+        delay(500);
+      }
+    }
+    
+    // 5. ウェーブ：8面で波状のフェードイン・フェードアウトを5秒間（各面に位相オフセット）
+    {
+      unsigned long startTime = millis();
+      while(millis() - startTime < 5000) {
+        for (int i = 0; i < NUM_FACES; i++) {
+          int idx1 = LED_ADDRESS_OFFSET + (i * 2);
+          int idx2 = LED_ADDRESS_OFFSET + (i * 2) + 1;
+          // 各面に対して、時間と面番号によるsin波で輝度を計算
+          float phase = (millis() / 100.0) + (i * PI / 4);
+          uint8_t brightnessVal = (uint8_t)(((sin(phase) + 1.0) / 2.0) * 255);
+          // 例としてベースカラーは青
+          CRGB baseColor = CRGB::Blue;
+          CRGB modulatedColor = baseColor;
+          modulatedColor.nscale8_video(brightnessVal);
+          leds[idx1] = modulatedColor;
+          leds[idx2] = modulatedColor;
+        }
+        FastLED.show();
+        delay(50);
+      }
+    }
+    
+    // 6. 1のパターンに戻ってループ
+  }
+}
+
 
 void loop() {
+    CRGB randColor = CRGB(random(255), random(255), random(255));
     face.update();
 
     // LED検査用
-    if (isLEDTest) {
-        for (int i = 0; i < NUM_LEDS; i++) {
-            leds[i] = CRGB::Blue;  // すべてのLEDを青色にする
-            FastLED.show();
-            // delay(1000);
-        }
-        isLEDTest = false;
-        delay(1000);
-    }
-    else {
-        for (int i = 0; i < NUM_LEDS; i++) {
-            leds[i] = CRGB::Black;  // すべてのLEDを消灯
-            FastLED.show();
-            // delay(1000);
-        }
-        isLEDTest = true;
-        delay(1000);
+    if(isLEDTest) {
+        runIlluminationTest();
+        // if (testLed) {
+        //     // for (int i = 1; i < NUM_LEDS; i=i+2) {
+        //     //     // 面ごとにランダムな色にする
+        //     //     randColor = CRGB(random(255), random(255), random(255));
+        //     //     leds[i] = randColor;
+        //     //     leds[i+1] = randColor;
+        //     //     FastLED.show();
+        //     //     // delay(1000);
+        //     // }
+        //     testLed = false;
+        //     delay(1000);
+        // }
+        // else {
+        //     // for (int i = 1; i < NUM_LEDS; i++) {
+        //     //     leds[i] = CRGB::Black;  // すべてのLEDを消灯
+        //     //     FastLED.show();
+        //     //     // delay(1000);
+        //     // }
+        //     testLed = true;
+        //     delay(1000);
+        // }
     }
 
     if (actionBar.isBackPressed()) {
@@ -732,7 +813,7 @@ void loop() {
     }
 
     #ifdef _3D_MODEL
-    icosahedron.rotate(0.1, 0.12);  // 回転
+    icosahedron.rotate(0.1, 0);  // 回転
     icosahedron.draw();  // 描画
 
     #endif

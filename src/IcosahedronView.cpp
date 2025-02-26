@@ -175,7 +175,8 @@ void IcosahedronView::draw() {
 
         // 上方からの光と仮定して明るさを計算
         float light = (ny + 1.0f) / 2.0f;  // 0～1に正規化
-        uint16_t color = BLACK; //M5.Lcd.color565(255 * light, 100 * light, 100 * light);
+        // uint16_t color = BLACK;
+        uint16_t color = M5.Lcd.color565(255 * light, 100 * light, 100 * light); 
 
         // ハイライト対象の場合は、色を上書き（例：緑色）
         if (f == highlightedFace) {
