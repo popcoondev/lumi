@@ -109,8 +109,12 @@ void lightFaceUpdate() {
         int ledIndex1 = LED_ADDRESS_OFFSET + (i * 2);
         int ledIndex2 = LED_ADDRESS_OFFSET + (i * 2) + 1;
         if (faceList[i].ledState == 1) {
-            leds[ledIndex1] = faceList[i].ledColor;
-            leds[ledIndex2] = faceList[i].ledColor;
+            CRGB adjustedColor = faceList[i].ledColor;
+            adjustedColor.nscale8_video(faceList[i].ledBrightness);
+            leds[ledIndex1] = adjustedColor;
+            leds[ledIndex2] = adjustedColor;
+            // leds[ledIndex1] = faceList[i].ledColor;
+            // leds[ledIndex2] = faceList[i].ledColor;
         } else {
             leds[ledIndex1] = CRGB::Black;
             leds[ledIndex2] = CRGB::Black;
@@ -570,55 +574,6 @@ void changeState(State newState) {
     
 }
 
-void setup() {
-    M5.begin();
-    Serial.begin(115200);
-    
-    actionBar.begin();
-    actionBar.setTitle("Main Menu");
-    actionBar.setStatus("Ready");
-    actionBar.draw();
-
-    mainTextView.begin();
-    mainTextView.setPosition(0, ACTIONBAR_HEIGHT, SCREEN_WIDTH/3*2, SCREEN_HEIGHT-ACTIONBAR_HEIGHT-TOOLBAR_HEIGHT);
-    mainTextView.setFontSize(2);
-    mainTextView.setColor(WHITE);
-    mainTextView.setBackgroundColor(BLACK);
-    mainTextView.setText("System Ready");
-    mainTextView.draw();
-
-    int subViewHeight = (SCREEN_HEIGHT-ACTIONBAR_HEIGHT-TOOLBAR_HEIGHT)/2;
-
-    subTextView.begin();
-    subTextView.setPosition(SCREEN_WIDTH/3*2, ACTIONBAR_HEIGHT, SCREEN_WIDTH/3, subViewHeight);
-    subTextView.setFontSize(1);
-    subTextView.setColor(WHITE);
-    subTextView.setBackgroundColor(BLACK);
-    subTextView.setText("");
-    subTextView.draw();
-
-    // subTextViewの下に表示されるようにする
-    icosahedron.setViewPosition(SCREEN_WIDTH/3*2, ACTIONBAR_HEIGHT+subViewHeight, SCREEN_WIDTH/3, subViewHeight);
-
-    toolbar.begin();
-    toolbar.setButtonLabel(BTN_A, "Detect");
-    toolbar.setButtonLabel(BTN_B, "Calib");
-    toolbar.setButtonLabel(BTN_C, "LED");
-    toolbar.draw();
-
-    prevAccX = 0;
-    prevAccY = 0;
-    prevAccZ = 0;
-
-    loadFaces();
-    FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, NUM_LEDS);
-    FastLED.setBrightness(brightness);
-
-}
-
-bool isLEDTest = true;
-bool testLed = false;
-
 // サンプル：8面を使ったイルミネーションパターン
 void runIlluminationTest() {
   // パターンを無限ループで実行（終了条件は用途に合わせて変更してください）
@@ -737,36 +692,77 @@ void runIlluminationTest() {
   }
 }
 
+void taskIllumination(void *parameter) {
+  // runIlluminationTest() は内部で無限ループしている前提
+  runIlluminationTest();
+  // ここには到達しませんが、タスク終了時に削除する場合は以下を呼び出します
+  vTaskDelete(NULL);
+}
+
+void setup() {
+    M5.begin();
+    Serial.begin(115200);
+    
+    actionBar.begin();
+    actionBar.setTitle("Main Menu");
+    actionBar.setStatus("Ready");
+    actionBar.draw();
+
+    mainTextView.begin();
+    mainTextView.setPosition(0, ACTIONBAR_HEIGHT, SCREEN_WIDTH/3*2, SCREEN_HEIGHT-ACTIONBAR_HEIGHT-TOOLBAR_HEIGHT);
+    mainTextView.setFontSize(2);
+    mainTextView.setColor(WHITE);
+    mainTextView.setBackgroundColor(BLACK);
+    mainTextView.setText("System Ready");
+    mainTextView.draw();
+
+    int subViewHeight = (SCREEN_HEIGHT-ACTIONBAR_HEIGHT-TOOLBAR_HEIGHT)/2;
+
+    subTextView.begin();
+    subTextView.setPosition(SCREEN_WIDTH/3*2, ACTIONBAR_HEIGHT, SCREEN_WIDTH/3, subViewHeight);
+    subTextView.setFontSize(1);
+    subTextView.setColor(WHITE);
+    subTextView.setBackgroundColor(BLACK);
+    subTextView.setText("");
+    subTextView.draw();
+
+    // subTextViewの下に表示されるようにする
+    icosahedron.setViewPosition(SCREEN_WIDTH/3*2, ACTIONBAR_HEIGHT+subViewHeight, SCREEN_WIDTH/3, subViewHeight);
+
+    toolbar.begin();
+    toolbar.setButtonLabel(BTN_A, "Detect");
+    toolbar.setButtonLabel(BTN_B, "Calib");
+    toolbar.setButtonLabel(BTN_C, "LED");
+    toolbar.draw();
+
+    prevAccX = 0;
+    prevAccY = 0;
+    prevAccZ = 0;
+
+    loadFaces();
+    FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, NUM_LEDS);
+    FastLED.setBrightness(brightness);
+
+    // LEDイルミネーションを別タスクで実行（例: Core1で実行）
+    xTaskCreatePinnedToCore(
+        taskIllumination,  // タスク関数
+        "LEDTask",         // タスク名
+        4096,              // スタックサイズ（必要に応じて調整）
+        NULL,              // パラメータ
+        1,                 // 優先度（必要に応じて調整）
+        NULL,              // タスクハンドル（不要ならNULL）
+        1                  // 実行するコア（例：1）
+    );
+
+}
+
+bool isLEDTest = true;
+bool testLed = false;
+
 
 void loop() {
     CRGB randColor = CRGB(random(255), random(255), random(255));
     face.update();
-
-    // LED検査用
-    if(isLEDTest) {
-        runIlluminationTest();
-        // if (testLed) {
-        //     // for (int i = 1; i < NUM_LEDS; i=i+2) {
-        //     //     // 面ごとにランダムな色にする
-        //     //     randColor = CRGB(random(255), random(255), random(255));
-        //     //     leds[i] = randColor;
-        //     //     leds[i+1] = randColor;
-        //     //     FastLED.show();
-        //     //     // delay(1000);
-        //     // }
-        //     testLed = false;
-        //     delay(1000);
-        // }
-        // else {
-        //     // for (int i = 1; i < NUM_LEDS; i++) {
-        //     //     leds[i] = CRGB::Black;  // すべてのLEDを消灯
-        //     //     FastLED.show();
-        //     //     // delay(1000);
-        //     // }
-        //     testLed = true;
-        //     delay(1000);
-        // }
-    }
 
     if (actionBar.isBackPressed()) {
         Serial.println("Back button pressed!");
