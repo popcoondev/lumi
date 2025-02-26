@@ -12,8 +12,9 @@
 #define _3D_MODEL
 #ifdef _3D_MODEL
 #include "IcosahedronView.h"
+#include "OctagonRingView.h"
 IcosahedronView icosahedron;
-
+OctagonRingView octagon;
 #endif
 
 // スピーカー用のピンと音階
@@ -222,13 +223,13 @@ void processDetectionState() {
             if (detectedFace != -1) {
                 mainTextView.setText("Detected face: " + String(detectedFace) + "\nledAddress: " + faceList[detectedFace].ledAddress[0] + ", " + faceList[detectedFace].ledAddress[1] + "\nledState: " + faceList[detectedFace].ledState);
                 // ハイライト対象の面を設定
-                icosahedron.setHighlightedFace(detectedFace);
+                octagon.setHighlightedFace(detectedFace);
                 faceList[detectedFace].ledState = 1;
             }
             else {
                 mainTextView.setText("No face detected");
                 // 検出できなかった場合はハイライト解除
-                icosahedron.setHighlightedFace(-1);
+                octagon.setHighlightedFace(-1);
             }
             
             lightFaceUpdate();
@@ -727,7 +728,7 @@ void setup() {
     subTextView.draw();
 
     // subTextViewの下に表示されるようにする
-    icosahedron.setViewPosition(SCREEN_WIDTH/3*2, ACTIONBAR_HEIGHT+subViewHeight, SCREEN_WIDTH/3, subViewHeight);
+    octagon.setViewPosition(SCREEN_WIDTH/3*2, ACTIONBAR_HEIGHT+subViewHeight, SCREEN_WIDTH/3, subViewHeight);
 
     toolbar.begin();
     toolbar.setButtonLabel(BTN_A, "Detect");
@@ -809,8 +810,7 @@ void loop() {
     }
 
     #ifdef _3D_MODEL
-    icosahedron.rotate(0.1, 0);  // 回転
-    icosahedron.draw();  // 描画
+    octagon.draw();  // 描画
 
     #endif
 
