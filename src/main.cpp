@@ -1,3 +1,4 @@
+#include "main.h"
 #include <Arduino.h>
 #include <M5Unified.h>
 #include "Toolbar.h"
@@ -16,6 +17,21 @@
 IcosahedronView icosahedron;
 OctagonRingView octagon;
 #endif
+
+// 関数プロトタイプ宣言
+void playNoteFromFaceID(int faceID);
+void addFace(int faceID, float x, float y, float z, int led1, int led2, int led3);
+int getNearestFace(float x, float y, float z);
+void lightFaceUpdate();
+void processDetectionState();
+void processCalibrationState();
+void processLedControlState();
+void runIlluminationTest();
+
+bool isIlluminationTest = false;
+// TaskHandle_t ledTaskHandle = NULL;
+bool ledTaskSuspended = false;
+
 
 // スピーカー用のピンと音階
 #define SPEAKER_PIN 25  // M5Stack CoreS3のスピーカー
@@ -53,6 +69,56 @@ float accX, accY, accZ;
 
 // 前回値
 float prevAccX, prevAccY, prevAccZ;
+
+// LED FIFOキュー
+enum LEDCommandType {
+  LED_CMD_ON,
+  LED_CMD_OFF,
+  LED_CMD_SET_COLOR,
+  // LED_CMD_FADE, など必要に応じて追加可能
+};
+
+// LEDコマンド構造体
+struct LEDCommand {
+  LEDCommandType type;
+  int ledIndex;         // 操作対象のLEDインデックス（または面番号など）
+  CRGB color;           // 色変更の場合の色
+  uint8_t brightness;   // 明るさ（必要なら）
+  uint32_t duration;    // 遅延やフェード時間など（必要なら）
+};
+
+// キューとタスクハンドルのグローバル変数
+QueueHandle_t ledCommandQueue;
+TaskHandle_t ledTaskHandle = NULL;
+
+// LEDタスク：キューからコマンドを受信して処理する
+void ledTask(void* parameter) {
+  LEDCommand cmd;
+  while (true) {
+    // キューからコマンドを待機（portMAX_DELAYで無期限待機）
+    if (xQueueReceive(ledCommandQueue, &cmd, portMAX_DELAY) == pdPASS) {
+      switch (cmd.type) {
+        case LED_CMD_ON:
+          leds[cmd.ledIndex] = cmd.color;
+          break;
+        case LED_CMD_OFF:
+          leds[cmd.ledIndex] = CRGB::Black;
+          break;
+        case LED_CMD_SET_COLOR:
+          leds[cmd.ledIndex] = cmd.color;
+          break;
+        // 他のコマンドもここで処理
+      }
+      FastLED.show();
+      // もし、durationが設定されていれば、指定時間待機して次のコマンドへ
+      if (cmd.duration > 0) {
+        vTaskDelay(cmd.duration / portTICK_PERIOD_MS);
+      }
+    }
+  }
+}
+
+
 
 // Faceデータ
 struct FaceData {
@@ -97,9 +163,8 @@ State_calibration calibrationState = STATE_CALIBRATION_INIT;
 // LED制御のサブステート
 enum State_led_control { 
     STATE_LED_CONTROL_INIT, 
-    STATE_LED_CONTROL_DETECT_FACE, 
-    STATE_LED_CONTROL_UPDATE_LED,
-    STATE_LED_CONTROL_COMPLETE
+    STATE_LED_CONTROL_TEST, 
+    STATE_LED_CONTROL_STOP,
 };
 State_led_control ledControlState = STATE_LED_CONTROL_INIT;
 
@@ -231,6 +296,7 @@ void processDetectionState() {
                 // 検出できなかった場合はハイライト解除
                 octagon.setHighlightedFace(-1);
             }
+            octagon.draw();
             
             lightFaceUpdate();
             delay(50);
@@ -475,70 +541,32 @@ void loadFaces() {
 // 面の検出→その面を点灯させてみる→実際の面と一致していない場合にledAddressを修正する必要がある
 // そのためのキャリブレーション
 void processLEDControlState() {
-    float mag, normX, normY, normZ;
     int detectedFace = -1;  // 事前に初期化
     int faceId = -1;
     switch (ledControlState) {
         case STATE_LED_CONTROL_INIT:
             mainTextView.setText("LED Control mode initialized");
-            toolbar.setButtonLabel(BTN_A, "prev");
-            toolbar.setButtonLabel(BTN_B, "next");
-            toolbar.setButtonLabel(BTN_C, "update");
+            toolbar.setButtonLabel(BTN_A, "start");
+            toolbar.setButtonLabel(BTN_B, "stop");
+            toolbar.setButtonLabel(BTN_C, "");
+            ledControlState = STATE_LED_CONTROL_TEST;
             isViewUpdate = true;
-            ledControlState = STATE_LED_CONTROL_DETECT_FACE;
             break;
-        case STATE_LED_CONTROL_DETECT_FACE:
-            mainTextView.setText("Detecting face...");
-            // 面が検出されたら、その顔に対応するLEDを点灯させる
-            M5.Imu.getAccel(&accX, &accY, &accZ);
-            subTextView.setText("x=" + String(accX) + "\ny=" + String(accY) + "\nz=" + String(accZ));
-
-            mag = sqrt(accX * accX + accY * accY + accZ * accZ);
-            normX = accX / mag;
-            normY = accY / mag;
-            normZ = accZ / mag;
-            detectedFace = getNearestFace(normX, normY, normZ);
-
-            // faceListに登録されている場合
-            if (detectedFace != -1) {
-                faceList[detectedFace].ledState = 1;
-                lightFaceUpdate();
-                beforeDetectedFace = detectedFace;
-                ledControlState = STATE_LED_CONTROL_UPDATE_LED;
-            }
-            
-            delay(100);
+        case STATE_LED_CONTROL_TEST:
+            mainTextView.setText("Ilumination testing");
+            isIlluminationTest = true;
             break;
         
-        case STATE_LED_CONTROL_UPDATE_LED:
-            faceId = faceList[beforeDetectedFace].id;
-            mainTextView.setText("ID:" + String(faceId) + "\nLED Address: " + String(faceList[beforeDetectedFace].ledAddress[0]) + ", " + String(faceList[beforeDetectedFace].ledAddress[1]));
-            // toolbarでprev, next, updateを待機
-            // LEDアドレスを2つずつずらしてみる（NUM_LED以上になったら1に戻る、-1以下になったらNUM_LED-1に戻る）
-            if (toolbar.getPressedButton(BTN_A)) {
-                faceList[beforeDetectedFace].ledState = 0;
-                lightFaceUpdate();
-                mainTextView.setText("ID:" + String(faceId) + "\nLED Address: " + String(faceList[beforeDetectedFace].ledAddress[0]) + ", " + String(faceList[beforeDetectedFace].ledAddress[1]) + ", " + String(faceList[beforeDetectedFace].ledAddress[2]));
-            }
-            if (toolbar.getPressedButton(BTN_B)) {
-                faceList[beforeDetectedFace].ledState = 0;
-                lightFaceUpdate();
-                mainTextView.setText("ID:" + String(faceId) + "\nLED Address: " + String(faceList[beforeDetectedFace].ledAddress[0]) + ", " + String(faceList[beforeDetectedFace].ledAddress[1]) + ", " + String(faceList[beforeDetectedFace].ledAddress[2]));
-            }
-            if (toolbar.getPressedButton(BTN_C)) {
-                // faceListの更新
-                saveFaces();
-                // 対象の面を点滅させる
-                // for (int i = 0; i < 2; i++) {
-                //     lightUpFace(beforeDetectedFace);
-                //     delay(100);
-                //     lightDownFace(beforeDetectedFace);
-                //     delay(100);
-                // }
+        case STATE_LED_CONTROL_STOP:
+            mainTextView.setText("Stop ilumination test");
+            isIlluminationTest = false;
 
-                ledControlState = STATE_LED_CONTROL_DETECT_FACE;
-                beforeDetectedFace = -1;
+            // テスト終了後、全てのLEDを消灯
+            for (int i = 0; i < NUM_LEDS; i++) {
+                leds[i] = CRGB::Black;
             }
+            FastLED.show();
+
             break;
         
         default:
@@ -743,6 +771,12 @@ void setup() {
     loadFaces();
     FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, NUM_LEDS);
     FastLED.setBrightness(brightness);
+    // 全てのLEDを消灯
+    for (int i = 0; i < NUM_LEDS; i++) {
+        leds[i] = CRGB::Black;
+    }
+    FastLED.show();
+
 
     // LEDイルミネーションを別タスクで実行（例: Core1で実行）
     xTaskCreatePinnedToCore(
@@ -751,15 +785,32 @@ void setup() {
         4096,              // スタックサイズ（必要に応じて調整）
         NULL,              // パラメータ
         1,                 // 優先度（必要に応じて調整）
-        NULL,              // タスクハンドル（不要ならNULL）
+        &ledTaskHandle,    // タスクハンドル（不要ならNULL）
         1                  // 実行するコア（例：1）
     );
+    vTaskSuspend(ledTaskHandle);  // 一時停止
 
+    //octagonを1面分回転
+    octagon.rotate(0.3926991);
+    octagon.draw();
 }
 
 bool isLEDTest = true;
 bool testLed = false;
 
+void someFunctionThatSendsLEDCommands() {
+  LEDCommand command;
+  command.type = LED_CMD_ON;
+  command.ledIndex = 1;         // 例としてインデックス1
+  command.color = CRGB::White;  // 白色に点灯
+  command.brightness = 255;     // フル輝度
+  command.duration = 500;       // 500ms 待機（必要なら）
+  
+  // キューにコマンド送信
+  if (xQueueSend(ledCommandQueue, &command, portMAX_DELAY) != pdPASS) {
+    Serial.println("Failed to send LED command");
+  }
+}
 
 void loop() {
     CRGB randColor = CRGB(random(255), random(255), random(255));
@@ -771,6 +822,18 @@ void loop() {
         detectState = STATE_DETECTION_INIT;
         calibrationState = STATE_CALIBRATION_INIT;
         ledControlState = STATE_LED_CONTROL_INIT;
+
+        if (ledTaskSuspended && ledTaskHandle != NULL) {
+            vTaskSuspend(ledTaskHandle);
+            ledTaskSuspended = false;
+        }
+        // 全てのLEDを消灯
+        for (int i = 0; i < NUM_LEDS; i++) {
+            leds[i] = CRGB::Black;
+        }
+        FastLED.show();
+
+        isIlluminationTest = false;
 
         actionBar.setTitle("Main Menu");
         actionBar.setStatus("Ready");
@@ -792,6 +855,24 @@ void loop() {
             if (toolbar.getPressedButton(BTN_C)) loadFaces();
             break;
         case STATE_LED_CONTROL:
+            if (toolbar.getPressedButton(BTN_A)) {
+                if (!ledTaskSuspended && ledTaskHandle != NULL) {
+                    vTaskResume(ledTaskHandle);
+                    ledTaskSuspended = true;
+                }
+            }
+            if (toolbar.getPressedButton(BTN_B)) {
+                if (ledTaskSuspended && ledTaskHandle != NULL) {
+                    vTaskSuspend(ledTaskHandle);
+                    ledTaskSuspended = false;
+
+                    // 全てのLEDを消灯
+                    for (int i = 0; i < NUM_LEDS; i++) {
+                        leds[i] = CRGB::Black;
+                    }
+                    FastLED.show();
+                }
+            }
             break;
         default:
             // メインメニュー
@@ -807,12 +888,8 @@ void loop() {
         actionBar.draw();
         toolbar.draw();
         isViewUpdate = false;
+        octagon.draw();
     }
-
-    #ifdef _3D_MODEL
-    octagon.draw();  // 描画
-
-    #endif
 
     face.draw();
     delay(200);

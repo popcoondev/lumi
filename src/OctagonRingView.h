@@ -17,6 +17,9 @@ public:
     // 描画
     void draw();
 
+    // 中心点を軸に回転（回転角度をラジアン単位で加算）
+    void rotate(float dAngle);
+
 private:
     // 外側8頂点 + 内側8頂点 = 合計16頂点
     static const int NUM_OUTER   = 8;
@@ -33,7 +36,7 @@ private:
     float outerRadius;
     float innerRadius;
 
-    // 2D座標 (x, y)
+    // 2D座標 (x, y)（モデル座標）
     float vertices[NUM_VERTICES][2];
 
     // 面：台形を4頂点で定義
@@ -57,6 +60,9 @@ private:
 
     // ハイライト対象の面ID (未指定なら -1)
     int highlightedFace;
+
+    // モデル全体の回転角度（ラジアン）
+    float rotationAngle;
 
     // 頂点座標を更新 (outerRadius, innerRadius) から計算
     void updateGeometry();

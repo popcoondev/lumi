@@ -12,8 +12,8 @@ OctagonRingView::OctagonRingView()
     , viewHeight(100)
     , backgroundColor(BLACK)
     , highlightedFace(-1)
+    , rotationAngle(0.0f)
 {
-    // 頂点座標の初期化
     updateGeometry();
 
     // 面(台形)の定義：外側i, 外側(i+1), 内側(i+1), 内側i
@@ -26,9 +26,6 @@ OctagonRingView::OctagonRingView()
     }
 
     // エッジ(24本)の定義
-    // 1) 外側リング8本
-    // 2) 内側リング8本
-    // 3) 外→内のラジアル8本
     int idx = 0;
     // 外側リング
     for(int i = 0; i < NUM_OUTER; i++){
@@ -52,7 +49,7 @@ OctagonRingView::OctagonRingView()
     }
 }
 
-// 外側・内側の頂点座標を計算
+// 内部で頂点座標を計算（モデル座標系：中心が原点）
 void OctagonRingView::updateGeometry() {
     // 外側8頂点
     for(int i = 0; i < NUM_OUTER; i++){
@@ -68,6 +65,7 @@ void OctagonRingView::updateGeometry() {
     }
 }
 
+// 表示領域設定
 void OctagonRingView::setViewPosition(int x, int y, int w, int h) {
     viewX = x;
     viewY = y;
@@ -83,68 +81,75 @@ void OctagonRingView::setHighlightedFace(int faceID) {
     highlightedFace = faceID;
 }
 
+// 中心点を軸に回転（角度はラジアンで加算）
+void OctagonRingView::rotate(float dAngle) {
+    rotationAngle += dAngle;
+}
+
+// 描画
 void OctagonRingView::draw() {
     // 背景クリア
     M5.Lcd.fillRect(viewX, viewY, viewWidth, viewHeight, backgroundColor);
 
-    // 頂点のバウンディングボックスを求める
-    float minX = vertices[0][0];
-    float maxX = vertices[0][0];
-    float minY = vertices[0][1];
-    float maxY = vertices[0][1];
-    for(int i = 1; i < NUM_VERTICES; i++){
+    // まず、モデル座標系の各頂点に対して「回転」を適用する
+    // ※各頂点は vertices[i] にあるので、回転後の座標を仮の配列に保存
+    float rotated[NUM_VERTICES][2];
+    for(int i = 0; i < NUM_VERTICES; i++){
         float x = vertices[i][0];
         float y = vertices[i][1];
-        if(x < minX) minX = x;
-        if(x > maxX) maxX = x;
-        if(y < minY) minY = y;
-        if(y > maxY) maxY = y;
+        rotated[i][0] = x * cosf(rotationAngle) - y * sinf(rotationAngle);
+        rotated[i][1] = x * sinf(rotationAngle) + y * cosf(rotationAngle);
     }
 
-    // 幅・高さ
-    float w = maxX - minX;
-    float h = maxY - minY;
+    // 次に、rotated 配列のバウンディングボックスを求める
+    float minX = rotated[0][0], maxX = rotated[0][0];
+    float minY = rotated[0][1], maxY = rotated[0][1];
+    for(int i = 1; i < NUM_VERTICES; i++){
+        if(rotated[i][0] < minX) minX = rotated[i][0];
+        if(rotated[i][0] > maxX) maxX = rotated[i][0];
+        if(rotated[i][1] < minY) minY = rotated[i][1];
+        if(rotated[i][1] > maxY) maxY = rotated[i][1];
+    }
+    float wModel = maxX - minX;
+    float hModel = maxY - minY;
 
-    // 表示領域にフィットさせるスケールを計算 (余白を少し持たせるため0.9倍)
+    // 表示領域にフィットさせるスケール（余白を考慮して0.9倍）
     float scale = 1.0f;
-    if(w > 0 && h > 0) {
-        float scaleX = float(viewWidth)  / w;
-        float scaleY = float(viewHeight) / h;
+    if(wModel > 0 && hModel > 0) {
+        float scaleX = float(viewWidth) / wModel;
+        float scaleY = float(viewHeight) / hModel;
         scale = std::min(scaleX, scaleY) * 0.9f;
     }
 
-    // 表示領域の中心座標
-    float centerX = viewX + viewWidth  * 0.5f;
-    float centerY = viewY + viewHeight * 0.5f;
+    // 表示領域中心
+    int centerX = viewX + viewWidth / 2;
+    int centerY = viewY + viewHeight / 2;
 
-    // 頂点を投影（2Dなのでシフト＆スケーリングのみ）
+    // 各回転済み頂点を、スケール・シフトして projected 配列に設定
     for(int i = 0; i < NUM_VERTICES; i++){
-        float x = vertices[i][0] - (minX + w * 0.5f);
-        float y = vertices[i][1] - (minY + h * 0.5f);
+        float x = rotated[i][0] - (minX + wModel * 0.5f);
+        float y = rotated[i][1] - (minY + hModel * 0.5f);
         x *= scale;
         y *= scale;
-        projected[i][0] = int(centerX + x);
-        // y軸は画面座標で下向きなので符号を反転
-        projected[i][1] = int(centerY - y);
+        projected[i][0] = centerX + int(x);
+        // y軸反転（画面座標）
+        projected[i][1] = centerY - int(y);
     }
 
-    // 台形を描画 (4頂点を fillTriangle x2 で塗りつぶす)
+    // 台形（各面）描画
     for(int i = 0; i < NUM_FACES; i++){
         int v0 = faces[i][0];
         int v1 = faces[i][1];
         int v2 = faces[i][2];
         int v3 = faces[i][3];
 
-        // デフォルト色（赤系）
+        // デフォルト色（例：赤系）
         uint16_t color = M5.Lcd.color565(200, 80, 80);
-
-        // ハイライト面なら色を変更
-        if(i == highlightedFace){
+        if(i == highlightedFace) {
             color = M5.Lcd.color565(0, 255, 0);
         }
 
-        // trapezoid = (v0, v1, v2, v3)
-        // fillTriangle: (v0,v1,v2) & (v0,v2,v3)
+        // 台形を三角形2枚に分割して塗りつぶす
         M5.Lcd.fillTriangle(
             projected[v0][0], projected[v0][1],
             projected[v1][0], projected[v1][1],
@@ -161,11 +166,11 @@ void OctagonRingView::draw() {
 
     // エッジ描画
     for(int i = 0; i < NUM_EDGES; i++){
-        int vA = edges[i][0];
-        int vB = edges[i][1];
+        int a = edges[i][0];
+        int b = edges[i][1];
         M5.Lcd.drawLine(
-            projected[vA][0], projected[vA][1],
-            projected[vB][0], projected[vB][1],
+            projected[a][0], projected[a][1],
+            projected[b][0], projected[b][1],
             TFT_WHITE
         );
     }
