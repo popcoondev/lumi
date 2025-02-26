@@ -118,6 +118,349 @@ void ledTask(void* parameter) {
   }
 }
 
+// LEDパターン関数の型定義
+typedef void (*LEDPatternFunction)();
+
+// パターン1: Sequential（既存）
+// 面1～8まで、1秒ごとに順次追加して点灯
+void ledPatternSequential() {
+  for (int i = 0; i < NUM_FACES; i++) {
+    for (int j = 0; j < NUM_FACES; j++) {
+      int idx1 = LED_ADDRESS_OFFSET + (j * 2);
+      int idx2 = LED_ADDRESS_OFFSET + (j * 2) + 1;
+      if (j <= i) {
+        leds[idx1] = CRGB::White;
+        leds[idx2] = CRGB::White;
+      } else {
+        leds[idx1] = CRGB::Black;
+        leds[idx2] = CRGB::Black;
+      }
+    }
+    FastLED.show();
+    for (int k = 0; k < 10; k++) {
+      vTaskDelay(100 / portTICK_PERIOD_MS);
+    }
+  }
+}
+
+// パターン2: On/Off（既存）
+// 8面全点灯／消灯を5秒間繰り返す
+void ledPatternOnOff() {
+  bool state = true;
+  unsigned long startTime = millis();
+  while (millis() - startTime < 5000) {
+    for (int i = 0; i < NUM_FACES; i++) {
+      int idx1 = LED_ADDRESS_OFFSET + (i * 2);
+      int idx2 = LED_ADDRESS_OFFSET + (i * 2) + 1;
+      if (state) {
+        leds[idx1] = CRGB::White;
+        leds[idx2] = CRGB::White;
+      } else {
+        leds[idx1] = CRGB::Black;
+        leds[idx2] = CRGB::Black;
+      }
+    }
+    FastLED.show();
+    state = !state;
+    for (int k = 0; k < 10; k++) {
+      vTaskDelay(100 / portTICK_PERIOD_MS);
+    }
+  }
+}
+
+// パターン3: Odd/Even（既存）
+// 偶数面／奇数面を交互に1秒ごとに点灯（5秒間）
+void ledPatternOddEven() {
+  bool toggle = false;
+  unsigned long startTime = millis();
+  while (millis() - startTime < 5000) {
+    toggle = !toggle;
+    for (int i = 0; i < NUM_FACES; i++) {
+      int idx1 = LED_ADDRESS_OFFSET + (i * 2);
+      int idx2 = LED_ADDRESS_OFFSET + (i * 2) + 1;
+      // 0-indexedの場合、偶数インデックスと奇数インデックスで分ける
+      if (toggle) {
+        if (i % 2 == 0) {
+          leds[idx1] = CRGB::White;
+          leds[idx2] = CRGB::White;
+        } else {
+          leds[idx1] = CRGB::Black;
+          leds[idx2] = CRGB::Black;
+        }
+      } else {
+        if (i % 2 == 1) {
+          leds[idx1] = CRGB::White;
+          leds[idx2] = CRGB::White;
+        } else {
+          leds[idx1] = CRGB::Black;
+          leds[idx2] = CRGB::Black;
+        }
+      }
+    }
+    FastLED.show();
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  }
+}
+
+// パターン4: Random（既存）
+// 各面をランダムな色に500ms間隔で点灯（5秒間）
+void ledPatternRandom() {
+  unsigned long startTime = millis();
+  while (millis() - startTime < 5000) {
+    for (int i = 0; i < NUM_FACES; i++) {
+      int idx1 = LED_ADDRESS_OFFSET + (i * 2);
+      int idx2 = LED_ADDRESS_OFFSET + (i * 2) + 1;
+      CRGB randColor = CRGB(random(256), random(256), random(256));
+      leds[idx1] = randColor;
+      leds[idx2] = randColor;
+    }
+    FastLED.show();
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+  }
+}
+
+// パターン5: Wave（既存）
+// 各面で波状のフェードイン・フェードアウト（5秒間）
+void ledPatternWave() {
+  unsigned long startTime = millis();
+  while (millis() - startTime < 5000) {
+    for (int i = 0; i < NUM_FACES; i++) {
+      int idx1 = LED_ADDRESS_OFFSET + (i * 2);
+      int idx2 = LED_ADDRESS_OFFSET + (i * 2) + 1;
+      float phase = (millis() / 100.0) + (i * M_PI / 4);
+      uint8_t brightnessVal = (uint8_t)(((sin(phase) + 1.0) / 2.0) * 255);
+      CRGB baseColor = CRGB::Blue;
+      CRGB modulatedColor = baseColor;
+      modulatedColor.nscale8_video(brightnessVal);
+      leds[idx1] = modulatedColor;
+      leds[idx2] = modulatedColor;
+    }
+    FastLED.show();
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+  }
+}
+
+// パターン6: Rainbow
+// 各面に虹色のグラデーションを流す（5秒間）
+void ledPatternRainbow() {
+  uint8_t hue = 0;
+  unsigned long startTime = millis();
+  while (millis() - startTime < 5000) {
+    for (int i = 0; i < NUM_FACES; i++) {
+      int idx1 = LED_ADDRESS_OFFSET + (i * 2);
+      int idx2 = LED_ADDRESS_OFFSET + (i * 2) + 1;
+      // 各面に対して hue にオフセットを加える
+      CRGB color = CHSV(hue + i * 32, 255, 255);
+      leds[idx1] = color;
+      leds[idx2] = color;
+    }
+    FastLED.show();
+    hue++;  // hue を徐々に増加させる
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+  }
+}
+
+// パターン7: Strobe
+// 全面を高速に白／消灯させるストロボ効果（5秒間）
+void ledPatternStrobe() {
+  unsigned long startTime = millis();
+  bool state = false;
+  while (millis() - startTime < 5000) {
+    for (int i = 0; i < NUM_FACES; i++) {
+      int idx1 = LED_ADDRESS_OFFSET + (i * 2);
+      int idx2 = LED_ADDRESS_OFFSET + (i * 2) + 1;
+      if (state) {
+        leds[idx1] = CRGB::White;
+        leds[idx2] = CRGB::White;
+      } else {
+        leds[idx1] = CRGB::Black;
+        leds[idx2] = CRGB::Black;
+      }
+    }
+    FastLED.show();
+    state = !state;
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+  }
+}
+
+// パターン8: Chase
+// 1面ずつ順次点灯するチェイス効果（各面300ms、5秒間）
+void ledPatternChase() {
+  unsigned long startTime = millis();
+  while (millis() - startTime < 5000) {
+    for (int i = 0; i < NUM_FACES; i++) {
+      // まず全面を消灯
+      for (int j = 0; j < NUM_FACES; j++) {
+        int idx1 = LED_ADDRESS_OFFSET + (j * 2);
+        int idx2 = LED_ADDRESS_OFFSET + (j * 2) + 1;
+        leds[idx1] = CRGB::Black;
+        leds[idx2] = CRGB::Black;
+      }
+      // face i を点灯
+      int idx1 = LED_ADDRESS_OFFSET + (i * 2);
+      int idx2 = LED_ADDRESS_OFFSET + (i * 2) + 1;
+      leds[idx1] = CRGB::White;
+      leds[idx2] = CRGB::White;
+      FastLED.show();
+      vTaskDelay(300 / portTICK_PERIOD_MS);
+    }
+  }
+}
+
+// パターン9: Pulse
+// 全面の明るさを上下させるパルス効果（5秒間）
+void ledPatternPulse() {
+  unsigned long startTime = millis();
+  while (millis() - startTime < 5000) {
+    // 明るくするフェーズ
+    for (uint8_t b = 0; b < 255; b += 5) {
+      for (int i = 0; i < NUM_FACES; i++) {
+        int idx1 = LED_ADDRESS_OFFSET + (i * 2);
+        int idx2 = LED_ADDRESS_OFFSET + (i * 2) + 1;
+        leds[idx1] = CRGB::White;
+        leds[idx2] = CRGB::White;
+        leds[idx1].nscale8_video(b);
+        leds[idx2].nscale8_video(b);
+      }
+      FastLED.show();
+      vTaskDelay(30 / portTICK_PERIOD_MS);
+    }
+    // 暗くするフェーズ
+    for (int b = 255; b > 0; b -= 5) {
+      for (int i = 0; i < NUM_FACES; i++) {
+        int idx1 = LED_ADDRESS_OFFSET + (i * 2);
+        int idx2 = LED_ADDRESS_OFFSET + (i * 2) + 1;
+        leds[idx1] = CRGB::White;
+        leds[idx2] = CRGB::White;
+        leds[idx1].nscale8_video(b);
+        leds[idx2].nscale8_video(b);
+      }
+      FastLED.show();
+      vTaskDelay(30 / portTICK_PERIOD_MS);
+    }
+  }
+}
+
+void ledPatternTwinkle() {
+  unsigned long startTime = millis();
+  while (millis() - startTime < 5000) {
+    for (int i = 0; i < NUM_FACES; i++) {
+      int idx1 = LED_ADDRESS_OFFSET + (i * 2);
+      int idx2 = LED_ADDRESS_OFFSET + (i * 2) + 1;
+      // 50%の確率でツインクル
+      if (random(100) < 50) {
+        uint8_t bright = random(50, 255);
+        CRGB color = CRGB::White;
+        color.nscale8_video(bright);
+        leds[idx1] = color;
+        leds[idx2] = color;
+      } else {
+        leds[idx1] = CRGB::Black;
+        leds[idx2] = CRGB::Black;
+      }
+    }
+    FastLED.show();
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+  }
+}
+
+void ledPatternFireFlicker() {
+  unsigned long startTime = millis();
+  while (millis() - startTime < 5000) {
+    for (int i = 0; i < NUM_FACES; i++) {
+      int idx1 = LED_ADDRESS_OFFSET + (i * 2);
+      int idx2 = LED_ADDRESS_OFFSET + (i * 2) + 1;
+      // flicker 値で明るさをランダムに決定
+      uint8_t flicker = random(100, 255);
+      // 炎っぽさを出すため、赤を主体に、緑は flicker の 0～値の一部、青はゼロ
+      CRGB color = CRGB(flicker, random(0, flicker / 2), 0);
+      leds[idx1] = color;
+      leds[idx2] = color;
+    }
+    FastLED.show();
+    vTaskDelay(50 / portTICK_PERIOD_MS);
+  }
+}
+
+void ledPatternComet() {
+  // まず全LEDを消灯
+  for (int i = 0; i < NUM_LEDS; i++) {
+    leds[i] = CRGB::Black;
+  }
+  FastLED.show();
+  unsigned long startTime = millis();
+  int cometPos = 0;
+  while (millis() - startTime < 5000) {
+    // 各ループごとに全LEDを少しフェードさせる
+    for (int i = 0; i < NUM_LEDS; i++) {
+      leds[i].nscale8_video(200); // 約20%程度の減衰（調整可能）
+    }
+    // 現在のコメット位置の面を白色で点灯
+    int idx1 = LED_ADDRESS_OFFSET + (cometPos * 2);
+    int idx2 = LED_ADDRESS_OFFSET + (cometPos * 2) + 1;
+    leds[idx1] = CRGB::White;
+    leds[idx2] = CRGB::White;
+    
+    FastLED.show();
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+    cometPos = (cometPos + 1) % NUM_FACES;
+  }
+}
+
+// パターン10: Individual Random
+// 各 LED を独立にランダムな色で点灯／消灯させる（約5秒間）
+void ledPatternIndividualRandom() {
+  unsigned long startTime = millis();
+  while (millis() - startTime < 5000) {
+    for (int i = LED_ADDRESS_OFFSET; i < NUM_LEDS; i++) {
+      // 50%の確率でランダムな色にする、そうでなければ消灯
+      if (random(100) < 50) {
+        leds[i] = CRGB(random(256), random(256), random(256));
+      } else {
+        leds[i] = CRGB::Black;
+      }
+    }
+    FastLED.show();
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+  }
+}
+
+
+
+LEDPatternFunction ledPatterns[] = {
+  ledPatternSequential,
+  ledPatternOnOff,
+  ledPatternOddEven,
+  ledPatternRandom,
+  ledPatternWave,
+  ledPatternRainbow,
+  ledPatternStrobe,
+  ledPatternChase,
+  ledPatternPulse,
+  ledPatternTwinkle,
+  ledPatternFireFlicker,
+  ledPatternComet,
+  ledPatternIndividualRandom
+};
+
+const int numLEDPatterns = sizeof(ledPatterns) / sizeof(ledPatterns[0]);
+int currentLEDPatternIndex = 0;
+
+const char* ledPatternNames[] = {
+  "Sequential",
+  "On/Off",
+  "Odd/Even",
+  "Random",
+  "Wave",
+  "Rainbow",
+  "Strobe",
+  "Chase",
+  "Pulse",
+  "Twinkle",
+  "FireFlicker",
+  "Comet",
+  "Individual Random"
+};
 
 
 // Faceデータ
@@ -163,7 +506,8 @@ State_calibration calibrationState = STATE_CALIBRATION_INIT;
 // LED制御のサブステート
 enum State_led_control { 
     STATE_LED_CONTROL_INIT, 
-    STATE_LED_CONTROL_TEST, 
+    STATE_LED_CONTROL_PAUSED,  // 再生停止中
+    STATE_LED_CONTROL_PLAYING, // 再生中
     STATE_LED_CONTROL_STOP,
 };
 State_led_control ledControlState = STATE_LED_CONTROL_INIT;
@@ -541,34 +885,78 @@ void loadFaces() {
 // 面の検出→その面を点灯させてみる→実際の面と一致していない場合にledAddressを修正する必要がある
 // そのためのキャリブレーション
 void processLEDControlState() {
-    int detectedFace = -1;  // 事前に初期化
-    int faceId = -1;
     switch (ledControlState) {
         case STATE_LED_CONTROL_INIT:
-            mainTextView.setText("LED Control mode initialized");
-            toolbar.setButtonLabel(BTN_A, "start");
-            toolbar.setButtonLabel(BTN_B, "stop");
-            toolbar.setButtonLabel(BTN_C, "");
-            ledControlState = STATE_LED_CONTROL_TEST;
+            toolbar.setButtonLabel(BTN_A, "play");
+            toolbar.setButtonLabel(BTN_B, "prev");
+            toolbar.setButtonLabel(BTN_C, "next");
+            // 初期状態は再生停止中とする
+            ledControlState = STATE_LED_CONTROL_PAUSED;
+            mainTextView.setText(String("Pattern: ") + ledPatternNames[currentLEDPatternIndex]);
             isViewUpdate = true;
             break;
-        case STATE_LED_CONTROL_TEST:
-            mainTextView.setText("Ilumination testing");
-            isIlluminationTest = true;
-            break;
-        
-        case STATE_LED_CONTROL_STOP:
-            mainTextView.setText("Stop ilumination test");
-            isIlluminationTest = false;
 
-            // テスト終了後、全てのLEDを消灯
+        case STATE_LED_CONTROL_PAUSED:
+            // パターン切り替え（prev, next）はどちらでも受け付ける
+            if (toolbar.getPressedButton(BTN_B)) { // prevボタン
+                currentLEDPatternIndex = (currentLEDPatternIndex - 1 + numLEDPatterns) % numLEDPatterns;
+                mainTextView.setText(String("Pattern: ") + ledPatternNames[currentLEDPatternIndex]);
+                delay(300);
+            }
+            if (toolbar.getPressedButton(BTN_C)) { // nextボタン
+                currentLEDPatternIndex = (currentLEDPatternIndex + 1) % numLEDPatterns;
+                mainTextView.setText(String("Pattern: ") + ledPatternNames[currentLEDPatternIndex]);
+                delay(300);
+            }
+            // 再生要求（BTN_A）
+            if (toolbar.getPressedButton(BTN_A)) {
+                // 現在 PAUSED なら再生開始
+                if (ledTaskHandle != NULL) {
+                    vTaskResume(ledTaskHandle);
+                    ledControlState = STATE_LED_CONTROL_PLAYING;
+                    mainTextView.setText(String("Playing: ") + ledPatternNames[currentLEDPatternIndex]);
+                    toolbar.setButtonLabel(BTN_A, "pause");
+                    toolbar.draw();
+                }
+                delay(300);
+            }
+            break;
+
+        case STATE_LED_CONTROL_PLAYING:
+            // パターン切り替えも可能ならここでもチェック（必要に応じて）
+            if (toolbar.getPressedButton(BTN_B)) { // prevボタン
+                currentLEDPatternIndex = (currentLEDPatternIndex - 1 + numLEDPatterns) % numLEDPatterns;
+                mainTextView.setText(String("Pattern: ") + ledPatternNames[currentLEDPatternIndex]);
+                delay(300);
+            }
+            if (toolbar.getPressedButton(BTN_C)) { // nextボタン
+                currentLEDPatternIndex = (currentLEDPatternIndex + 1) % numLEDPatterns;
+                mainTextView.setText(String("Pattern: ") + ledPatternNames[currentLEDPatternIndex]);
+                delay(300);
+            }
+            // 停止要求（BTN_A）
+            if (toolbar.getPressedButton(BTN_A)) {
+                if (ledTaskHandle != NULL) {
+                    vTaskSuspend(ledTaskHandle);
+                    ledControlState = STATE_LED_CONTROL_PAUSED;
+                    mainTextView.setText(String("Paused: ") + ledPatternNames[currentLEDPatternIndex]);
+                    toolbar.setButtonLabel(BTN_A, "play");
+                    toolbar.draw();
+                }
+                delay(300);
+            }
+            break;
+
+        case STATE_LED_CONTROL_STOP:
+            mainTextView.setText("Stop illumination test");
+            isIlluminationTest = false;
+            // LED 全消灯
             for (int i = 0; i < NUM_LEDS; i++) {
                 leds[i] = CRGB::Black;
             }
             FastLED.show();
-
             break;
-        
+
         default:
             break;
     }
@@ -723,10 +1111,17 @@ void runIlluminationTest() {
 
 void taskIllumination(void *parameter) {
   // runIlluminationTest() は内部で無限ループしている前提
-  runIlluminationTest();
-  // ここには到達しませんが、タスク終了時に削除する場合は以下を呼び出します
-  vTaskDelete(NULL);
+//   runIlluminationTest();
+//   // ここには到達しませんが、タスク終了時に削除する場合は以下を呼び出します
+    while (true) {
+        // LEDパターンを実行
+        ledPatterns[currentLEDPatternIndex]();
+        // パターン実行が終わったら、タスクを一時停止しておく
+        // vTaskSuspend(NULL);
+    }
+    vTaskDelete(NULL);
 }
+
 
 void setup() {
     M5.begin();
@@ -855,24 +1250,25 @@ void loop() {
             if (toolbar.getPressedButton(BTN_C)) loadFaces();
             break;
         case STATE_LED_CONTROL:
-            if (toolbar.getPressedButton(BTN_A)) {
-                if (!ledTaskSuspended && ledTaskHandle != NULL) {
-                    vTaskResume(ledTaskHandle);
-                    ledTaskSuspended = true;
-                }
-            }
-            if (toolbar.getPressedButton(BTN_B)) {
-                if (ledTaskSuspended && ledTaskHandle != NULL) {
-                    vTaskSuspend(ledTaskHandle);
-                    ledTaskSuspended = false;
-
-                    // 全てのLEDを消灯
-                    for (int i = 0; i < NUM_LEDS; i++) {
-                        leds[i] = CRGB::Black;
-                    }
-                    FastLED.show();
-                }
-            }
+            // if (toolbar.getPressedButton(BTN_A)) {
+            //     // LEDテストの開始／停止
+            //     if (!ledTaskSuspended && ledTaskHandle != NULL) {
+            //         vTaskResume(ledTaskHandle);
+            //         ledTaskSuspended = true;
+            //         ledControlState = STATE_LED_CONTROL_TEST;
+            //     }
+            //     if (ledTaskSuspended && ledTaskHandle != NULL) {
+            //         vTaskSuspend(ledTaskHandle);
+            //         ledTaskSuspended = false;
+            //         ledControlState = STATE_LED_CONTROL_STOP;
+            //     }
+            // }
+            // if (toolbar.getPressedButton(BTN_B)) {
+            //     // LEDパターンを変更
+            // }
+            // if (toolbar.getPressedButton(BTN_C)) {
+            //     // LEDパターンを変更
+            // }
             break;
         default:
             // メインメニュー
