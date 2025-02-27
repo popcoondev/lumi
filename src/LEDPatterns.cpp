@@ -77,113 +77,156 @@ void OddEvenPattern::run(CRGB* leds, int numLeds, int ledOffset, int numFaces, i
     }
 }
 
-// RandomPattern, WavePattern, RainbowPattern, StrobePattern, 
+// ランダムパターンの実装
 void RandomPattern::run(CRGB* leds, int numLeds, int ledOffset, int numFaces, int duration) {
     unsigned long startTime = millis();
     while (millis() - startTime < duration) {
         for (int i = 0; i < numFaces; i++) {
-            if (random(100) < 50) {
-                uint8_t bright = random(50, 255);
-                CRGB color = CRGB::White;
-                color.nscale8_video(bright);
-                leds[i] = color;
-            } else {
-                leds[i] = CRGB::Black;
-            }
+            int idx1 = ledOffset + (i * 2);
+            int idx2 = ledOffset + (i * 2) + 1;
+            CRGB randColor = CRGB(random(256), random(256), random(256));
+            leds[idx1] = randColor;
+            leds[idx2] = randColor;
         }
         FastLED.show();
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(500 / portTICK_PERIOD_MS);
     }
 }
 
+// ウェーブパターンの実装
 void WavePattern::run(CRGB* leds, int numLeds, int ledOffset, int numFaces, int duration) {
     unsigned long startTime = millis();
     while (millis() - startTime < duration) {
         for (int i = 0; i < numFaces; i++) {
-            float phase = (millis() / 100.0) + (i * PI / 4);
-            uint8_t brightnessVal = (uint8_t)(((sin(phase) + 1.0) / 2.0) * 255);
-            CRGB baseColor = CRGB::Blue;
-            CRGB modulatedColor = baseColor;
-            modulatedColor.nscale8_video(brightnessVal);
-            leds[i] = modulatedColor;
-        }
-        FastLED.show();
-        vTaskDelay(50 / portTICK_PERIOD_MS);
-    }
-}
-
-void RainbowPattern::run(CRGB* leds, int numLeds, int ledOffset, int numFaces, int duration) {
-    uint8_t hue = 0;
-    unsigned long startTime = millis();
-    while (millis() - startTime < duration) {
-        for (int i = 0; i < numFaces; i++) {
-            CRGB color = CHSV(hue, 255, 255);
-            leds[i] = color;
-        }
-        FastLED.show();
-        hue++;
-        vTaskDelay(50 / portTICK_PERIOD_MS);
-    }
-}
-
-void StrobePattern::run(CRGB* leds, int numLeds, int ledOffset, int numFaces, int duration) {
-    unsigned long startTime = millis();
-    while (millis() - startTime < duration) {
-        for (int i = 0; i < numFaces; i++) {
-            if (i % 2 == 0) {
-                leds[i] = CRGB::White;
-            } else {
-                leds[i] = CRGB::Black;
-            }
-        }
-        FastLED.show();
-        vTaskDelay(100 / portTICK_PERIOD_MS);
-    }
-}
-
-// ChasePattern, PulsePattern, TwinklePattern, FireFlickerPattern,
-void ChasePattern::run(CRGB* leds, int numLeds, int ledOffset, int numFaces, int duration) {
-    unsigned long startTime = millis();
-    while (millis() - startTime < duration) {
-        for (int i = 0; i < numFaces; i++) {
-            if (i % 2 == 1) {
-                leds[i] = CRGB::White;
-            } else {
-                leds[i] = CRGB::Black;
-            }
-        }
-        FastLED.show();
-        vTaskDelay(1000);
-    }
-}
-
-void PulsePattern::run(CRGB* leds, int numLeds, int ledOffset, int numFaces, int duration) {
-    unsigned long startTime = millis();
-    while (millis() - startTime < duration) {
-        for (int i = 0; i < numFaces; i++) {
+            int idx1 = ledOffset + (i * 2);
+            int idx2 = ledOffset + (i * 2) + 1;
             float phase = (millis() / 100.0) + (i * M_PI / 4);
             uint8_t brightnessVal = (uint8_t)(((sin(phase) + 1.0) / 2.0) * 255);
             CRGB baseColor = CRGB::Blue;
             CRGB modulatedColor = baseColor;
             modulatedColor.nscale8_video(brightnessVal);
-            leds[i] = modulatedColor;
+            leds[idx1] = modulatedColor;
+            leds[idx2] = modulatedColor;
         }
         FastLED.show();
         vTaskDelay(50 / portTICK_PERIOD_MS);
     }
 }
 
+// レインボーパターンの実装
+void RainbowPattern::run(CRGB* leds, int numLeds, int ledOffset, int numFaces, int duration) {
+    uint8_t hue = 0;
+    unsigned long startTime = millis();
+    while (millis() - startTime < duration) {
+        for (int i = 0; i < numFaces; i++) {
+            int idx1 = ledOffset + (i * 2);
+            int idx2 = ledOffset + (i * 2) + 1;
+            // 各面に対して hue にオフセットを加える
+            CRGB color = CHSV(hue + i * 32, 255, 255);
+            leds[idx1] = color;
+            leds[idx2] = color;
+        }
+        FastLED.show();
+        hue++;  // hue を徐々に増加させる
+        vTaskDelay(50 / portTICK_PERIOD_MS);
+    }
+}
+
+// ストロボパターンの実装
+void StrobePattern::run(CRGB* leds, int numLeds, int ledOffset, int numFaces, int duration) {
+    unsigned long startTime = millis();
+    bool state = false;
+    while (millis() - startTime < duration) {
+        for (int i = 0; i < numFaces; i++) {
+            int idx1 = ledOffset + (i * 2);
+            int idx2 = ledOffset + (i * 2) + 1;
+            if (state) {
+                leds[idx1] = CRGB::White;
+                leds[idx2] = CRGB::White;
+            } else {
+                leds[idx1] = CRGB::Black;
+                leds[idx2] = CRGB::Black;
+            }
+        }
+        FastLED.show();
+        state = !state;
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+    }
+}
+
+// チェイスパターンの実装
+void ChasePattern::run(CRGB* leds, int numLeds, int ledOffset, int numFaces, int duration) {
+    unsigned long startTime = millis();
+    while (millis() - startTime < duration) {
+        for (int i = 0; i < numFaces; i++) {
+            // まず全面を消灯
+            for (int j = 0; j < numFaces; j++) {
+                int idx1 = ledOffset + (j * 2);
+                int idx2 = ledOffset + (j * 2) + 1;
+                leds[idx1] = CRGB::Black;
+                leds[idx2] = CRGB::Black;
+            }
+            // face i を点灯
+            int idx1 = ledOffset + (i * 2);
+            int idx2 = ledOffset + (i * 2) + 1;
+            leds[idx1] = CRGB::White;
+            leds[idx2] = CRGB::White;
+            FastLED.show();
+            vTaskDelay(300 / portTICK_PERIOD_MS);
+        }
+    }
+}
+
+// パルスパターンの実装
+void PulsePattern::run(CRGB* leds, int numLeds, int ledOffset, int numFaces, int duration) {
+    unsigned long startTime = millis();
+    while (millis() - startTime < duration) {
+        // 明るくするフェーズ
+        for (uint8_t b = 0; b < 255; b += 5) {
+            for (int i = 0; i < numFaces; i++) {
+                int idx1 = ledOffset + (i * 2);
+                int idx2 = ledOffset + (i * 2) + 1;
+                leds[idx1] = CRGB::White;
+                leds[idx2] = CRGB::White;
+                leds[idx1].nscale8_video(b);
+                leds[idx2].nscale8_video(b);
+            }
+            FastLED.show();
+            vTaskDelay(30 / portTICK_PERIOD_MS);
+        }
+        // 暗くするフェーズ
+        for (int b = 255; b > 0; b -= 5) {
+            for (int i = 0; i < numFaces; i++) {
+                int idx1 = ledOffset + (i * 2);
+                int idx2 = ledOffset + (i * 2) + 1;
+                leds[idx1] = CRGB::White;
+                leds[idx2] = CRGB::White;
+                leds[idx1].nscale8_video(b);
+                leds[idx2].nscale8_video(b);
+            }
+            FastLED.show();
+            vTaskDelay(30 / portTICK_PERIOD_MS);
+        }
+    }
+}
+
+// ツインクルパターンの実装
 void TwinklePattern::run(CRGB* leds, int numLeds, int ledOffset, int numFaces, int duration) {
     unsigned long startTime = millis();
     while (millis() - startTime < duration) {
         for (int i = 0; i < numFaces; i++) {
+            int idx1 = ledOffset + (i * 2);
+            int idx2 = ledOffset + (i * 2) + 1;
+            // 50%の確率でツインクル
             if (random(100) < 50) {
                 uint8_t bright = random(50, 255);
                 CRGB color = CRGB::White;
                 color.nscale8_video(bright);
-                leds[i] = color;
+                leds[idx1] = color;
+                leds[idx2] = color;
             } else {
-                leds[i] = CRGB::Black;
+                leds[idx1] = CRGB::Black;
+                leds[idx2] = CRGB::Black;
             }
         }
         FastLED.show();
@@ -191,48 +234,69 @@ void TwinklePattern::run(CRGB* leds, int numLeds, int ledOffset, int numFaces, i
     }
 }
 
+// 炎のちらつきパターンの実装
 void FireFlickerPattern::run(CRGB* leds, int numLeds, int ledOffset, int numFaces, int duration) {
     unsigned long startTime = millis();
     while (millis() - startTime < duration) {
         for (int i = 0; i < numFaces; i++) {
-            if (i % 2 == 0) {
-                leds[i] = CRGB::White;
-            } else {
-                leds[i] = CRGB::Black;
-            }
+            int idx1 = ledOffset + (i * 2);
+            int idx2 = ledOffset + (i * 2) + 1;
+            // flicker 値で明るさをランダムに決定
+            uint8_t flicker = random(100, 255);
+            // 炎っぽさを出すため、赤を主体に、緑は flicker の 0～値の一部、青はゼロ
+            CRGB color = CRGB(flicker, random(0, flicker / 2), 0);
+            leds[idx1] = color;
+            leds[idx2] = color;
         }
         FastLED.show();
-        vTaskDelay(1000);
+        vTaskDelay(50 / portTICK_PERIOD_MS);
     }
 }
 
-// CometPattern, IndividualRandomPattern
+// コメットパターンの実装
 void CometPattern::run(CRGB* leds, int numLeds, int ledOffset, int numFaces, int duration) {
+    // まず全LEDを消灯
+    for (int i = ledOffset; i < numLeds; i++) {
+        leds[i] = CRGB::Black;
+    }
+    FastLED.show();
     unsigned long startTime = millis();
     int cometPos = 0;
     while (millis() - startTime < duration) {
-        for (int i = 0; i < numFaces; i++) {
-            if (i % 2 == 0) {
-                int idx1 = ledOffset + (cometPos * 2);
-                int idx2 = ledOffset + (cometPos * 2) + 1;
-                leds[idx1] = CRGB::White;
-                leds[idx2] = CRGB::White;
-            }
+        // 各ループごとに全LEDを少しフェードさせる
+        for (int i = ledOffset; i < numLeds; i++) {
+            leds[i].nscale8_video(200); // 約20%程度の減衰（調整可能）
         }
+        // 現在のコメット位置の面を白色で点灯
+        int idx1 = ledOffset + (cometPos * 2);
+        int idx2 = ledOffset + (cometPos * 2) + 1;
+        leds[idx1] = CRGB::White;
+        leds[idx2] = CRGB::White;
+        
         FastLED.show();
         vTaskDelay(100 / portTICK_PERIOD_MS);
-        cometPos = (cometPos + 1) % (numFaces / 2);
+        cometPos = (cometPos + 1) % numFaces;
     }
 }
 
+// 個別ランダムパターンの実装
 void IndividualRandomPattern::run(CRGB* leds, int numLeds, int ledOffset, int numFaces, int duration) {
     unsigned long startTime = millis();
     while (millis() - startTime < duration) {
         for (int i = 0; i < numFaces; i++) {
-            CRGB randColor = CRGB(random(256), random(256), random(256));
-            leds[i] = randColor;
+            int idx1 = ledOffset + (i * 2);
+            int idx2 = ledOffset + (i * 2) + 1;
+            // 50%の確率でランダムな色にする、そうでなければ消灯
+            if (random(100) < 50) {
+                CRGB randColor = CRGB(random(256), random(256), random(256));
+                leds[idx1] = randColor;
+                leds[idx2] = randColor;
+            } else {
+                leds[idx1] = CRGB::Black;
+                leds[idx2] = CRGB::Black;
+            }
         }
         FastLED.show();
-        vTaskDelay(500 / portTICK_PERIOD_MS);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 }

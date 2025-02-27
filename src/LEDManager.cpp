@@ -85,8 +85,8 @@ void LEDManager::ledTaskWrapper(void* parameter) {
             5000 // 各パターン5秒間実行
         );
         
-        // パターン実行後、自動的に一時停止
-        vTaskSuspend(NULL);
+        // // パターン実行後、自動的に一時停止
+        // vTaskSuspend(NULL);
     }
     
     vTaskDelete(NULL);
