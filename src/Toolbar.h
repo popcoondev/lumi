@@ -4,13 +4,9 @@
 #include <Arduino.h>
 #include <M5Unified.h>
 #include "Button.h"
-
-// 画面サイズ
-#define SCREEN_WIDTH  320
-#define SCREEN_HEIGHT 240
+#include "Constants.h"
 
 // ツールバーの設定
-#define TOOLBAR_HEIGHT 60
 #define BUTTON_COUNT 3
 #define BUTTON_WIDTH (SCREEN_WIDTH / BUTTON_COUNT)
 

@@ -3,9 +3,9 @@
 
 #include <M5Unified.h>
 #include "Button.h"
+#include "Constants.h"
 
 #define ACTIONBAR_BACK_BUTTON_WIDTH 60
-#define ACTIONBAR_HEIGHT 40
 #define ACTIONBAR_TEXT_SIZE 2
 
 class ActionBar {

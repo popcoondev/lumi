@@ -12,6 +12,7 @@ public:
     void setFontSize(int size);
     void setColor(uint16_t color);
     void setBackgroundColor(uint16_t color);
+    String getText() { return currentText; } 
     void clear();
     void draw();
 

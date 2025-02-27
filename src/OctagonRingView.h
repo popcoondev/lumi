@@ -14,6 +14,9 @@ public:
     // 特定の面をハイライトする (0～7)
     void setHighlightedFace(int faceID);
 
+    // ハイライトされている面IDを取得
+    int getHighlightedFace();
+
     // 描画
     void draw();
 

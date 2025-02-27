@@ -81,6 +81,10 @@ void OctagonRingView::setHighlightedFace(int faceID) {
     highlightedFace = faceID;
 }
 
+int OctagonRingView::getHighlightedFace() {
+    return highlightedFace;
+}
+
 // 中心点を軸に回転（角度はラジアンで加算）
 void OctagonRingView::rotate(float dAngle) {
     rotationAngle += dAngle;
