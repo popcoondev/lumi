@@ -946,17 +946,6 @@ void processLEDControlState() {
                 delay(300);
             }
             break;
-
-        case STATE_LED_CONTROL_STOP:
-            mainTextView.setText("Stop illumination test");
-            isIlluminationTest = false;
-            // LED 全消灯
-            for (int i = 0; i < NUM_LEDS; i++) {
-                leds[i] = CRGB::Black;
-            }
-            FastLED.show();
-            break;
-
         default:
             break;
     }
@@ -1217,10 +1206,8 @@ void loop() {
         detectState = STATE_DETECTION_INIT;
         calibrationState = STATE_CALIBRATION_INIT;
         ledControlState = STATE_LED_CONTROL_INIT;
-
-        if (ledTaskSuspended && ledTaskHandle != NULL) {
+        if (ledTaskHandle != NULL) {
             vTaskSuspend(ledTaskHandle);
-            ledTaskSuspended = false;
         }
         // 全てのLEDを消灯
         for (int i = 0; i < NUM_LEDS; i++) {
