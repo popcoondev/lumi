@@ -7,6 +7,7 @@ OctaController::OctaController() {
     imuSensor = new IMUSensor();
     faceDetector = new FaceDetector(MAX_FACES); // 最大面数
     stateManager = new StateManager();
+    lumiView = new LumiView();
 }
 
 OctaController::~OctaController() {
@@ -15,6 +16,7 @@ OctaController::~OctaController() {
     delete imuSensor;
     delete faceDetector;
     delete stateManager;
+    delete lumiView;
 }
 
 void OctaController::setup() {
@@ -28,7 +30,8 @@ void OctaController::setup() {
     imuSensor->begin();
     faceDetector->begin(imuSensor);
     stateManager->begin();
-    
+    lumiView->begin();
+
     // 設定の読み込み
     faceDetector->loadFaces();
 }
@@ -42,7 +45,7 @@ void OctaController::loop() {
     
     // バックボタンが押されたらメインメニューに戻る
     if (buttonEvent.isBackPressed) {
-        stateManager->changeState(STATE_NONE);
+        stateManager->changeState(STATE_LUMI_HOME);
         ledManager->stopPattern();
         ledManager->resetAllLeds();
     }
@@ -58,6 +61,9 @@ void OctaController::loop() {
     
     // 状態に合わせた処理
     switch (stateManager->getCurrentStateInfo().mainState) {
+        case STATE_LUMI_HOME:
+            processLumiHomeState();
+            break;
         case STATE_DETECTION:
             processDetectionState();
             break;
@@ -72,8 +78,14 @@ void OctaController::loop() {
             break;
     }
     
-    // UIの更新
-    uiManager->updateUI(stateManager->getCurrentStateInfo());
+    // 状態に応じたUI表示の切り替え
+    if (stateManager->getCurrentStateInfo().mainState == STATE_LUMI_HOME) {
+        // LumiHome状態では専用のUIを描画（processLumiHomeState内で実行）
+        // UIManagerによる表示は行わない
+    } else {
+        // その他の状態ではUIManagerによる表示を行う
+        uiManager->updateUI(stateManager->getCurrentStateInfo());
+    }
     
     // 短い遅延
     delay(10);
@@ -82,6 +94,11 @@ void OctaController::loop() {
 void OctaController::handleButtonEvent(ButtonEvent event) {
     StateInfo stateInfo = stateManager->getCurrentStateInfo();
     
+    // Lumi Home状態のボタン処理
+    if (stateInfo.mainState == STATE_LUMI_HOME) {
+        return;
+    }
+
     // メインメニューでのボタン処理
     if (stateInfo.mainState == STATE_NONE) {
         if (event.buttonA) stateManager->changeState(STATE_DETECTION);
@@ -102,6 +119,65 @@ void OctaController::handleButtonEvent(ButtonEvent event) {
             processLedControlButtons(event);
             break;
     }
+}
+
+void OctaController::processLumiHomeState() {
+    static bool callbacksInitialized = false;
+    
+    // 最初の1回だけコールバックを設定する
+    if (!callbacksInitialized) {
+        // 設定ボタンタップで設定画面に遷移
+        lumiView->onSettingsButtonTapped = [this]() {
+            stateManager->changeState(STATE_NONE);
+        };
+        
+        // 面タップでLEDを制御
+        lumiView->onFaceTapped = [this](int faceId) {
+            // 現在のハイライト状態を切り替え
+            int currentHighlight = lumiView->getHighlightedFace();
+            if (currentHighlight == faceId) {
+                lumiView->setHighlightedFace(-1);
+                ledManager->lightFace(faceId, CRGB::Black); // LED消灯
+            } else {
+                lumiView->setHighlightedFace(faceId);
+                ledManager->lightFace(faceId, CRGB::White); // LED点灯
+            }
+            lumiView->draw();
+        };
+        
+        // 中央タップでLEDパターンを切り替え
+        lumiView->onCenterTapped = [this]() {
+            // パターン切り替えとLED表示
+            ledManager->nextPattern();
+            ledManager->runPattern(ledManager->getCurrentPatternIndex());
+        };
+        
+        // 明るさスライダーでLED輝度を制御
+        lumiView->onBrightnessChanged = [this](int value) {
+            uint8_t brightness = map(value, 0, 100, 0, 255);
+            ledManager->setBrightness(brightness);
+        };
+        
+        // カラースライダーでLED色相を制御
+        lumiView->onColorChanged = [this](int value) {
+            // 色相を0-255にマップ
+            uint8_t hue = map(value, 0, 100, 0, 255);
+            CRGB color = CHSV(hue, 255, 255);
+            // 現在ハイライトされている面があれば、その色を変更
+            int face = lumiView->getHighlightedFace();
+            if (face >= 0) {
+                ledManager->lightFace(face, color);
+            }
+        };
+        
+        callbacksInitialized = true;
+    }
+    
+    // LumiView画面の描画
+    lumiView->draw();
+    
+    // LumiViewのタッチイベント処理
+    lumiView->handleTouch();
 }
 
 void OctaController::processDetectionState() {

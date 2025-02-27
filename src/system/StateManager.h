@@ -4,12 +4,14 @@
 #include <Arduino.h>
 
 // メインステート
-enum State { 
-    STATE_NONE, 
-    STATE_DETECTION, 
-    STATE_CALIBRATION, 
-    STATE_LED_CONTROL 
+enum State {
+    STATE_LUMI_HOME,  // 新しいLumiホーム画面
+    STATE_NONE,       // 設定メニュー（旧メインメニュー）
+    STATE_DETECTION,  // 面検出モード
+    STATE_CALIBRATION, // キャリブレーションモード
+    STATE_LED_CONTROL  // LED制御モード
 };
+
 
 // サブステート
 enum SubState {

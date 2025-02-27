@@ -1,13 +1,13 @@
 #include "StateManager.h"
 
 StateManager::StateManager() {
-    currentState = STATE_NONE;
+    currentState = STATE_LUMI_HOME;
     currentSubState = STATE_DETECTION_INIT;  // 適当な初期値
 }
 
 void StateManager::begin() {
     // 初期状態の設定
-    stateInfo.mainState = STATE_NONE;
+    stateInfo.mainState = STATE_LUMI_HOME;
     stateInfo.subState = STATE_DETECTION_INIT;
     stateInfo.mainText = "System Ready";
     stateInfo.subText = "";

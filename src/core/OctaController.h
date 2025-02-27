@@ -8,6 +8,7 @@
 #include "../system/FaceDetector.h"
 #include "../system/StateManager.h"
 #include "ButtonEvent.h"
+#include "../ui/views/LumiView.h"
 
 // フレームレート制御のための定数
 #define TARGET_FPS 30
@@ -23,10 +24,12 @@ private:
     IMUSensor* imuSensor;
     FaceDetector* faceDetector;
     StateManager* stateManager;
+    LumiView* lumiView;
     
     unsigned long lastUpdateTime; // 最後の更新時間
     
     void handleButtonEvent(ButtonEvent event);
+    void processLumiHomeState();
     void processDetectionState();
     void processCalibrationState();
     void processLEDControlState();
