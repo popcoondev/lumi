@@ -13,6 +13,7 @@ OctagonRingView::OctagonRingView()
     , backgroundColor(BLACK)
     , highlightedFace(-1)
     , rotationAngle(0.0f)
+    , isMirrored(true) // デフォルトで鏡写しに設定
 {
     updateGeometry();
 
@@ -85,6 +86,11 @@ int OctagonRingView::getHighlightedFace() {
     return highlightedFace;
 }
 
+// 鏡写しモードの設定
+void OctagonRingView::setMirrored(bool mirror) {
+    isMirrored = mirror;
+}
+
 // 中心点を軸に回転（角度はラジアンで加算）
 void OctagonRingView::rotate(float dAngle) {
     rotationAngle += dAngle;
@@ -133,6 +139,12 @@ void OctagonRingView::draw() {
     for(int i = 0; i < NUM_VERTICES; i++){
         float x = rotated[i][0] - (minX + wModel * 0.5f);
         float y = rotated[i][1] - (minY + hModel * 0.5f);
+        
+        // 鏡写し処理（X座標を反転）
+        if (isMirrored) {
+            x = -x;
+        }
+        
         x *= scale;
         y *= scale;
         projected[i][0] = centerX + int(x);

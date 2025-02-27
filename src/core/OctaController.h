@@ -3,10 +3,10 @@
 
 #include <Arduino.h>
 #include <M5Unified.h>
-#include "UIManager.h"
-#include "LEDManager.h"
-#include "FaceDetector.h"
-#include "StateManager.h"
+#include "../ui/UIManager.h"
+#include "../led/LEDManager.h"
+#include "../system/FaceDetector.h"
+#include "../system/StateManager.h"
 #include "ButtonEvent.h"
 
 // フレームレート制御のための定数
