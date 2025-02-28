@@ -13,7 +13,7 @@ OctagonRingView::OctagonRingView()
     , backgroundColor(BLACK)
     , highlightedFace(-1)
     , rotationAngle(M_PI/8.0f)  // デフォルトでPI/8（22.5度）回転
-    , isMirrored(false) // デフォルトで鏡写しに設定
+    , isMirrored(true) // デフォルトで鏡写しに設定
 {
     updateGeometry();
 
