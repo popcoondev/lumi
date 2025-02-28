@@ -124,47 +124,47 @@ void LumiView::handleTouch() {
     // ボタンのタッチ判定
     if (touch.wasPressed()) {
         if (settingsButton.isPressed()) {
-            onSettingsButtonTapped();
+            if (onSettingsButtonTapped) onSettingsButtonTapped();
             return;
         }
         
         if (topLeftButton.isPressed()) {
-            onTopLeftButtonTapped();
+            if (onTopLeftButtonTapped) onTopLeftButtonTapped();
             return;
         }
         
         if (bottomLeftButton.isPressed()) {
-            onBottomLeftButtonTapped();
+            if (onBottomLeftButtonTapped) onBottomLeftButtonTapped();
             return;
         }
         
         if (bottomRightButton.isPressed()) {
-            onBottomRightButtonTapped();
+            if (onBottomRightButtonTapped) onBottomRightButtonTapped();
             return;
         }
         
         // オクタゴンの中心タップ判定
         if (isCenterTapped(touchX, touchY)) {
-            onCenterTapped();
+            if (onCenterTapped) onCenterTapped();
             return;
         }
         
         // オクタゴンの面タップ判定
         int faceId = getTappedFace(touchX, touchY);
         if (faceId >= 0) {
-            onFaceTapped(faceId);
+            if (onFaceTapped) onFaceTapped(faceId);
             return;
         }
     }
     
     // スライダーのタッチ処理
     if (brightnessSlider.handleTouch(touchX, touchY, isPressed)) {
-        onBrightnessChanged(brightnessSlider.getValue());
+        if (onBrightnessChanged) onBrightnessChanged(brightnessSlider.getValue());
         return;
     }
     
     if (colorSlider.handleTouch(touchX, touchY, isPressed)) {
-        onColorChanged(colorSlider.getValue());
+        if (onColorChanged) onColorChanged(colorSlider.getValue());
         return;
     }
 }
@@ -198,20 +198,4 @@ bool LumiView::isCenterTapped(int x, int y) {
     int relY = y - octagonCenter.centerY;
     float dist = sqrt(relX * relX + relY * relY);
     return (dist < octagonCenter.radius);
-}
-
-
-
-void LumiView::onBottomRightButtonTapped() {
-    // デフォルトでは何もしない
-}
-
-void LumiView::onBrightnessChanged(int value) {
-    // デフォルト実装では、値が変更されたらスライダーを再描画
-    brightnessSlider.draw();
-}
-
-void LumiView::onColorChanged(int value) {
-    // デフォルト実装では、値が変更されたらスライダーを再描画
-    colorSlider.draw();
 }

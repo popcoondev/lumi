@@ -102,6 +102,7 @@ private:
     int patternCount;
     int currentPatternIndex;
     TaskHandle_t ledTaskHandle;
+    uint8_t brightness;
     
     static void ledTaskWrapper(void* parameter);
 
@@ -119,6 +120,7 @@ public:
     String getPatternName(int index);
     String getCurrentPatternName();
     int getCurrentPatternIndex();
+    void setBrightness(uint8_t brightness);
 };
 
 #endif // LED_MANAGER_H

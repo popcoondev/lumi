@@ -123,6 +123,12 @@ void OctaController::handleButtonEvent(ButtonEvent event) {
 
 void OctaController::processLumiHomeState() {
     static bool callbacksInitialized = false;
+    static bool initialDraw = true;
+    static unsigned long lastDrawTime = 0;
+    static bool needsRedraw = false;
+    
+    // タッチイベントが発生したか確認
+    bool hasTouchEvent = M5.Touch.getDetail().wasPressed() || M5.Touch.getDetail().wasReleased();
     
     // 最初の1回だけコールバックを設定する
     if (!callbacksInitialized) {
@@ -132,7 +138,7 @@ void OctaController::processLumiHomeState() {
         };
         
         // 面タップでLEDを制御
-        lumiView->onFaceTapped = [this](int faceId) {
+        lumiView->onFaceTapped = [this, &needsRedraw](int faceId) {
             // 現在のハイライト状態を切り替え
             int currentHighlight = lumiView->getHighlightedFace();
             if (currentHighlight == faceId) {
@@ -142,7 +148,8 @@ void OctaController::processLumiHomeState() {
                 lumiView->setHighlightedFace(faceId);
                 ledManager->lightFace(faceId, CRGB::White); // LED点灯
             }
-            lumiView->draw();
+            // ハイライト状態が変わったので再描画が必要
+            needsRedraw = true;
         };
         
         // 中央タップでLEDパターンを切り替え
@@ -153,13 +160,15 @@ void OctaController::processLumiHomeState() {
         };
         
         // 明るさスライダーでLED輝度を制御
-        lumiView->onBrightnessChanged = [this](int value) {
+        lumiView->onBrightnessChanged = [this, &needsRedraw](int value) {
             uint8_t brightness = map(value, 0, 100, 0, 255);
             ledManager->setBrightness(brightness);
+            // スライダーの見た目が変わるので再描画が必要
+            needsRedraw = true;
         };
         
         // カラースライダーでLED色相を制御
-        lumiView->onColorChanged = [this](int value) {
+        lumiView->onColorChanged = [this, &needsRedraw](int value) {
             // 色相を0-255にマップ
             uint8_t hue = map(value, 0, 100, 0, 255);
             CRGB color = CHSV(hue, 255, 255);
@@ -168,15 +177,30 @@ void OctaController::processLumiHomeState() {
             if (face >= 0) {
                 ledManager->lightFace(face, color);
             }
+            // スライダーの見た目が変わるので再描画が必要
+            needsRedraw = true;
         };
         
         callbacksInitialized = true;
+        needsRedraw = true;  // 初回は必ず描画する
     }
     
-    // LumiView画面の描画
-    lumiView->draw();
+    // 初回表示またはタッチイベント発生時、あるいは再描画フラグが立っている場合のみ描画
+    if (initialDraw || hasTouchEvent || needsRedraw) {
+        // 現在時刻を取得
+        unsigned long currentTime = millis();
+        
+        // 前回の描画から最小フレーム時間経過しているか
+        // または初回表示の場合は無条件に描画
+        if (initialDraw || (currentTime - lastDrawTime >= FRAME_TIME)) {
+            lumiView->draw();
+            lastDrawTime = currentTime;
+            initialDraw = false;
+            needsRedraw = false;  // 再描画フラグをリセット
+        }
+    }
     
-    // LumiViewのタッチイベント処理
+    // LumiViewのタッチイベント処理は常に行う
     lumiView->handleTouch();
 }
 

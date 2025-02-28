@@ -150,3 +150,9 @@ String LEDManager::getCurrentPatternName() {
 int LEDManager::getCurrentPatternIndex() {
     return currentPatternIndex;
 }
+
+void LEDManager::setBrightness(uint8_t brightness) {
+    this->brightness = brightness;
+    FastLED.setBrightness(brightness);
+    FastLED.show();
+}

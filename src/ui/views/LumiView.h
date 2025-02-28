@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <M5Unified.h>
+#include <functional>
 #include "ui/views/OctagonRingView.h"
 #include "ui/components/Button.h"
 
@@ -58,15 +59,22 @@ public:
     // タッチイベント処理
     void handleTouch();
     
-    // 各種イベントコールバック
-    void onFaceTapped(int faceId);
-    void onCenterTapped();
-    void onSettingsButtonTapped();
-    void onTopLeftButtonTapped();
-    void onBottomLeftButtonTapped();
-    void onBottomRightButtonTapped();
-    void onBrightnessChanged(int value);
-    void onColorChanged(int value);
+    // ハイライト面の取得・設定
+    int getHighlightedFace() { return octagon.getHighlightedFace(); }
+    void setHighlightedFace(int faceId) { octagon.setHighlightedFace(faceId); }
+    
+    // 各種イベントコールバック用関数ポインタ
+    std::function<void(int)> onFaceTapped;
+    std::function<void()> onCenterTapped;
+    std::function<void()> onSettingsButtonTapped;
+    std::function<void()> onTopLeftButtonTapped;
+    std::function<void()> onBottomLeftButtonTapped;
+    std::function<void()> onBottomRightButtonTapped;
+    std::function<void(int)> onBrightnessChanged;
+    std::function<void(int)> onColorChanged;
+    
+    // フレンドクラス宣言（OctaControllerからoctagonにアクセスできるようにする）
+    friend class OctaController;
 };
 
 #endif // LUMI_VIEW_H
