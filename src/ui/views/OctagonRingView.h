@@ -40,6 +40,14 @@ private:
     // ジオメトリ更新関数
     void updateGeometry();
 
+    // 点が三角形内に含まれるか判定する補助関数
+    bool isPointInTriangle(int px, int py, 
+                        int x1, int y1, 
+                        int x2, int y2, 
+                        int x3, int y3) const;
+
+    friend class LumiView;
+
 public:
     // コンストラクタ
     OctagonRingView();
@@ -64,6 +72,13 @@ public:
 
     // 描画
     void draw();
+
+    // タップされた座標から面IDを取得
+    int getFaceAtPoint(int screenX, int screenY) const;
+
+    // タップされた座標が指定面の内部にあるか判定
+    bool isPointInFace(int faceID, int screenX, int screenY) const;
+    
 };
 
 #endif // OCTAGON_RING_VIEW_H

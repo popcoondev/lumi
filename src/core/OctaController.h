@@ -40,6 +40,7 @@ public:
     ~OctaController();
     void setup();
     void loop();
+    void LumiHomeSetInitialDraw();
 };
 
 #endif // OCTA_CONTROLLER_H

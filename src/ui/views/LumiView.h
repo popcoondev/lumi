@@ -24,6 +24,8 @@ public:
     void setValue(int val);
     int getValue();
     bool handleTouch(int touchX, int touchY, bool isPressed);
+    // ドラッグ中かどうかを外部から確認できるようにする
+    bool isBeingDragged() const { return isDragging; }
 };
 
 class LumiView {
@@ -75,6 +77,11 @@ public:
     
     // フレンドクラス宣言（OctaControllerからoctagonにアクセスできるようにする）
     friend class OctaController;
+
+    bool isAnySliderDragging() const {
+        return brightnessSlider.isBeingDragged() || colorSlider.isBeingDragged();
+    }
+
 };
 
 #endif // LUMI_VIEW_H

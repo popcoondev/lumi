@@ -12,8 +12,8 @@ OctagonRingView::OctagonRingView()
     , viewHeight(100)
     , backgroundColor(BLACK)
     , highlightedFace(-1)
-    , rotationAngle(0.0f)
-    , isMirrored(true) // デフォルトで鏡写しに設定
+    , rotationAngle(M_PI/8.0f)  // デフォルトでPI/8（22.5度）回転
+    , isMirrored(false) // デフォルトで鏡写しに設定
 {
     updateGeometry();
 
@@ -159,10 +159,10 @@ void OctagonRingView::draw() {
         int v2 = faces[i][2];
         int v3 = faces[i][3];
 
-        // デフォルト色（例：赤系）
-        uint16_t color = M5.Lcd.color565(200, 80, 80);
+        // デフォルト色
+        uint16_t color = BLACK;
         if(i == highlightedFace) {
-            color = M5.Lcd.color565(0, 255, 0);
+            color = WHITE;
         }
 
         // 台形を三角形2枚に分割して塗りつぶす
@@ -178,6 +178,13 @@ void OctagonRingView::draw() {
             projected[v3][0], projected[v3][1],
             color
         );
+
+        // 台形上に面番号を描画
+        int faceCenterX = (projected[v0][0] + projected[v1][0] + projected[v2][0] + projected[v3][0]) / 4;
+        int faceCenterY = (projected[v0][1] + projected[v1][1] + projected[v2][1] + projected[v3][1]) / 4;
+        M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+        M5.Lcd.setCursor(faceCenterX, faceCenterY);
+        M5.Lcd.print(i);
     }
 
     // エッジ描画
@@ -190,4 +197,84 @@ void OctagonRingView::draw() {
             TFT_WHITE
         );
     }
+}
+
+bool OctagonRingView::isPointInTriangle(int px, int py, 
+                                    int x1, int y1, 
+                                    int x2, int y2, 
+                                    int x3, int y3) const {
+    // 3つの小三角形の面積の合計が元の三角形と等しければ点は三角形の中
+    float areaOrig = abs((x2 - x1) * (y3 - y1) - (x3 - x1) * (y2 - y1));
+    
+    float area1 = abs((x1 - px) * (y2 - py) - (x2 - px) * (y1 - py));
+    float area2 = abs((x2 - px) * (y3 - py) - (x3 - px) * (y2 - py));
+    float area3 = abs((x3 - px) * (y1 - py) - (x1 - px) * (y3 - py));
+    
+    // 丸め誤差を考慮して小さな許容誤差を加える
+    float areaSumWithEpsilon = area1 + area2 + area3 + 0.1f;
+    
+    return areaSumWithEpsilon >= areaOrig && area1 > 0 && area2 > 0 && area3 > 0;
+}
+
+int OctagonRingView::getFaceAtPoint(int screenX, int screenY) const {
+    Serial.println("getFaceAtPoint x: " + String(screenX) + " y: " + String(screenY));
+
+    // タップ点が表示領域外なら早期リターン
+    if (screenX < viewX || screenX >= viewX + viewWidth ||
+        screenY < viewY || screenY >= viewY + viewHeight) {
+        Serial.println("out of bounds");
+        return -1;
+    }
+    
+    // 中心点からの距離を計算
+    int centerX = viewX + viewWidth / 2;
+    int centerY = viewY + viewHeight / 2;
+    float dx = screenX - centerX;
+    float dy = screenY - centerY;
+    float distSq = dx * dx + dy * dy;
+    
+    // 中心近くの場合は-1を返す
+    float innerRadius = min(viewWidth, viewHeight) * 0.2f;
+    if (distSq < innerRadius * innerRadius) {
+        Serial.println("center area");
+        return -1;
+    }
+    
+    // タップ点の角度（0〜2π）を計算
+    float angle = atan2(dy, dx);
+    if (angle < 0) angle += 2 * M_PI;
+    
+    // debug
+    Serial.println("angle: " + String(angle * 180 / M_PI) + " degrees");
+    
+    // 回転角度はコンストラクタですでに適用されているため、
+    // ここでは現在の回転状態からの相対角度を計算
+    // PI/8は既にコンストラクタで適用されている
+    angle -= rotationAngle;
+    if (angle < 0) angle += 2 * M_PI;
+    if (angle >= 2 * M_PI) angle -= 2 * M_PI;
+    
+    // 鏡写しモード（x軸反転）の処理
+    if (isMirrored) {
+        angle = 2 * M_PI - angle;
+        if (angle >= 2 * M_PI) angle -= 2 * M_PI;
+    }
+    
+    // 角度から面を算出（8分割）
+    // 右下が面0になるように調整（+6を加えて時計回りに270度回転させる）
+    int faceId = (int)(angle * NUM_FACES / (2 * M_PI));
+    faceId = (faceId + 6) % NUM_FACES; // 右下が面0になるように調整
+    
+    // 角度値のデバッグ出力
+    Serial.println("adjusted angle: " + String(angle * 180 / M_PI) + 
+                  " degrees, faceId: " + String(faceId));
+    
+    // 外側の境界チェック
+    float outerRadius = min(viewWidth, viewHeight) * 0.45f;
+    if (distSq > outerRadius * outerRadius) {
+        Serial.println("outside outer radius");
+        return -1;
+    }
+    
+    return faceId;
 }

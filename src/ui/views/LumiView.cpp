@@ -6,13 +6,16 @@ Slider::Slider(int x, int y, int width, int height)
     : x(x), y(y), width(width), height(height), 
       value(50), isDragging(false), 
       knobWidth(width - 10), knobHeight(30),
-      barColor(TFT_DARKGREY), knobColor(TFT_LIGHTGREY)
+      barColor(BLACK), knobColor(WHITE)
 {
 }
 
 void Slider::draw() {
     // バー背景
     M5.Lcd.fillRect(x, y, width, height, barColor);
+
+    // バーの可動域を示すライン
+    M5.Lcd.drawLine(x + width / 2, y+10, x + width / 2, y + height-10, TFT_WHITE);
     
     // つまみの位置を計算
     int knobY = y + (height - knobHeight) * (100 - value) / 100;
@@ -58,10 +61,10 @@ bool Slider::handleTouch(int touchX, int touchY, bool isPressed) {
 
 // LumiViewクラスの実装
 LumiView::LumiView()
-    : settingsButton(320 - 40, 0, 40, 40, "⚙"),
-      topLeftButton(0, 0, 40, 40, "?"),
-      bottomLeftButton(0, 240 - 40, 40, 40, "?"),
-      bottomRightButton(320 - 40, 240 - 40, 40, 40, "?"),
+    : topLeftButton(0, 0, 40, 40, "1"),
+      bottomLeftButton(0, 240 - 40, 40, 40, "2"),
+      settingsButton(320 - 40, 0, 40, 40, "3"),
+      bottomRightButton(320 - 40, 240 - 40, 40, 40, "4"),
       brightnessSlider(0, 40, 40, 160),
       colorSlider(320 - 40, 40, 40, 160),
       isTouchActive(false),
@@ -78,13 +81,14 @@ void LumiView::begin() {
     // オクタゴンビューの設定
     octagon.setViewPosition(40, 0, 240, 240);
     octagon.setMirrored(true);
-    octagon.rotate(0.3926991); // π/8ラジアン（22.5度）
+    // octagon.rotate(0.4); // π/8ラジアン（22.5度）
+    // octagon.rotate(PI * 9 / 8); // πラジアン（180度）LEDの向きを合わせるため
     
     // ボタンのスタイル設定
-    settingsButton.setColor(TFT_DARKGREY, TFT_LIGHTGREY);
-    topLeftButton.setColor(TFT_DARKGREY, TFT_LIGHTGREY);
-    bottomLeftButton.setColor(TFT_DARKGREY, TFT_LIGHTGREY);
-    bottomRightButton.setColor(TFT_DARKGREY, TFT_LIGHTGREY);
+    settingsButton.setColor(BLACK, TFT_LIGHTGREY);
+    topLeftButton.setColor(BLACK, TFT_LIGHTGREY);
+    bottomLeftButton.setColor(BLACK, TFT_LIGHTGREY);
+    bottomRightButton.setColor(BLACK, TFT_LIGHTGREY);
 }
 
 void LumiView::draw() {
@@ -119,8 +123,10 @@ void LumiView::handleTouch() {
     if (isPressed) {
         lastTouchX = touchX;
         lastTouchY = touchY;
+        Serial.println("Touch: " + String(touchX) + ", " + String(touchY));
     }
     
+
     // ボタンのタッチ判定
     if (touch.wasPressed()) {
         if (settingsButton.isPressed()) {
@@ -170,32 +176,34 @@ void LumiView::handleTouch() {
 }
 
 int LumiView::getTappedFace(int x, int y) {
-    // オクタゴンのタップ判定は簡易的な実装
-    // 実際には表示座標から逆変換して判定する必要あり
+    Serial.println("getTappedFace x: " + String(x) + " y: " + String(y));
     
-    // 中心からの相対座標
-    int relX = x - octagonCenter.centerX;
-    int relY = y - octagonCenter.centerY;
-    
-    // 中心から一定距離内なら中心タップとみなす
-    float dist = sqrt(relX * relX + relY * relY);
-    if (dist < octagonCenter.radius) {
-        return -1; // 中心タップは別処理
+    // 中心タップの場合は-1を返す
+    if (isCenterTapped(x, y)) {
+        return -1;
     }
     
-    // 中心からの角度を計算
-    float angle = atan2(relY, relX);
-    if (angle < 0) angle += 2 * M_PI;
-    
-    // 角度からどの面かを判定（8分割）
-    int faceId = (int)((angle / (2 * M_PI) * 8) + 0.5) % 8;
-    
-    return faceId;
+    // タップされた面をOctagonRingViewのメソッドを使って判定
+    return octagon.getFaceAtPoint(x, y);
 }
 
 bool LumiView::isCenterTapped(int x, int y) {
-    int relX = x - octagonCenter.centerX;
-    int relY = y - octagonCenter.centerY;
-    float dist = sqrt(relX * relX + relY * relY);
-    return (dist < octagonCenter.radius);
+    Serial.println("isCenterTapped x: " + String(x) + " y: " + String(y));
+    
+    // 画面中央からの距離を計算（OctagonRingViewの配置を考慮）
+    // 注：OctagonRingViewがビュー全体の中央に配置されている前提
+    int centerX = octagon.viewX + octagon.viewWidth / 2;
+    int centerY = octagon.viewY + octagon.viewHeight / 2;
+    
+    int relX = x - centerX;
+    int relY = y - centerY;
+    float distSq = relX * relX + relY * relY;
+    
+    // 中心円の半径（スクリーンサイズの20%程度）
+    float centerRadiusSq = min(octagon.viewWidth, octagon.viewHeight) * 0.2f;
+    centerRadiusSq *= centerRadiusSq; // 二乗値
+    
+    bool result = (distSq < centerRadiusSq);
+    Serial.println("isCenterTapped result: " + String(result ? "true" : "false"));
+    return result;
 }

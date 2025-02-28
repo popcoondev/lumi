@@ -40,6 +40,18 @@ void OctaController::loop() {
     // 先にM5のボタン状態を更新
     M5.update();
     
+    // 現在の状態取得
+    StateInfo stateInfo = stateManager->getCurrentStateInfo();
+    
+    // LumiHome状態の場合は専用の処理を行い、他の処理をスキップ
+    if (stateInfo.mainState == STATE_LUMI_HOME) {
+        processLumiHomeState();
+        // LumiHome状態ではUIManagerの操作をスキップして早期リターン
+        return;
+    }
+    
+    // LumiHome以外の状態では通常の処理を続行
+    
     // UIManagerからボタンイベントを取得
     ButtonEvent buttonEvent = uiManager->getButtonEvents();
     
@@ -48,6 +60,8 @@ void OctaController::loop() {
         stateManager->changeState(STATE_LUMI_HOME);
         ledManager->stopPattern();
         ledManager->resetAllLeds();
+
+        LumiHomeSetInitialDraw();
     }
     
     // 現在の状態に応じたボタンイベント処理
@@ -61,9 +75,6 @@ void OctaController::loop() {
     
     // 状態に合わせた処理
     switch (stateManager->getCurrentStateInfo().mainState) {
-        case STATE_LUMI_HOME:
-            processLumiHomeState();
-            break;
         case STATE_DETECTION:
             processDetectionState();
             break;
@@ -78,14 +89,8 @@ void OctaController::loop() {
             break;
     }
     
-    // 状態に応じたUI表示の切り替え
-    if (stateManager->getCurrentStateInfo().mainState == STATE_LUMI_HOME) {
-        // LumiHome状態では専用のUIを描画（processLumiHomeState内で実行）
-        // UIManagerによる表示は行わない
-    } else {
-        // その他の状態ではUIManagerによる表示を行う
-        uiManager->updateUI(stateManager->getCurrentStateInfo());
-    }
+    // UIManagerによる表示を行う
+    uiManager->updateUI(stateManager->getCurrentStateInfo());
     
     // 短い遅延
     delay(10);
@@ -126,19 +131,51 @@ void OctaController::processLumiHomeState() {
     static bool initialDraw = true;
     static unsigned long lastDrawTime = 0;
     static bool needsRedraw = false;
+    static bool wasDragging = false; // スライダードラッグ状態の記録
     
-    // タッチイベントが発生したか確認
-    bool hasTouchEvent = M5.Touch.getDetail().wasPressed() || M5.Touch.getDetail().wasReleased();
+    // 現在のタッチ状態を取得
+    auto touchDetail = M5.Touch.getDetail();
+    bool isPressed = touchDetail.isPressed();
+    bool wasPressed = touchDetail.wasPressed();
+    bool wasReleased = touchDetail.wasReleased();
+    
+    // 本当に再描画が必要な状態かどうかを判断
+    bool requiresRedraw = wasPressed || wasReleased || needsRedraw || initialDraw;
+    
+    // スライダーのドラッグ中は頻繁な更新を避ける（一定間隔でのみ更新）
+    bool sliderDragging = lumiView->isAnySliderDragging();
+    if (sliderDragging) {
+        unsigned long currentTime = millis();
+        // スライダードラッグ中は100ms間隔でのみ更新
+        if (currentTime - lastDrawTime >= 100) {
+            requiresRedraw = true;
+            lastDrawTime = currentTime;
+        }
+        wasDragging = true;
+    } else if (wasDragging && wasReleased) {
+        // ドラッグ終了時は必ず更新
+        requiresRedraw = true;
+        wasDragging = false;
+    }
     
     // 最初の1回だけコールバックを設定する
     if (!callbacksInitialized) {
-        // 設定ボタンタップで設定画面に遷移
+        // 静的変数を直接キャプチャしないようにラムダ内で参照を作成
         lumiView->onSettingsButtonTapped = [this]() {
+            Serial.println("====== CHANGING STATE TO MENU ======");
+            
+            // 画面をクリアして状態を変更
+            M5.Lcd.fillScreen(TFT_BLACK);
             stateManager->changeState(STATE_NONE);
+            
+            // 次のループで確実に初期描画されるようにuiManagerを強制リセット
+            uiManager->forcefullyRedraw();
+            
+            Serial.println("State changed to: " + String(stateManager->getCurrentStateInfo().mainState));
         };
         
-        // 面タップでLEDを制御
-        lumiView->onFaceTapped = [this, &needsRedraw](int faceId) {
+        // 面タップでLEDを制御（静的変数のキャプチャを回避）
+        lumiView->onFaceTapped = [this](int faceId) {
             // 現在のハイライト状態を切り替え
             int currentHighlight = lumiView->getHighlightedFace();
             if (currentHighlight == faceId) {
@@ -148,7 +185,7 @@ void OctaController::processLumiHomeState() {
                 lumiView->setHighlightedFace(faceId);
                 ledManager->lightFace(faceId, CRGB::White); // LED点灯
             }
-            // ハイライト状態が変わったので再描画が必要
+            // 再描画を即時実行する代わりに次回ループで行う
             needsRedraw = true;
         };
         
@@ -159,16 +196,16 @@ void OctaController::processLumiHomeState() {
             ledManager->runPattern(ledManager->getCurrentPatternIndex());
         };
         
-        // 明るさスライダーでLED輝度を制御
-        lumiView->onBrightnessChanged = [this, &needsRedraw](int value) {
+        // 明るさスライダーでLED輝度を制御（静的変数のキャプチャを回避）
+        lumiView->onBrightnessChanged = [this](int value) {
             uint8_t brightness = map(value, 0, 100, 0, 255);
             ledManager->setBrightness(brightness);
-            // スライダーの見た目が変わるので再描画が必要
+            // 再描画を即時実行する代わりに次回ループで行う
             needsRedraw = true;
         };
         
-        // カラースライダーでLED色相を制御
-        lumiView->onColorChanged = [this, &needsRedraw](int value) {
+        // カラースライダーでLED色相を制御（静的変数のキャプチャを回避）
+        lumiView->onColorChanged = [this](int value) {
             // 色相を0-255にマップ
             uint8_t hue = map(value, 0, 100, 0, 255);
             CRGB color = CHSV(hue, 255, 255);
@@ -177,7 +214,7 @@ void OctaController::processLumiHomeState() {
             if (face >= 0) {
                 ledManager->lightFace(face, color);
             }
-            // スライダーの見た目が変わるので再描画が必要
+            // 再描画を即時実行する代わりに次回ループで行う
             needsRedraw = true;
         };
         
@@ -185,23 +222,35 @@ void OctaController::processLumiHomeState() {
         needsRedraw = true;  // 初回は必ず描画する
     }
     
-    // 初回表示またはタッチイベント発生時、あるいは再描画フラグが立っている場合のみ描画
-    if (initialDraw || hasTouchEvent || needsRedraw) {
-        // 現在時刻を取得
-        unsigned long currentTime = millis();
+    // 初回表示または再描画が必要な場合のみ描画
+    if (initialDraw || requiresRedraw) {
+        // 初回表示または再描画フラグが立っている場合は描画
+        lumiView->draw();
         
-        // 前回の描画から最小フレーム時間経過しているか
-        // または初回表示の場合は無条件に描画
-        if (initialDraw || (currentTime - lastDrawTime >= FRAME_TIME)) {
-            lumiView->draw();
-            lastDrawTime = currentTime;
+        if (initialDraw) {
             initialDraw = false;
+        }
+        
+        if (needsRedraw) {
             needsRedraw = false;  // 再描画フラグをリセット
         }
     }
     
-    // LumiViewのタッチイベント処理は常に行う
+    // LumiViewのタッチイベント処理は常に行う（ただし描画とは分離）
     lumiView->handleTouch();
+}
+
+void OctaController::LumiHomeSetInitialDraw() {
+    static bool *pInitialDraw = nullptr;
+    if (!pInitialDraw) {
+        // 静的変数のアドレスを取得するトリック
+        processLumiHomeState(); // 一度呼び出す
+        void *framePtr = __builtin_frame_address(0);
+        pInitialDraw = static_cast<bool*>(framePtr) - sizeof(bool); // initialDrawのアドレスを推測
+    }
+    if (pInitialDraw) {
+        *pInitialDraw = true;
+    }
 }
 
 void OctaController::processDetectionState() {
