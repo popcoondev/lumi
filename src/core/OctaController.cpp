@@ -190,30 +190,27 @@ void OctaController::processLumiHomeState() {
             Serial.println("State changed to: " + String(stateManager->getCurrentStateInfo().mainState));
         };
         
-        // 面タップでLEDを制御
+        // 面タップでLEDを制御（トグルボタンとして動作）
         lumiView->onFaceTapped = [this](int faceId) {
-            // 現在のハイライト状態を切り替え
-            int currentHighlight = lumiView->getHighlightedFace();
-            
             // デバッグ出力 - タップされた面ID
             Serial.println("Face tapped: " + String(faceId));
             
-            if (currentHighlight == faceId) {
-                // 同じ面をタップした場合はハイライトを解除
-                lumiView->setHighlightedFace(-1);
-                
-                // LED消灯 - OctagonRingViewの面IDをLEDの面IDに変換
-                int ledFaceId = mapViewFaceToLedFace(faceId);
-                ledManager->lightFace(ledFaceId, CRGB::Black);
-                
-                Serial.println("Unhighlighted face: " + String(faceId) + 
-                            ", LED off: " + String(ledFaceId));
-            } else {
-                // 別の面をタップした場合は面をハイライト
+            // OctagonRingViewの面IDをLEDの面IDに変換
+            int ledFaceId = mapViewFaceToLedFace(faceId);
+            
+            // 現在のハイライト状態を取得
+            int currentHighlight = lumiView->getHighlightedFace();
+            
+            // LEDの現在の状態を確認するために、LEDManagerから現在の色を取得
+            CRGB currentFaceColor = ledManager->getFaceColor(ledFaceId);
+            bool isLedOn = (currentFaceColor.r != 0 || currentFaceColor.g != 0 || currentFaceColor.b != 0);
+            
+            // 面がまだハイライトされていない場合
+            if (currentHighlight != faceId) {
+                // 面をハイライト
                 lumiView->setHighlightedFace(faceId);
                 
-                // 現在の色でLED点灯 - OctagonRingViewの面IDをLEDの面IDに変換
-                int ledFaceId = mapViewFaceToLedFace(faceId);
+                // 現在の色でLED点灯
                 ledManager->lightFace(ledFaceId, currentLedColor);
                 
                 // OctagonRingViewのハイライト色も設定
@@ -221,6 +218,21 @@ void OctaController::processLumiHomeState() {
                 
                 Serial.println("Highlighted face: " + String(faceId) + 
                             ", LED on: " + String(ledFaceId));
+            } 
+            // 同じ面が既にハイライトされている場合はLEDとハイライトの状態をトグル
+            else {
+                if (isLedOn) {
+                    // LEDが点灯している場合は消灯し、ハイライトも解除
+                    ledManager->lightFace(ledFaceId, CRGB::Black);
+                    lumiView->setHighlightedFace(-1);
+                    Serial.println("Toggled LED and highlight off: " + String(ledFaceId));
+                } else {
+                    // LEDが消灯している場合は点灯し、ハイライトも設定
+                    ledManager->lightFace(ledFaceId, currentLedColor);
+                    // OctagonRingViewのハイライト色も設定
+                    lumiView->octagon.setHighlightColor(crgbToRGB565(currentLedColor));
+                    Serial.println("Toggled LED and highlight on: " + String(ledFaceId));
+                }
             }
             
             // 再描画フラグを設定

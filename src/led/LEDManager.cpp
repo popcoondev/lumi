@@ -121,6 +121,14 @@ void LEDManager::lightFace(int faceId, CRGB color) {
     }
 }
 
+CRGB LEDManager::getFaceColor(int faceId) {
+    if (faceId >= 0 && faceId < numFaces) {
+        int idx = ledOffset + (faceId * 2);
+        return leds[idx];
+    }
+    return CRGB::Black; // デフォルト値として黒（消灯状態）を返す
+}
+
 void LEDManager::resetAllLeds() {
     for (int i = 0; i < numLeds; i++) {
         leds[i] = CRGB::Black;

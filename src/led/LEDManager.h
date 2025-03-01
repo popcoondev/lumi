@@ -113,6 +113,7 @@ public:
     void runPattern(int patternIndex);
     void stopPattern();
     void lightFace(int faceId, CRGB color);
+    CRGB getFaceColor(int faceId);
     void resetAllLeds();
     int getPatternCount() { return patternCount; }
     void nextPattern();
