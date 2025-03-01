@@ -244,15 +244,8 @@ int OctagonRingView::getFaceAtPoint(int screenX, int screenY) const {
     float angle = atan2(dy, dx);
     if (angle < 0) angle += 2 * M_PI;
     
-    // debug
-    Serial.println("angle: " + String(angle * 180 / M_PI) + " degrees");
-    
-    // 回転角度はコンストラクタですでに適用されているため、
-    // ここでは現在の回転状態からの相対角度を計算
-    // PI/8は既にコンストラクタで適用されている
-    angle -= rotationAngle;
-    if (angle < 0) angle += 2 * M_PI;
-    if (angle >= 2 * M_PI) angle -= 2 * M_PI;
+    // デバッグ出力
+    Serial.println("original angle: " + String(angle * 180 / M_PI) + " degrees");
     
     // 鏡写しモード（x軸反転）の処理
     if (isMirrored) {
@@ -260,14 +253,48 @@ int OctagonRingView::getFaceAtPoint(int screenX, int screenY) const {
         if (angle >= 2 * M_PI) angle -= 2 * M_PI;
     }
     
-    // 角度から面を算出（8分割）
-    // 右下が面0になるように調整（+6を加えて時計回りに270度回転させる）
-    int faceId = (int)(angle * NUM_FACES / (2 * M_PI));
-    faceId = (faceId + 6) % NUM_FACES; // 右下が面0になるように調整
+    // 回転角度の適用
+    angle -= rotationAngle;
+    if (angle < 0) angle += 2 * M_PI;
+    if (angle >= 2 * M_PI) angle -= 2 * M_PI;
     
-    // 角度値のデバッグ出力
+    // 角度から面を算出（8分割）
+    int faceId = (int)(angle * NUM_FACES / (2 * M_PI));
+    
+    // オフセット調整（右下が面0になるように）
+    int offsetFaceId = (faceId + 6) % NUM_FACES;
+    
+    // 面の順序を連続的にするためのマッピング
+    // ログから: 0,7,6,5,4... となっているので、時計回りに 0,1,2,3,4... となるように修正
+    int finalFaceId = offsetFaceId;
+    
+    // 新しいマッピングテーブルを作成
+    static const int faceOrderMap[NUM_FACES] = {
+        0, // 0 → 0 (そのまま)
+        1, // 1 → 1 (そのまま)
+        2, // 2 → 2 (そのまま)
+        3, // 3 → 3 (そのまま)
+        4, // 4 → 4 (そのまま)
+        5, // 5 → 5 (そのまま)
+        6, // 6 → 6 (そのまま)
+        7  // 7 → 7 (そのまま)
+    };
+    
+    // ログから: 0,7,6となっているので、0,1,2に変換
+    if (offsetFaceId == 7) finalFaceId = 1;
+    else if (offsetFaceId == 6) finalFaceId = 2;
+    else if (offsetFaceId == 5) finalFaceId = 3;
+    else if (offsetFaceId == 4) finalFaceId = 4;
+    else if (offsetFaceId == 3) finalFaceId = 5;
+    else if (offsetFaceId == 2) finalFaceId = 6;
+    else if (offsetFaceId == 1) finalFaceId = 7;
+    // 0はそのまま
+    
+    // 角度値とマッピング後のデバッグ出力
     Serial.println("adjusted angle: " + String(angle * 180 / M_PI) + 
-                  " degrees, faceId: " + String(faceId));
+                  " degrees, raw faceId: " + String(faceId) +
+                  ", offset faceId: " + String(offsetFaceId) +
+                  ", final faceId: " + String(finalFaceId));
     
     // 外側の境界チェック
     float outerRadius = min(viewWidth, viewHeight) * 0.45f;
@@ -276,5 +303,5 @@ int OctagonRingView::getFaceAtPoint(int screenX, int screenY) const {
         return -1;
     }
     
-    return faceId;
+    return finalFaceId;
 }

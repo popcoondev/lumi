@@ -174,18 +174,37 @@ void OctaController::processLumiHomeState() {
             Serial.println("State changed to: " + String(stateManager->getCurrentStateInfo().mainState));
         };
         
-        // 面タップでLEDを制御（静的変数のキャプチャを回避）
+        // 面タップでLEDを制御
         lumiView->onFaceTapped = [this](int faceId) {
             // 現在のハイライト状態を切り替え
             int currentHighlight = lumiView->getHighlightedFace();
+            
+            // デバッグ出力 - タップされた面ID
+            Serial.println("Face tapped: " + String(faceId));
+            
             if (currentHighlight == faceId) {
+                // 同じ面をタップした場合はハイライトを解除
                 lumiView->setHighlightedFace(-1);
-                ledManager->lightFace(faceId, CRGB::Black); // LED消灯
+                
+                // LED消灯 - OctagonRingViewの面IDをLEDの面IDに変換
+                int ledFaceId = mapViewFaceToLedFace(faceId);
+                ledManager->lightFace(ledFaceId, CRGB::Black);
+                
+                Serial.println("Unhighlighted face: " + String(faceId) + 
+                            ", LED off: " + String(ledFaceId));
             } else {
+                // 別の面をタップした場合は面をハイライト
                 lumiView->setHighlightedFace(faceId);
-                ledManager->lightFace(faceId, CRGB::White); // LED点灯
+                
+                // LED点灯 - OctagonRingViewの面IDをLEDの面IDに変換
+                int ledFaceId = mapViewFaceToLedFace(faceId);
+                ledManager->lightFace(ledFaceId, CRGB::White);
+                
+                Serial.println("Highlighted face: " + String(faceId) + 
+                            ", LED on: " + String(ledFaceId));
             }
-            // 再描画を即時実行する代わりに次回ループで行う
+            
+            // 再描画フラグを設定
             needsRedraw = true;
         };
         
@@ -210,9 +229,11 @@ void OctaController::processLumiHomeState() {
             uint8_t hue = map(value, 0, 100, 0, 255);
             CRGB color = CHSV(hue, 255, 255);
             // 現在ハイライトされている面があれば、その色を変更
-            int face = lumiView->getHighlightedFace();
-            if (face >= 0) {
-                ledManager->lightFace(face, color);
+            int viewFace = lumiView->getHighlightedFace();
+            if (viewFace >= 0) {
+                // OctagonRingViewの面IDをLEDの面IDに変換
+                int ledFace = mapViewFaceToLedFace(viewFace);
+                ledManager->lightFace(ledFace, color);
             }
             // 再描画を即時実行する代わりに次回ループで行う
             needsRedraw = true;
@@ -281,15 +302,18 @@ void OctaController::processDetectionState() {
                 
                 // 検出結果の処理
                 if (detectedFace != -1) {
-                    // 検出した面のLEDを点灯
-                    ledManager->lightFace(detectedFace, CRGB::White);
+                    // 検出した面のLEDを点灯 - 面IDからLED番号へのマッピング修正
+                    // LEDの物理的なレイアウトとOctagonRingViewの論理的なレイアウトを一致させる
+                    int ledFaceId = mapViewFaceToLedFace(detectedFace);
+                    ledManager->lightFace(ledFaceId, CRGB::White);
                     
                     // UI更新
                     uiManager->highlightFace(detectedFace);
                     
                     // 状態情報更新
                     StateInfo newInfo = stateInfo;
-                    newInfo.mainText = "Detected face: " + String(detectedFace);
+                    newInfo.mainText = "Detected face: " + String(detectedFace) + 
+                                      "\nLED face: " + String(ledFaceId);
                     newInfo.subText = "x=" + String(x) + "\ny=" + String(y) + "\nz=" + String(z);
                     stateManager->updateStateInfo(newInfo);
                 } else {
@@ -304,10 +328,35 @@ void OctaController::processDetectionState() {
 
                 // 検出面を記録
                 lastDetectedFace = detectedFace;
-
             }
             break;
     }
+}
+
+int OctaController::mapViewFaceToLedFace(int viewFaceId) {
+    return viewFaceId; // 範囲外の場合はそのまま返す
+}
+
+
+int OctaController::mapLedFaceToViewFace(int ledFaceId) {
+    // LEDManagerの面ID (0,1,2,3,4,5,6,7) を
+    // OctagonRingViewの面ID (0,7,6,5,4,3,2,1) に変換
+    static const int ledToViewMap[MAX_FACES] = {
+        0, // 0 → 0
+        7, // 1 → 7
+        6, // 2 → 6
+        5, // 3 → 5
+        4, // 4 → 4
+        3, // 5 → 3
+        2, // 6 → 2
+        1  // 7 → 1
+    };
+    
+    if (ledFaceId >= 0 && ledFaceId < MAX_FACES) {
+        return ledToViewMap[ledFaceId];
+    }
+    
+    return ledFaceId; // 範囲外の場合はそのまま返す
 }
 
 void OctaController::processCalibrationState() {

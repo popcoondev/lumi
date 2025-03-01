@@ -82,7 +82,7 @@ void LumiView::begin() {
     octagon.setViewPosition(40, 0, 240, 240);
     octagon.setMirrored(true);
     // octagon.rotate(0.4); // π/8ラジアン（22.5度）
-    // octagon.rotate(PI * 9 / 8); // πラジアン（180度）LEDの向きを合わせるため
+    octagon.rotate(PI); // πラジアン（180度）LEDの向きを合わせるため
     
     // ボタンのスタイル設定
     settingsButton.setColor(BLACK, TFT_LIGHTGREY);

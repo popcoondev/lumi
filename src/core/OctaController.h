@@ -41,6 +41,8 @@ public:
     void setup();
     void loop();
     void LumiHomeSetInitialDraw();
+    int mapViewFaceToLedFace(int viewFaceId);
+    int mapLedFaceToViewFace(int ledFaceId);
 };
 
 #endif // OCTA_CONTROLLER_H
