@@ -207,3 +207,19 @@ bool LumiView::isCenterTapped(int x, int y) {
     Serial.println("isCenterTapped result: " + String(result ? "true" : "false"));
     return result;
 }
+
+// スライダーのみを再描画するメソッド
+void LumiView::drawSliders() {
+    brightnessSlider.draw();
+    colorSlider.draw();
+}
+
+// 明るさスライダーのみを再描画
+void LumiView::drawBrightnessSlider() {
+    brightnessSlider.draw();
+}
+
+// 色スライダーのみを再描画
+void LumiView::drawColorSlider() {
+    colorSlider.draw();
+}

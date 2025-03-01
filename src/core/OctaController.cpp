@@ -142,13 +142,14 @@ void OctaController::processLumiHomeState() {
     // 本当に再描画が必要な状態かどうかを判断
     bool requiresRedraw = wasPressed || wasReleased || needsRedraw || initialDraw;
     
-    // スライダーのドラッグ中は頻繁な更新を避ける（一定間隔でのみ更新）
+    // スライダーのドラッグ中の処理を変更
     bool sliderDragging = lumiView->isAnySliderDragging();
     if (sliderDragging) {
         unsigned long currentTime = millis();
-        // スライダードラッグ中は100ms間隔でのみ更新
-        if (currentTime - lastDrawTime >= 100) {
-            requiresRedraw = true;
+        // スライダードラッグ中は50ms間隔でスライダーのみを再描画
+        if (currentTime - lastDrawTime >= 50) {
+            // 画面全体の再描画フラグは立てずに、スライダーのみを再描画
+            lumiView->drawSliders();
             lastDrawTime = currentTime;
         }
         wasDragging = true;
@@ -244,7 +245,7 @@ void OctaController::processLumiHomeState() {
     }
     
     // 初回表示または再描画が必要な場合のみ描画
-    if (initialDraw || requiresRedraw) {
+    if ((initialDraw || requiresRedraw) && !sliderDragging) {
         // 初回表示または再描画フラグが立っている場合は描画
         lumiView->draw();
         

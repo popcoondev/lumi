@@ -82,6 +82,10 @@ public:
         return brightnessSlider.isBeingDragged() || colorSlider.isBeingDragged();
     }
 
+    void drawSliders();
+    void drawBrightnessSlider();
+    void drawColorSlider();
+
 };
 
 #endif // LUMI_VIEW_H
