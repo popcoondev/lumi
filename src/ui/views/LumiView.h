@@ -35,8 +35,9 @@ private:
     Button topLeftButton;
     Button bottomLeftButton;
     Button bottomRightButton;
-    Slider brightnessSlider; // 左側のスライダー
-    Slider colorSlider;      // 右側のスライダー
+    Slider brightnessSlider; // 明度スライダー
+    Slider hueSlider;        // 色相スライダー
+    Slider saturationSlider;     // 彩度スライダー
     
     // タッチ検出用の領域
     struct {
@@ -73,13 +74,14 @@ public:
     std::function<void()> onBottomLeftButtonTapped;
     std::function<void()> onBottomRightButtonTapped;
     std::function<void(int)> onBrightnessChanged;
-    std::function<void(int)> onColorChanged;
+    std::function<void(int)> onHueChanged;
+    std::function<void(int)> onSaturationChanged;
     
     // フレンドクラス宣言（OctaControllerからoctagonにアクセスできるようにする）
     friend class OctaController;
 
     bool isAnySliderDragging() const {
-        return brightnessSlider.isBeingDragged() || colorSlider.isBeingDragged();
+        return brightnessSlider.isBeingDragged() || hueSlider.isBeingDragged() || saturationSlider.isBeingDragged();
     }
 
     void drawSliders();
@@ -87,7 +89,7 @@ public:
     void drawColorSlider();
 
     Slider& getBrightnessSlider() { return brightnessSlider; }
-    Slider& getColorSlider() { return colorSlider; }
+    Slider& getColorSlider() { return hueSlider; }
 
 };
 

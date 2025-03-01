@@ -8,7 +8,9 @@ OctaController::OctaController() {
     faceDetector = new FaceDetector(MAX_FACES); // 最大面数
     stateManager = new StateManager();
     lumiView = new LumiView();
-    currentLedColor = CRGB::White; // 初期色を白に設定
+    currentHue = 0;           // 初期色相を0（赤）に設定
+    currentSaturation = 255;  // 初期彩度を最大に設定
+    currentLedColor = CHSV(currentHue, currentSaturation, 255); // 初期色を設定
 }
 
 OctaController::~OctaController() {
@@ -155,8 +157,9 @@ void OctaController::processLumiHomeState() {
     // スライダーのドラッグ中の処理を変更
     // スライダーの状態をチェック
     bool brightnessSliderDragging = lumiView->brightnessSlider.isBeingDragged();
-    bool colorSliderDragging = lumiView->colorSlider.isBeingDragged();
-    bool sliderDragging = brightnessSliderDragging || colorSliderDragging;
+    bool hueSliderDragging = lumiView->hueSlider.isBeingDragged();
+    bool saturationSliderDragging = lumiView->saturationSlider.isBeingDragged();
+    bool sliderDragging = brightnessSliderDragging || hueSliderDragging || saturationSliderDragging;
     
     if (sliderDragging) {
         unsigned long currentTime = millis();
@@ -165,8 +168,10 @@ void OctaController::processLumiHomeState() {
             // 操作中のスライダーのみを再描画
             if (brightnessSliderDragging) {
                 lumiView->drawBrightnessSlider();
-            } else if (colorSliderDragging) {
+            } else if (hueSliderDragging) {
                 lumiView->drawColorSlider();
+            } else if (saturationSliderDragging) {
+                lumiView->saturationSlider.draw();
             }
             lastDrawTime = currentTime;
         }
@@ -278,10 +283,40 @@ void OctaController::processLumiHomeState() {
         };
         
         // カラースライダーでLED色相を制御
-        lumiView->onColorChanged = [this](int value) {
+        lumiView->onHueChanged = [this](int value) {
             // 色相を0-255にマップ
-            uint8_t hue = map(value, 0, 100, 0, 255);
-            currentLedColor = CHSV(hue, 255, 255);
+            currentHue = map(value, 0, 100, 0, 255);
+            currentLedColor = CHSV(currentHue, currentSaturation, 255);
+            
+            // 点灯している全ての面の色を更新
+            for (int viewFace = 0; viewFace < NUM_FACES; viewFace++) {
+                if (lumiView->octagon.isFaceHighlighted(viewFace)) {
+                    // OctagonRingViewの面IDをLEDの面IDに変換
+                    int ledFace = mapViewFaceToLedFace(viewFace);
+                    ledManager->lightFace(ledFace, currentLedColor);
+                    
+                    // FaceDataの色も更新
+                    if (faceDetector->getCalibratedFacesCount() > 0) {
+                        FaceData* faceList = faceDetector->getFaceList();
+                        if (ledFace < faceDetector->getCalibratedFacesCount()) {
+                            faceList[ledFace].ledColor = currentLedColor;
+                        }
+                    }
+                }
+            }
+            
+            // OctagonRingViewのハイライト色も更新
+            lumiView->octagon.setHighlightColor(crgbToRGB565(currentLedColor));
+            
+            // 再描画を即時実行する代わりに次回ループで行う
+            needsRedraw = true;
+        };
+        
+        // 彩度スライダーでLED彩度を制御
+        lumiView->onSaturationChanged = [this](int value) {
+            // 彩度を0-255にマップ
+            currentSaturation = map(value, 0, 100, 0, 255);
+            currentLedColor = CHSV(currentHue, currentSaturation, 255);
             
             // 点灯している全ての面の色を更新
             for (int viewFace = 0; viewFace < NUM_FACES; viewFace++) {

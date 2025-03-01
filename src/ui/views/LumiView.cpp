@@ -69,7 +69,8 @@ LumiView::LumiView()
       settingsButton(320 - CORNER_BUTTON_WIDTH, 0, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Settings"),
       bottomRightButton(320 - CORNER_BUTTON_WIDTH, 240 - CORNER_BUTTON_HEIGHT, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "4"),
       brightnessSlider(0, 40, 40, 160),
-      colorSlider(320 - 40, 40, 40, 160),
+      hueSlider(320 - 40, 40, 40, 80),
+      saturationSlider(320 - 40, 120, 40, 80),
       isTouchActive(false),
       lastTouchX(0),
       lastTouchY(0)
@@ -120,7 +121,8 @@ void LumiView::draw() {
     
     // スライダーを描画
     brightnessSlider.draw();
-    colorSlider.draw();
+    hueSlider.draw();
+    saturationSlider.draw();
 }
 
 void LumiView::handleTouch() {
@@ -189,15 +191,28 @@ void LumiView::handleTouch() {
         return;
     }
     
-    // 色スライダーの処理
-    bool colorChanged = colorSlider.handleTouch(touchX, touchY, isPressed);
-    if (colorChanged || colorSlider.isBeingDragged()) {
+    // 色相スライダーの処理
+    bool hueChanged = hueSlider.handleTouch(touchX, touchY, isPressed);
+    if (hueChanged || hueSlider.isBeingDragged()) {
         // 操作中または値に変化があった場合のみスライダーを再描画
-        colorSlider.draw();
+        hueSlider.draw();
         
         // 値に変化があった場合のみコールバック呼び出し
-        if (colorChanged && onColorChanged) {
-            onColorChanged(colorSlider.getValue());
+        if (hueChanged && onHueChanged) {
+            onHueChanged(hueSlider.getValue());
+        }
+        return;
+    }
+
+    // 彩度スライダーの処理
+    bool saturationChanged = saturationSlider.handleTouch(touchX, touchY, isPressed);
+    if (saturationChanged || saturationSlider.isBeingDragged()) {
+        // 操作中または値に変化があった場合のみスライダーを再描画
+        saturationSlider.draw();
+        
+        // 値に変化があった場合のみコールバック呼び出し
+        if (saturationChanged && onSaturationChanged) {
+            onSaturationChanged(saturationSlider.getValue());
         }
         return;
     }
@@ -239,7 +254,8 @@ bool LumiView::isCenterTapped(int x, int y) {
 // スライダーのみを再描画するメソッド
 void LumiView::drawSliders() {
     brightnessSlider.draw();
-    colorSlider.draw();
+    hueSlider.draw();
+    saturationSlider.draw();
 }
 
 // 明るさスライダーのみを再描画
@@ -249,5 +265,5 @@ void LumiView::drawBrightnessSlider() {
 
 // 色スライダーのみを再描画
 void LumiView::drawColorSlider() {
-    colorSlider.draw();
+    hueSlider.draw();
 }
