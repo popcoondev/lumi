@@ -2,7 +2,7 @@
 
 Button::Button(int x, int y, int w, int h, const char* label)
     : posX(x), posY(y), width(w), height(h), label(label),
-      normalColor(DARKGREY), pressedColor(LIGHTGREY), lastPressTime(0), wasPressed(false) {}
+      normalColor(DARKGREY), pressedColor(LIGHTGREY), lastPressTime(0), wasPressed(false), fontSize(2), type(BUTTON_TYPE_OUTLINE) {}
 
 void Button::begin() {
     draw();
@@ -10,10 +10,18 @@ void Button::begin() {
 
 void Button::draw() {
     M5.Lcd.fillRoundRect(posX, posY, width, height, 5, normalColor);
-    M5.Lcd.drawRoundRect(posX, posY, width, height, 5, WHITE);
-    M5.Lcd.setTextSize(2);
+    if (type == BUTTON_TYPE_OUTLINE) {
+        M5.Lcd.drawRoundRect(posX, posY, width, height, 5, WHITE);
+    }
+    M5.Lcd.setTextSize(fontSize);
     M5.Lcd.setTextColor(WHITE, normalColor);
-    M5.Lcd.setCursor(posX + 10, posY + 8);
+    
+    // フォントサイズに応じてテキスト位置を調整
+    int textOffsetX = 10;
+    int textOffsetY = (height - (fontSize * 8)) / 2; // フォントの高さに基づいて中央揃え
+    if (textOffsetY < 2) textOffsetY = 2; // 最小マージン
+    
+    M5.Lcd.setCursor(posX + textOffsetX, posY + textOffsetY);
     M5.Lcd.print(label);
 }
 
@@ -25,6 +33,11 @@ void Button::setLabel(const char* newLabel) {
 void Button::setColor(uint16_t normal, uint16_t pressed) {
     normalColor = normal;
     pressedColor = pressed;
+    draw();
+}
+
+void Button::setFontSize(uint8_t size) {
+    fontSize = size;
     draw();
 }
 
@@ -41,9 +54,17 @@ bool Button::isPressed() {
             }
             lastPressTime = millis();
             wasPressed = true;
-            M5.Lcd.fillRoundRect(posX+1, posY+1, width-1, height-1, 5, pressedColor);
-            M5.Lcd.drawRoundRect(posX+1, posY+1, width-1, height-1, 5, WHITE);
-            M5.Lcd.setTextColor(normalColor, pressedColor);
+            if(type == BUTTON_TYPE_OUTLINE) {
+                M5.Lcd.fillRoundRect(posX+1, posY+1, width-1, height-1, 5, pressedColor);
+                M5.Lcd.drawRoundRect(posX+1, posY+1, width-1, height-1, 5, WHITE);
+                M5.Lcd.setTextColor(normalColor, pressedColor);
+            }
+            else {
+                // type == BUTTON_TYPE_TEXTの場合は、テキストの色を反転
+                M5.Lcd.drawRoundRect(posX+1, posY+1, width-1, height-1, 5, WHITE);
+                M5.Lcd.setTextColor(pressedColor, normalColor);
+                
+            }
             return false;  // 押した直後は無効
         }
     } 

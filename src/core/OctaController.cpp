@@ -262,6 +262,17 @@ void OctaController::processLumiHomeState() {
         lumiView->onBrightnessChanged = [this](int value) {
             uint8_t brightness = map(value, 0, 100, 0, 255);
             ledManager->setBrightness(brightness);
+            
+            // FaceDataの輝度も更新
+            if (faceDetector->getCalibratedFacesCount() > 0) {
+                FaceData* faceList = faceDetector->getFaceList();
+                for (int i = 0; i < faceDetector->getCalibratedFacesCount(); i++) {
+                    if (faceList[i].ledState == 1) {
+                        faceList[i].ledBrightness = brightness;
+                    }
+                }
+            }
+            
             // 再描画を即時実行する代わりに次回ループで行う
             needsRedraw = true;
         };
@@ -272,16 +283,25 @@ void OctaController::processLumiHomeState() {
             uint8_t hue = map(value, 0, 100, 0, 255);
             currentLedColor = CHSV(hue, 255, 255);
             
-            // 現在ハイライトされている面があれば、その色を変更
-            int viewFace = lumiView->getHighlightedFace();
-            if (viewFace >= 0) {
-                // OctagonRingViewの面IDをLEDの面IDに変換
-                int ledFace = mapViewFaceToLedFace(viewFace);
-                ledManager->lightFace(ledFace, currentLedColor);
-                
-                // OctagonRingViewのハイライト色も更新
-                lumiView->octagon.setHighlightColor(crgbToRGB565(currentLedColor));
+            // 点灯している全ての面の色を更新
+            for (int viewFace = 0; viewFace < NUM_FACES; viewFace++) {
+                if (lumiView->octagon.isFaceHighlighted(viewFace)) {
+                    // OctagonRingViewの面IDをLEDの面IDに変換
+                    int ledFace = mapViewFaceToLedFace(viewFace);
+                    ledManager->lightFace(ledFace, currentLedColor);
+                    
+                    // FaceDataの色も更新
+                    if (faceDetector->getCalibratedFacesCount() > 0) {
+                        FaceData* faceList = faceDetector->getFaceList();
+                        if (ledFace < faceDetector->getCalibratedFacesCount()) {
+                            faceList[ledFace].ledColor = currentLedColor;
+                        }
+                    }
+                }
             }
+            
+            // OctagonRingViewのハイライト色も更新
+            lumiView->octagon.setHighlightColor(crgbToRGB565(currentLedColor));
             
             // 再描画を即時実行する代わりに次回ループで行う
             needsRedraw = true;
@@ -356,14 +376,21 @@ void OctaController::processDetectionState() {
                     int ledFaceId = mapViewFaceToLedFace(detectedFace);
                     ledManager->lightFace(ledFaceId, currentLedColor);
                     
+                    // FaceDataの状態も更新
+                    if (faceDetector->getCalibratedFacesCount() > 0) {
+                        FaceData* faceList = faceDetector->getFaceList();
+                        if (ledFaceId < faceDetector->getCalibratedFacesCount()) {
+                            faceList[ledFaceId].ledState = 1;
+                            faceList[ledFaceId].ledColor = currentLedColor;
+                        }
+                    }
+                    
                     // UI更新 - ハイライト色も設定
                     uiManager->highlightFace(detectedFace);
-                    // UIManagerのOctagonRingViewにアクセスできないため、直接色は設定できない
-                    // 代わりにLumiViewのoctagonに色を設定する
-                    if (stateInfo.mainState == STATE_DETECTION) {
-                        // 検出モードでのみ色を設定
-                        lumiView->octagon.setHighlightColor(crgbToRGB565(currentLedColor));
-                    }
+                    
+                    // LumiViewのOctagonRingViewも更新
+                    lumiView->octagon.setFaceHighlighted(detectedFace, true);
+                    lumiView->octagon.setHighlightColor(crgbToRGB565(currentLedColor));
                     
                     // 状態情報更新
                     StateInfo newInfo = stateInfo;

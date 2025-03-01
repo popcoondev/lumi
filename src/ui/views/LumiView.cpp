@@ -1,6 +1,9 @@
 #include "ui/views/LumiView.h"
 #include "core/Constants.h"
 
+#define CORNER_BUTTON_WIDTH 70
+#define CORNER_BUTTON_HEIGHT 40
+
 // Sliderクラスの実装
 Slider::Slider(int x, int y, int width, int height)
     : x(x), y(y), width(width), height(height), 
@@ -61,10 +64,10 @@ bool Slider::handleTouch(int touchX, int touchY, bool isPressed) {
 
 // LumiViewクラスの実装
 LumiView::LumiView()
-    : topLeftButton(0, 0, 40, 40, "1"),
-      bottomLeftButton(0, 240 - 40, 40, 40, "2"),
-      settingsButton(320 - 40, 0, 40, 40, "3"),
-      bottomRightButton(320 - 40, 240 - 40, 40, 40, "4"),
+    : topLeftButton(0, 0, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "1"),
+      bottomLeftButton(0, 240 - CORNER_BUTTON_HEIGHT, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "2"),
+      settingsButton(320 - CORNER_BUTTON_WIDTH, 0, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Settings"),
+      bottomRightButton(320 - CORNER_BUTTON_WIDTH, 240 - CORNER_BUTTON_HEIGHT, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "4"),
       brightnessSlider(0, 40, 40, 160),
       colorSlider(320 - 40, 40, 40, 160),
       isTouchActive(false),
@@ -86,9 +89,20 @@ void LumiView::begin() {
     
     // ボタンのスタイル設定
     settingsButton.setColor(BLACK, TFT_LIGHTGREY);
+    settingsButton.setFontSize(1);
+    settingsButton.setType(BUTTON_TYPE_TEXT);
+    
     topLeftButton.setColor(BLACK, TFT_LIGHTGREY);
+    topLeftButton.setFontSize(1);
+    topLeftButton.setType(BUTTON_TYPE_TEXT);
+
     bottomLeftButton.setColor(BLACK, TFT_LIGHTGREY);
+    bottomLeftButton.setFontSize(1);
+    bottomLeftButton.setType(BUTTON_TYPE_TEXT);
+
     bottomRightButton.setColor(BLACK, TFT_LIGHTGREY);
+    bottomRightButton.setFontSize(1);
+    bottomRightButton.setType(BUTTON_TYPE_TEXT);
 }
 
 void LumiView::draw() {
