@@ -5,7 +5,7 @@
 Slider::Slider(int x, int y, int width, int height)
     : x(x), y(y), width(width), height(height), 
       value(50), isDragging(false), 
-      knobWidth(width - 10), knobHeight(30),
+      knobWidth(width - 20), knobHeight(20),
       barColor(BLACK), knobColor(WHITE)
 {
 }
@@ -24,10 +24,10 @@ void Slider::draw() {
     M5.Lcd.fillRoundRect(x + (width - knobWidth) / 2, knobY, knobWidth, knobHeight, 5, knobColor);
     
     // 値の表示
-    M5.Lcd.setTextSize(1);
-    M5.Lcd.setTextColor(TFT_WHITE);
-    M5.Lcd.setTextDatum(MC_DATUM);
-    M5.Lcd.drawNumber(value, x + width / 2, knobY + knobHeight / 2);
+    // M5.Lcd.setTextSize(1);
+    // M5.Lcd.setTextColor(TFT_WHITE);
+    // M5.Lcd.setTextDatum(MC_DATUM);
+    // M5.Lcd.drawNumber(value, x + width / 2, knobY + knobHeight / 2);
 }
 
 void Slider::setValue(int val) {
@@ -123,10 +123,8 @@ void LumiView::handleTouch() {
     if (isPressed) {
         lastTouchX = touchX;
         lastTouchY = touchY;
-        Serial.println("Touch: " + String(touchX) + ", " + String(touchY));
     }
     
-
     // ボタンのタッチ判定
     if (touch.wasPressed()) {
         if (settingsButton.isPressed()) {
@@ -163,14 +161,30 @@ void LumiView::handleTouch() {
         }
     }
     
-    // スライダーのタッチ処理
-    if (brightnessSlider.handleTouch(touchX, touchY, isPressed)) {
-        if (onBrightnessChanged) onBrightnessChanged(brightnessSlider.getValue());
+    // スライダーのタッチ処理を最適化
+    // 明るさスライダーの処理
+    bool brightnessChanged = brightnessSlider.handleTouch(touchX, touchY, isPressed);
+    if (brightnessChanged || brightnessSlider.isBeingDragged()) {
+        // 操作中または値に変化があった場合のみスライダーを再描画
+        brightnessSlider.draw();
+        
+        // 値に変化があった場合のみコールバック呼び出し
+        if (brightnessChanged && onBrightnessChanged) {
+            onBrightnessChanged(brightnessSlider.getValue());
+        }
         return;
     }
     
-    if (colorSlider.handleTouch(touchX, touchY, isPressed)) {
-        if (onColorChanged) onColorChanged(colorSlider.getValue());
+    // 色スライダーの処理
+    bool colorChanged = colorSlider.handleTouch(touchX, touchY, isPressed);
+    if (colorChanged || colorSlider.isBeingDragged()) {
+        // 操作中または値に変化があった場合のみスライダーを再描画
+        colorSlider.draw();
+        
+        // 値に変化があった場合のみコールバック呼び出し
+        if (colorChanged && onColorChanged) {
+            onColorChanged(colorSlider.getValue());
+        }
         return;
     }
 }

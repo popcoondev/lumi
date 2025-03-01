@@ -180,11 +180,11 @@ void OctagonRingView::draw() {
         );
 
         // 台形上に面番号を描画
-        int faceCenterX = (projected[v0][0] + projected[v1][0] + projected[v2][0] + projected[v3][0]) / 4;
-        int faceCenterY = (projected[v0][1] + projected[v1][1] + projected[v2][1] + projected[v3][1]) / 4;
-        M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
-        M5.Lcd.setCursor(faceCenterX, faceCenterY);
-        M5.Lcd.print(i);
+        // int faceCenterX = (projected[v0][0] + projected[v1][0] + projected[v2][0] + projected[v3][0]) / 4;
+        // int faceCenterY = (projected[v0][1] + projected[v1][1] + projected[v2][1] + projected[v3][1]) / 4;
+        // M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+        // M5.Lcd.setCursor(faceCenterX, faceCenterY);
+        // M5.Lcd.print(i);
     }
 
     // エッジ描画

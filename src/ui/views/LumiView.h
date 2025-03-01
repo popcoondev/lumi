@@ -86,6 +86,9 @@ public:
     void drawBrightnessSlider();
     void drawColorSlider();
 
+    Slider& getBrightnessSlider() { return brightnessSlider; }
+    Slider& getColorSlider() { return colorSlider; }
+
 };
 
 #endif // LUMI_VIEW_H

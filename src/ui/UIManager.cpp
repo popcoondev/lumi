@@ -30,7 +30,7 @@ void UIManager::begin() {
     
     // オクタゴンビューの初期化
     octagon.setViewPosition(SCREEN_WIDTH/3*2, ACTIONBAR_HEIGHT+subViewHeight, SCREEN_WIDTH/3, subViewHeight);
-    // octagon.rotate(PI/8); // π/8ラジアン（22.5度）
+    octagon.rotate(PI);
     
     // ツールバーの初期化
     toolbar.begin();

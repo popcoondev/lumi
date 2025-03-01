@@ -143,13 +143,21 @@ void OctaController::processLumiHomeState() {
     bool requiresRedraw = wasPressed || wasReleased || needsRedraw || initialDraw;
     
     // スライダーのドラッグ中の処理を変更
-    bool sliderDragging = lumiView->isAnySliderDragging();
+    // スライダーの状態をチェック
+    bool brightnessSliderDragging = lumiView->brightnessSlider.isBeingDragged();
+    bool colorSliderDragging = lumiView->colorSlider.isBeingDragged();
+    bool sliderDragging = brightnessSliderDragging || colorSliderDragging;
+    
     if (sliderDragging) {
         unsigned long currentTime = millis();
-        // スライダードラッグ中は50ms間隔でスライダーのみを再描画
+        // スライダードラッグ中は50ms間隔で操作中のスライダーのみを再描画
         if (currentTime - lastDrawTime >= 50) {
-            // 画面全体の再描画フラグは立てずに、スライダーのみを再描画
-            lumiView->drawSliders();
+            // 操作中のスライダーのみを再描画
+            if (brightnessSliderDragging) {
+                lumiView->drawBrightnessSlider();
+            } else if (colorSliderDragging) {
+                lumiView->drawColorSlider();
+            }
             lastDrawTime = currentTime;
         }
         wasDragging = true;
@@ -245,6 +253,7 @@ void OctaController::processLumiHomeState() {
     }
     
     // 初回表示または再描画が必要な場合のみ描画
+    // スライダードラッグ中はスライダーのみを更新するため除外
     if ((initialDraw || requiresRedraw) && !sliderDragging) {
         // 初回表示または再描画フラグが立っている場合は描画
         lumiView->draw();
