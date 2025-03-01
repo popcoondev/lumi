@@ -11,11 +11,16 @@ OctagonRingView::OctagonRingView()
     , viewWidth(100)
     , viewHeight(100)
     , backgroundColor(BLACK)
-    , highlightedFace(-1)
     , highlightColor(WHITE)     // デフォルトのハイライト色は白
     , rotationAngle(M_PI/8.0f)  // デフォルトでPI/8（22.5度）回転
     , isMirrored(true) // デフォルトで鏡写しに設定
+    , faceDetector(nullptr) // FaceDetectorは初期化時にnull
 {
+    // ハイライト面の初期化（すべて非ハイライト）
+    for (int i = 0; i < NUM_FACES; i++) {
+        highlightedFaces[i] = false;
+    }
+
     updateGeometry();
 
     // 面(台形)の定義：外側i, 外側(i+1), 内側(i+1), 内側i
@@ -79,12 +84,43 @@ void OctagonRingView::setBackgroundColor(uint16_t color) {
     backgroundColor = color;
 }
 
+// ハイライト面の設定（複数ハイライト対応版）
 void OctagonRingView::setHighlightedFace(int faceID) {
-    highlightedFace = faceID;
+    // 全てのハイライトをクリア
+    for (int i = 0; i < NUM_FACES; i++) {
+        highlightedFaces[i] = false;
+    }
+    
+    // 有効な面IDの場合のみハイライト設定
+    if (faceID >= 0 && faceID < NUM_FACES) {
+        highlightedFaces[faceID] = true;
+    }
+    // -1の場合は全てのハイライトをクリア（既に上でクリア済み）
 }
 
+// 特定の面のハイライト状態を設定
+void OctagonRingView::setFaceHighlighted(int faceID, bool highlighted) {
+    if (faceID >= 0 && faceID < NUM_FACES) {
+        highlightedFaces[faceID] = highlighted;
+    }
+}
+
+// 特定の面のハイライト状態を取得
+bool OctagonRingView::isFaceHighlighted(int faceID) const {
+    if (faceID >= 0 && faceID < NUM_FACES) {
+        return highlightedFaces[faceID];
+    }
+    return false;
+}
+
+// 後方互換性のため、最初にハイライトされている面を返す
 int OctagonRingView::getHighlightedFace() {
-    return highlightedFace;
+    for (int i = 0; i < NUM_FACES; i++) {
+        if (highlightedFaces[i]) {
+            return i;
+        }
+    }
+    return -1; // ハイライトされている面がない場合
 }
 
 void OctagonRingView::setHighlightColor(uint16_t color) {
@@ -103,6 +139,11 @@ void OctagonRingView::setMirrored(bool mirror) {
 // 中心点を軸に回転（角度はラジアンで加算）
 void OctagonRingView::rotate(float dAngle) {
     rotationAngle += dAngle;
+}
+
+// FaceDetectorの設定
+void OctagonRingView::setFaceDetector(FaceDetector* detector) {
+    faceDetector = detector;
 }
 
 // 描画
@@ -170,7 +211,21 @@ void OctagonRingView::draw() {
 
         // デフォルト色
         uint16_t color = BLACK;
-        if(i == highlightedFace) {
+        
+        // FaceDetectorが設定されている場合はFaceDataから色を取得
+        if (faceDetector != nullptr && faceDetector->getCalibratedFacesCount() > 0) {
+            FaceData* faceList = faceDetector->getFaceList();
+            if (i < faceDetector->getCalibratedFacesCount() && faceList[i].ledState == 1) {
+                // LEDが点灯している場合はFaceDataの色を使用
+                CRGB ledColor = faceList[i].ledColor;
+                color = M5.Lcd.color565(ledColor.r, ledColor.g, ledColor.b);
+                highlightedFaces[i] = true;
+            } else if (highlightedFaces[i]) {
+                // FaceDataでLEDがOFFだがハイライトされている場合はデフォルトのハイライト色を使用
+                color = highlightColor;
+            }
+        } else if (highlightedFaces[i]) {
+            // FaceDetectorが設定されていない場合は通常のハイライト色を使用
             color = highlightColor;
         }
 

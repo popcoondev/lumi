@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <M5Unified.h>
+#include "../system/FaceDetector.h"
 
 // 八角形リングのジオメトリ定数
 #define NUM_OUTER 8  // 外側の頂点数
@@ -33,10 +34,13 @@ private:
     int viewX, viewY;  // 表示領域左上座標
     int viewWidth, viewHeight;  // 表示領域サイズ
     uint16_t backgroundColor;  // 背景色
-    int highlightedFace;  // ハイライト表示する面ID (-1=なし)
+    bool highlightedFaces[NUM_FACES];  // 各面のハイライト状態
     uint16_t highlightColor;   // ハイライト色
     float rotationAngle;  // 回転角度
     bool isMirrored;  // 鏡写しモード
+    
+    // FaceDetectorへの参照
+    FaceDetector* faceDetector;
 
     // ジオメトリ更新関数
     void updateGeometry();
@@ -52,6 +56,9 @@ private:
 public:
     // コンストラクタ
     OctagonRingView();
+    
+    // FaceDetectorの設定
+    void setFaceDetector(FaceDetector* detector);
 
     // 表示領域の設定
     void setViewPosition(int x, int y, int width, int height);
@@ -61,6 +68,12 @@ public:
 
     // ハイライト面の設定
     void setHighlightedFace(int faceID);
+    
+    // 特定の面のハイライト状態を設定
+    void setFaceHighlighted(int faceID, bool highlighted);
+    
+    // 特定の面のハイライト状態を取得
+    bool isFaceHighlighted(int faceID) const;
     
     // ハイライト面の取得
     int getHighlightedFace();

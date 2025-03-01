@@ -32,6 +32,9 @@ void OctaController::setup() {
     faceDetector->begin(imuSensor);
     stateManager->begin();
     lumiView->begin();
+    
+    // OctagonRingViewにFaceDetectorを設定
+    lumiView->octagon.setFaceDetector(faceDetector);
 
     // 設定の読み込み
     faceDetector->loadFaces();
@@ -195,44 +198,53 @@ void OctaController::processLumiHomeState() {
             // デバッグ出力 - タップされた面ID
             Serial.println("Face tapped: " + String(faceId));
             
+            // 無効な面IDの場合は何もしない
+            if (faceId < 0 || faceId >= MAX_FACES) {
+                return;
+            }
+            
             // OctagonRingViewの面IDをLEDの面IDに変換
             int ledFaceId = mapViewFaceToLedFace(faceId);
-            
-            // 現在のハイライト状態を取得
-            int currentHighlight = lumiView->getHighlightedFace();
             
             // LEDの現在の状態を確認するために、LEDManagerから現在の色を取得
             CRGB currentFaceColor = ledManager->getFaceColor(ledFaceId);
             bool isLedOn = (currentFaceColor.r != 0 || currentFaceColor.g != 0 || currentFaceColor.b != 0);
             
-            // 面がまだハイライトされていない場合
-            if (currentHighlight != faceId) {
-                // 面をハイライト
-                lumiView->setHighlightedFace(faceId);
+            // LEDの状態をトグル
+            if (isLedOn) {
+                // LEDが点灯している場合は消灯
+                ledManager->lightFace(ledFaceId, CRGB::Black);
                 
-                // 現在の色でLED点灯
+                // FaceDetectorのLED状態も更新
+                if (faceDetector->getCalibratedFacesCount() > 0) {
+                    FaceData* faceList = faceDetector->getFaceList();
+                    if (ledFaceId < faceDetector->getCalibratedFacesCount()) {
+                        faceList[ledFaceId].ledState = 0;
+                    }
+                }
+                
+                // OctagonRingViewのハイライトも解除
+                lumiView->octagon.setFaceHighlighted(faceId, false);
+                
+                Serial.println("Toggled LED off: " + String(ledFaceId));
+            } else {
+                // LEDが消灯している場合は点灯
                 ledManager->lightFace(ledFaceId, currentLedColor);
                 
-                // OctagonRingViewのハイライト色も設定
+                // FaceDetectorのLED状態も更新
+                if (faceDetector->getCalibratedFacesCount() > 0) {
+                    FaceData* faceList = faceDetector->getFaceList();
+                    if (ledFaceId < faceDetector->getCalibratedFacesCount()) {
+                        faceList[ledFaceId].ledState = 1;
+                        faceList[ledFaceId].ledColor = currentLedColor;
+                    }
+                }
+                
+                // OctagonRingViewのハイライトも設定
+                lumiView->octagon.setFaceHighlighted(faceId, true);
                 lumiView->octagon.setHighlightColor(crgbToRGB565(currentLedColor));
                 
-                Serial.println("Highlighted face: " + String(faceId) + 
-                            ", LED on: " + String(ledFaceId));
-            } 
-            // 同じ面が既にハイライトされている場合はLEDとハイライトの状態をトグル
-            else {
-                if (isLedOn) {
-                    // LEDが点灯している場合は消灯し、ハイライトも解除
-                    ledManager->lightFace(ledFaceId, CRGB::Black);
-                    lumiView->setHighlightedFace(-1);
-                    Serial.println("Toggled LED and highlight off: " + String(ledFaceId));
-                } else {
-                    // LEDが消灯している場合は点灯し、ハイライトも設定
-                    ledManager->lightFace(ledFaceId, currentLedColor);
-                    // OctagonRingViewのハイライト色も設定
-                    lumiView->octagon.setHighlightColor(crgbToRGB565(currentLedColor));
-                    Serial.println("Toggled LED and highlight on: " + String(ledFaceId));
-                }
+                Serial.println("Toggled LED on: " + String(ledFaceId));
             }
             
             // 再描画フラグを設定
