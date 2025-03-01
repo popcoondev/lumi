@@ -34,6 +34,7 @@ private:
     int viewWidth, viewHeight;  // 表示領域サイズ
     uint16_t backgroundColor;  // 背景色
     int highlightedFace;  // ハイライト表示する面ID (-1=なし)
+    uint16_t highlightColor;   // ハイライト色
     float rotationAngle;  // 回転角度
     bool isMirrored;  // 鏡写しモード
 
@@ -63,6 +64,12 @@ public:
     
     // ハイライト面の取得
     int getHighlightedFace();
+    
+    // ハイライト色の設定
+    void setHighlightColor(uint16_t color);
+    
+    // ハイライト色の取得
+    uint16_t getHighlightColor();
     
     // 鏡写しモードの設定
     void setMirrored(bool mirror);

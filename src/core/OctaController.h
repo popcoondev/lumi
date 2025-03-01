@@ -27,6 +27,10 @@ private:
     LumiView* lumiView;
     
     unsigned long lastUpdateTime; // 最後の更新時間
+    CRGB currentLedColor;         // 現在選択されている色
+    
+    // CRGB色をM5Stack LCD用のuint16_t色に変換する関数
+    uint16_t crgbToRGB565(CRGB color);
     
     void handleButtonEvent(ButtonEvent event);
     void processLumiHomeState();

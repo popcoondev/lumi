@@ -12,6 +12,7 @@ OctagonRingView::OctagonRingView()
     , viewHeight(100)
     , backgroundColor(BLACK)
     , highlightedFace(-1)
+    , highlightColor(WHITE)     // デフォルトのハイライト色は白
     , rotationAngle(M_PI/8.0f)  // デフォルトでPI/8（22.5度）回転
     , isMirrored(true) // デフォルトで鏡写しに設定
 {
@@ -84,6 +85,14 @@ void OctagonRingView::setHighlightedFace(int faceID) {
 
 int OctagonRingView::getHighlightedFace() {
     return highlightedFace;
+}
+
+void OctagonRingView::setHighlightColor(uint16_t color) {
+    highlightColor = color;
+}
+
+uint16_t OctagonRingView::getHighlightColor() {
+    return highlightColor;
 }
 
 // 鏡写しモードの設定
@@ -162,7 +171,7 @@ void OctagonRingView::draw() {
         // デフォルト色
         uint16_t color = BLACK;
         if(i == highlightedFace) {
-            color = WHITE;
+            color = highlightColor;
         }
 
         // 台形を三角形2枚に分割して塗りつぶす
