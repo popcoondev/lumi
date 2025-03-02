@@ -169,7 +169,7 @@ void OctaController::processLumiHomeState() {
             if (brightnessSliderDragging) {
                 lumiView->drawBrightnessSlider();
             } else if (hueSliderDragging) {
-                lumiView->drawColorSlider();
+                lumiView->drawHueSlider();
             } else if (saturationSliderDragging) {
                 lumiView->saturationSlider.draw();
             }
@@ -282,11 +282,38 @@ void OctaController::processLumiHomeState() {
             needsRedraw = true;
         };
         
+        // 明度スライダーでLED明度を制御
+        lumiView->onValueBrightnessChanged = [this](int value) {
+            currentValueBrightness = map(value, 0, 100, 0, 255);
+            currentLedColor = CHSV(currentHue, currentSaturation, currentValueBrightness);
+            
+            // 点灯している全ての面の色を更新
+            for (int viewFace = 0; viewFace < NUM_FACES; viewFace++) {
+                if (lumiView->octagon.isFaceHighlighted(viewFace)) {
+                    // OctagonRingViewの面IDをLEDの面IDに変換
+                    int ledFace = mapViewFaceToLedFace(viewFace);
+                    ledManager->lightFace(ledFace, currentLedColor);
+                    
+                    // FaceDataの色も更新
+                    if (faceDetector->getCalibratedFacesCount() > 0) {
+                        FaceData* faceList = faceDetector->getFaceList();
+                        if (ledFace < faceDetector->getCalibratedFacesCount()) {
+                            faceList[ledFace].ledColor = currentLedColor;
+                        }
+                    }
+                }
+            }
+            
+            // 再描画を即時実行する代わりに次回ループで行う
+            needsRedraw = true;
+        };
+        
+
         // カラースライダーでLED色相を制御
         lumiView->onHueChanged = [this](int value) {
             // 色相を0-255にマップ
             currentHue = map(value, 0, 100, 0, 255);
-            currentLedColor = CHSV(currentHue, currentSaturation, 255);
+            currentLedColor = CHSV(currentHue, currentSaturation, currentValueBrightness);
             
             // 点灯している全ての面の色を更新
             for (int viewFace = 0; viewFace < NUM_FACES; viewFace++) {
@@ -316,7 +343,7 @@ void OctaController::processLumiHomeState() {
         lumiView->onSaturationChanged = [this](int value) {
             // 彩度を0-255にマップ
             currentSaturation = map(value, 0, 100, 0, 255);
-            currentLedColor = CHSV(currentHue, currentSaturation, 255);
+            currentLedColor = CHSV(currentHue, currentSaturation, currentValueBrightness);
             
             // 点灯している全ての面の色を更新
             for (int viewFace = 0; viewFace < NUM_FACES; viewFace++) {

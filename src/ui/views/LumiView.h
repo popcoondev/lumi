@@ -38,7 +38,8 @@ private:
     Button topLeftButton;
     Button bottomLeftButton;
     Button bottomRightButton;
-    Slider brightnessSlider; // 明度スライダー
+    Slider brightnessSlider; // FastLEDでの輝度スライダー
+    Slider valueBrightnessSlider; // 明度スライダー
     Slider hueSlider;        // 色相スライダー
     Slider saturationSlider;     // 彩度スライダー
     
@@ -79,20 +80,28 @@ public:
     std::function<void(int)> onBrightnessChanged;
     std::function<void(int)> onHueChanged;
     std::function<void(int)> onSaturationChanged;
+    std::function<void(int)> onValueBrightnessChanged;
     
     // フレンドクラス宣言（OctaControllerからoctagonにアクセスできるようにする）
     friend class OctaController;
 
     bool isAnySliderDragging() const {
-        return brightnessSlider.isBeingDragged() || hueSlider.isBeingDragged() || saturationSlider.isBeingDragged();
+        return brightnessSlider.isBeingDragged() 
+        || valueBrightnessSlider.isBeingDragged()
+        || hueSlider.isBeingDragged() 
+        || saturationSlider.isBeingDragged();
     }
 
     void drawSliders();
     void drawBrightnessSlider();
-    void drawColorSlider();
+    void drawValueBrightnessSlider();
+    void drawHueSlider();
+    void drawSaturationSlider();
 
     Slider& getBrightnessSlider() { return brightnessSlider; }
-    Slider& getColorSlider() { return hueSlider; }
+    Slider& getHueSlider() { return hueSlider; }
+    Slider& getSaturationSlider() { return saturationSlider; }
+    Slider& getValueBrightnessSlider() { return valueBrightnessSlider; }
 
 };
 

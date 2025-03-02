@@ -74,7 +74,8 @@ LumiView::LumiView()
       bottomLeftButton(0, 240 - CORNER_BUTTON_HEIGHT, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Single"),
       settingsButton(320 - CORNER_BUTTON_WIDTH, 0, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Settings"),
       bottomRightButton(320 - CORNER_BUTTON_WIDTH, 240 - CORNER_BUTTON_HEIGHT, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Patterns"),
-      brightnessSlider(0, 40, 40, 160),
+      brightnessSlider(0, 40, 40, 80),
+      valueBrightnessSlider(0, 120, 40, 80),
       hueSlider(320 - 40, 40, 40, 80),
       saturationSlider(320 - 40, 120, 40, 80),
       isTouchActive(false),
@@ -112,6 +113,7 @@ void LumiView::begin() {
     bottomRightButton.setType(BUTTON_TYPE_TEXT);
 
     brightnessSlider.setTitle("B");
+    valueBrightnessSlider.setTitle("V");
     hueSlider.setTitle("H");
     saturationSlider.setTitle("S");
 }
@@ -131,6 +133,7 @@ void LumiView::draw() {
     
     // スライダーを描画
     brightnessSlider.draw();
+    valueBrightnessSlider.draw();
     hueSlider.draw();
     saturationSlider.draw();
 }
@@ -201,6 +204,19 @@ void LumiView::handleTouch() {
         return;
     }
     
+    // 明度スライダーの処理
+    bool valueBrightnessChanged = valueBrightnessSlider.handleTouch(touchX, touchY, isPressed);
+    if (valueBrightnessChanged || valueBrightnessSlider.isBeingDragged()) {
+        // 操作中または値に変化があった場合のみスライダーを再描画
+        valueBrightnessSlider.draw();
+        
+        // 値に変化があった場合のみコールバック呼び出し
+        if (valueBrightnessChanged && onValueBrightnessChanged) {
+            onValueBrightnessChanged(valueBrightnessSlider.getValue());
+        }
+        return;
+    }
+
     // 色相スライダーの処理
     bool hueChanged = hueSlider.handleTouch(touchX, touchY, isPressed);
     if (hueChanged || hueSlider.isBeingDragged()) {
@@ -274,6 +290,16 @@ void LumiView::drawBrightnessSlider() {
 }
 
 // 色スライダーのみを再描画
-void LumiView::drawColorSlider() {
+void LumiView::drawHueSlider() {
     hueSlider.draw();
+}
+
+// 彩度スライダーのみを再描画
+void LumiView::drawSaturationSlider() {
+    saturationSlider.draw();
+}
+
+// 明度スライダーのみを再描画
+void LumiView::drawValueBrightnessSlider() {
+    valueBrightnessSlider.draw();
 }
