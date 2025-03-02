@@ -189,7 +189,7 @@ void OctaController::processLumiHomeState() {
     // 最初の1回だけコールバックを設定する
     if (!callbacksInitialized) {
         // 静的変数を直接キャプチャしないようにラムダ内で参照を作成
-        lumiView->onSettingsButtonTapped = [this]() {
+        lumiView->onTopRightButtonTapped = [this]() {
             Serial.println("====== CHANGING STATE TO MENU ======");
             
             // 画面をクリアして状態を変更

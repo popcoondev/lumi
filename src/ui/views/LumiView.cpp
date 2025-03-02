@@ -70,7 +70,7 @@ bool Slider::handleTouch(int touchX, int touchY, bool isPressed) {
 
 // LumiViewクラスの実装
 LumiView::LumiView()
-    : topLeftButton(0, 0, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Reset"),
+    : resetButton(0, 0, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Reset"),
       bottomLeftButton(0, 240 - CORNER_BUTTON_HEIGHT, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Single"),
       settingsButton(320 - CORNER_BUTTON_WIDTH, 0, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Settings"),
       bottomRightButton(320 - CORNER_BUTTON_WIDTH, 240 - CORNER_BUTTON_HEIGHT, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Patterns"),
@@ -100,9 +100,9 @@ void LumiView::begin() {
     settingsButton.setFontSize(1.4);
     settingsButton.setType(BUTTON_TYPE_TEXT);
     
-    topLeftButton.setColor(BLACK, TFT_LIGHTGREY);
-    topLeftButton.setFontSize(1.4);
-    topLeftButton.setType(BUTTON_TYPE_TEXT);
+    resetButton.setColor(BLACK, TFT_LIGHTGREY);
+    resetButton.setFontSize(1.4);
+    resetButton.setType(BUTTON_TYPE_TEXT);
 
     bottomLeftButton.setColor(BLACK, TFT_LIGHTGREY);
     bottomLeftButton.setFontSize(1.4);
@@ -127,7 +127,7 @@ void LumiView::draw() {
     
     // 四隅のボタンを描画
     settingsButton.draw();
-    topLeftButton.draw();
+    resetButton.draw();
     bottomLeftButton.draw();
     bottomRightButton.draw();
     
@@ -157,11 +157,11 @@ void LumiView::handleTouch() {
     // ボタンのタッチ判定
     if (touch.wasPressed()) {
         if (settingsButton.isPressed()) {
-            if (onSettingsButtonTapped) onSettingsButtonTapped();
+            if (onTopRightButtonTapped) onTopRightButtonTapped();
             return;
         }
         
-        if (topLeftButton.isPressed()) {
+        if (resetButton.isPressed()) {
             if (onTopLeftButtonTapped) onTopLeftButtonTapped();
             return;
         }

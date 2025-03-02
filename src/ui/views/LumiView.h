@@ -35,7 +35,7 @@ class LumiView {
 private:
     OctagonRingView octagon;
     Button settingsButton;
-    Button topLeftButton;
+    Button resetButton;
     Button bottomLeftButton;
     Button bottomRightButton;
     Slider brightnessSlider; // FastLEDでの輝度スライダー
@@ -73,7 +73,7 @@ public:
     // 各種イベントコールバック用関数ポインタ
     std::function<void(int)> onFaceTapped;
     std::function<void()> onCenterTapped;
-    std::function<void()> onSettingsButtonTapped;
+    std::function<void()> onTopRightButtonTapped;
     std::function<void()> onTopLeftButtonTapped;
     std::function<void()> onBottomLeftButtonTapped;
     std::function<void()> onBottomRightButtonTapped;
