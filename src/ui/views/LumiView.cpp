@@ -347,6 +347,7 @@ void LumiView::drawSliders() {
     brightnessSlider.draw();
     hueSlider.draw();
     saturationSlider.draw();
+    valueBrightnessSlider.draw();
 }
 
 // 明るさスライダーのみを再描画
