@@ -164,3 +164,15 @@ void LEDManager::setBrightness(uint8_t brightness) {
     FastLED.setBrightness(brightness);
     FastLED.show();
 }
+
+bool LEDManager::isPatternRunning() {
+    if (ledTaskHandle == nullptr) {
+        return false;
+    }
+    
+    // タスクの状態を確認
+    eTaskState taskState = eTaskGetState(ledTaskHandle);
+    
+    // タスクが実行中（RUNNING）または準備完了（READY）状態ならパターン実行中と判断
+    return (taskState == eRunning || taskState == eReady);
+}

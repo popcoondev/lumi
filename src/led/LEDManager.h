@@ -122,6 +122,7 @@ public:
     String getCurrentPatternName();
     int getCurrentPatternIndex();
     void setBrightness(uint8_t brightness);
+    bool isPatternRunning();
 };
 
 #endif // LED_MANAGER_H

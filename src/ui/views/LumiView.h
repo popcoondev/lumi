@@ -152,6 +152,26 @@ public:
     // パフォーマンス最適化用の変数
     bool needsProgressUpdate;
     
+    // モード管理
+    enum OperationMode {
+        MODE_TAP,       // タップ操作モード（面の個別制御）
+        MODE_PATTERN    // パターン再生モード（LEDパターン選択・再生）
+    };
+    
+    OperationMode currentMode;
+    
+    // ホイール操作
+    bool isWheelActive;
+    float wheelRotation;
+    int selectedPatternIndex;
+    bool isPatternPlaying;
+    
+    // ホイール操作関連のメソッド
+    void drawPatternWheel();
+    void updatePatternSelection(float rotationDelta);
+    void setOperationMode(OperationMode mode);
+    OperationMode getOperationMode() const { return currentMode; }
+    
     // フレンドクラス宣言（OctaControllerからoctagonにアクセスできるようにする）
     friend class OctaController;
 

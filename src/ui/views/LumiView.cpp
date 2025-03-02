@@ -78,7 +78,7 @@ LumiView::LumiView()
     : resetButton(0, 0, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Reset"),
       bottomLeftButton(0, 240 - CORNER_BUTTON_HEIGHT, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Reset"),
       settingsButton(320 - CORNER_BUTTON_WIDTH, 0, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Settings"),
-      bottomRightButton(320 - CORNER_BUTTON_WIDTH, 240 - CORNER_BUTTON_HEIGHT, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Patterns"),
+      bottomRightButton(320 - CORNER_BUTTON_WIDTH, 240 - CORNER_BUTTON_HEIGHT, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Pattern"),
       brightnessSlider(0, 40, 40, 80),
       valueBrightnessSlider(0, 120, 40, 80),
       hueSlider(320 - 40, 40, 40, 80),
@@ -93,7 +93,12 @@ LumiView::LumiView()
       progressValue(0),
       lastProgressUpdateTime(0),
       progressAnimationFrame(0),
-      needsProgressUpdate(false)
+      needsProgressUpdate(false),
+      currentMode(MODE_TAP),
+      isWheelActive(false),
+      wheelRotation(0),
+      selectedPatternIndex(0),
+      isPatternPlaying(false)
 {
     // オクタゴンの中心タッチ検出用の設定
     octagonCenter.centerX = 160;
@@ -232,12 +237,92 @@ void LumiView::updateCircularProgressAnimation() {
     }
 }
 
+// モード設定
+void LumiView::setOperationMode(OperationMode mode) {
+    currentMode = mode;
+    
+    // モードに応じたボタンラベルの設定
+    if (mode == MODE_TAP) {
+        bottomRightButton.setLabel("Pattern");
+        isWheelActive = false;
+    } else {
+        bottomRightButton.setLabel("Tap");
+        isWheelActive = true;
+        
+        // パターンモードに切り替えたときはフォーカスをクリア
+        clearAllFocus();
+    }
+    
+    // ボタンを再描画
+    bottomRightButton.draw();
+}
+
+// パターンホイールの描画
+void LumiView::drawPatternWheel() {
+    if (!isWheelActive) return;
+    
+    int centerX = octagon.viewX + octagon.viewWidth / 2;
+    int centerY = octagon.viewY + octagon.viewHeight / 2;
+    float outerRadius = min(octagon.viewWidth, octagon.viewHeight) * 0.45f;
+    float markerRadius = outerRadius * 0.85f;
+    
+    // パターン数（LEDManagerから取得する想定）
+    const int patternCount = 8; // 仮の値
+    
+    // 各パターンの位置にマーカーを描画
+    for (int i = 0; i < patternCount; i++) {
+        float angle = wheelRotation + (2 * PI * i / patternCount);
+        int markerX = centerX + markerRadius * cos(angle);
+        int markerY = centerY + markerRadius * sin(angle);
+        
+        // 選択中のパターンは大きく黄色で表示
+        if (i == selectedPatternIndex) {
+            M5.Lcd.fillCircle(markerX, markerY, 8, TFT_YELLOW);
+        } else {
+            M5.Lcd.fillCircle(markerX, markerY, 5, TFT_WHITE);
+        }
+    }
+    
+    // 選択中のパターン名を表示
+    String patternName = "Pattern " + String(selectedPatternIndex + 1);
+    M5.Lcd.setTextSize(1);
+    M5.Lcd.setTextColor(TFT_WHITE);
+    M5.Lcd.setTextDatum(TC_DATUM);
+    M5.Lcd.drawString(patternName, centerX, centerY + 30);
+}
+
+// パターン選択の更新
+void LumiView::updatePatternSelection(float rotationDelta) {
+    if (!isWheelActive) return;
+    
+    // ホイールの回転を更新
+    wheelRotation += rotationDelta;
+    
+    // パターン数（LEDManagerから取得する想定）
+    const int patternCount = 8; // 仮の値
+    
+    // 回転角度からパターンインデックスを計算
+    float normalizedRotation = wheelRotation / (2 * PI);
+    normalizedRotation = normalizedRotation - floor(normalizedRotation); // 0-1の範囲に正規化
+    
+    int newPatternIndex = floor(normalizedRotation * patternCount);
+    if (newPatternIndex != selectedPatternIndex) {
+        selectedPatternIndex = newPatternIndex;
+        // パターン変更のコールバックはOctaControllerで処理
+    }
+}
+
 void LumiView::draw() {
     // 画面の背景をクリア
     M5.Lcd.fillScreen(TFT_BLACK);
     
-    // オクタゴンを描画
-    octagon.draw();
+    if (currentMode == MODE_TAP || !isWheelActive) {
+        // タップモードの場合は通常のオクタゴンを描画
+        octagon.draw();
+    } else {
+        // パターンモードの場合はホイール表示
+        drawPatternWheel();
+    }
     
     // 四隅のボタンを描画
     settingsButton.draw();
@@ -259,37 +344,53 @@ void LumiView::draw() {
 
 // センターボタン情報表示の更新
 void LumiView::updateCenterButtonInfo() {
-    int ledState = getFocusedFacesLedState();
-    int focusCount = getFocusedFacesCount();
     String text;
     uint16_t color;
     
-    switch (ledState) {
-        case -1: // フォーカスなし
-            text = "Pattern Change";
-            color = TFT_CYAN;
-            // パターンモードのプログレスを表示
-            drawCircularProgress(0, PROGRESS_MODE_PATTERN);
-            break;
-        case 0: // すべて消灯
-            text = "ON " + String(focusCount);
-            color = TFT_GREEN;
-            break;
-        case 2: // すべて点灯
-            text = "OFF " + String(focusCount);
-            color = TFT_RED;
-            break;
-        case 1: // 一部点灯
-            // フォーカスされた面の中で点灯している面の数を取得
-            int onCount = 0;
-            for (int i = 0; i < NUM_FACES; i++) {
-                if (octagon.isFaceFocused(i) && octagon.isFaceHighlighted(i)) {
-                    onCount++;
+    if (currentMode == MODE_TAP) {
+        // タップモードの場合
+        int ledState = getFocusedFacesLedState();
+        int focusCount = getFocusedFacesCount();
+        
+        switch (ledState) {
+            case -1: // フォーカスなし
+                text = "Pattern Change";
+                color = TFT_CYAN;
+                // パターンモードのプログレスを表示
+                drawCircularProgress(0, PROGRESS_MODE_PATTERN);
+                break;
+            case 0: // すべて消灯
+                text = "ON " + String(focusCount);
+                color = TFT_GREEN;
+                break;
+            case 2: // すべて点灯
+                text = "OFF " + String(focusCount);
+                color = TFT_RED;
+                break;
+            case 1: // 一部点灯
+                // フォーカスされた面の中で点灯している面の数を取得
+                int onCount = 0;
+                for (int i = 0; i < NUM_FACES; i++) {
+                    if (octagon.isFaceFocused(i) && octagon.isFaceHighlighted(i)) {
+                        onCount++;
+                    }
                 }
-            }
-            text = "TOGGLE " + String(onCount) + "/" + String(focusCount);
-            color = TFT_YELLOW;
-            break;
+                text = "TOGGLE " + String(onCount) + "/" + String(focusCount);
+                color = TFT_YELLOW;
+                break;
+        }
+    } else {
+        // パターンモードの場合
+        String patternName = "Pattern " + String(selectedPatternIndex + 1);
+        if (isPatternPlaying) {
+            text = "STOP " + patternName;
+            color = TFT_RED;
+            // パターン実行中はアニメーション表示
+            drawCircularProgress(0, PROGRESS_MODE_PATTERN);
+        } else {
+            text = "PLAY " + patternName;
+            color = TFT_GREEN;
+        }
     }
     
     drawCenterButtonInfo(text, color);
@@ -342,57 +443,93 @@ void LumiView::handleTouch() {
         activeTouchedUI = TouchedUI(ID_OCTAGON_CENTER);
     }
     
-    // オクタゴンの面タップ判定
-    if (wasPressed) {
-        int faceId = getTappedFace(touchX, touchY);
-        if (faceId >= 0) {
-            activeTouchedUI = TouchedUI(ID_OCTAGON_FACE_BASE + faceId, faceId);
-            // タップ視覚フィードバック - 一時的に色を変更
-            uint16_t originalColor = octagon.getFaceColor(faceId);
-            octagon.setFaceTempColor(faceId, TFT_DARKGREY);
-            octagon.drawFace(faceId);  // 指定した面だけを再描画
-            
-            // ドラッグ選択の開始
-            isDragging = true;
-            dragStartFace = faceId;
-            lastDraggedFace = faceId;
-            
-            // フォーカス状態をトグル
-            octagon.setFaceFocused(faceId, !octagon.isFaceFocused(faceId));
-            octagon.drawFace(faceId);  // フォーカス状態を反映して再描画
-            
-            // センターボタン情報を更新
-            updateCenterButtonInfo();
-        }
-    }
-
-    // タッチ継続中の処理
-    if (isPressed && !wasPressed && !wasReleased) {
-        // オクタゴン中心のドラッグ離脱検出
-        if (activeTouchedUI.id == ID_OCTAGON_CENTER && !isCenterTapped(touchX, touchY)) {
-            // センター領域から外れた - 視覚フィードバックを元に戻す
-            M5.Lcd.fillCircle(octagon.viewX + octagon.viewWidth / 2, 
-                             octagon.viewY + octagon.viewHeight / 2, 
-                             min(octagon.viewWidth, octagon.viewHeight) * 0.1f,
-                             backgroundColor);
-            octagon.drawCenter();  // センター部分のみ再描画
-            updateCenterButtonInfo(); // 情報表示を更新
-        }
+    // モードに応じた処理
+    if (currentMode == MODE_TAP) {
+        // タップモードの場合
         
-        // 面のドラッグ選択処理
-        if (isDragging) {
-            int currentFaceId = getTappedFace(touchX, touchY);
-            if (currentFaceId >= 0 && currentFaceId != lastDraggedFace) {
-                // 新しい面にドラッグされた
-                lastDraggedFace = currentFaceId;
+        // オクタゴンの面タップ判定
+        if (wasPressed) {
+            int faceId = getTappedFace(touchX, touchY);
+            if (faceId >= 0) {
+                activeTouchedUI = TouchedUI(ID_OCTAGON_FACE_BASE + faceId, faceId);
+                // タップ視覚フィードバック - 一時的に色を変更
+                uint16_t originalColor = octagon.getFaceColor(faceId);
+                octagon.setFaceTempColor(faceId, TFT_DARKGREY);
+                octagon.drawFace(faceId);  // 指定した面だけを再描画
                 
-                // 新しい面のフォーカス状態を設定（最初にタップした面と同じ状態に）
-                bool shouldFocus = octagon.isFaceFocused(dragStartFace);
-                octagon.setFaceFocused(currentFaceId, shouldFocus);
-                octagon.drawFace(currentFaceId);  // 再描画
+                // ドラッグ選択の開始
+                isDragging = true;
+                dragStartFace = faceId;
+                lastDraggedFace = faceId;
+                
+                // フォーカス状態をトグル
+                octagon.setFaceFocused(faceId, !octagon.isFaceFocused(faceId));
+                octagon.drawFace(faceId);  // フォーカス状態を反映して再描画
                 
                 // センターボタン情報を更新
                 updateCenterButtonInfo();
+            }
+        }
+
+        // タッチ継続中の処理
+        if (isPressed && !wasPressed && !wasReleased) {
+            // オクタゴン中心のドラッグ離脱検出
+            if (activeTouchedUI.id == ID_OCTAGON_CENTER && !isCenterTapped(touchX, touchY)) {
+                // センター領域から外れた - 視覚フィードバックを元に戻す
+                M5.Lcd.fillCircle(octagon.viewX + octagon.viewWidth / 2, 
+                                octagon.viewY + octagon.viewHeight / 2, 
+                                min(octagon.viewWidth, octagon.viewHeight) * 0.1f,
+                                backgroundColor);
+                octagon.drawCenter();  // センター部分のみ再描画
+                updateCenterButtonInfo(); // 情報表示を更新
+            }
+            
+            // 面のドラッグ選択処理
+            if (isDragging) {
+                int currentFaceId = getTappedFace(touchX, touchY);
+                if (currentFaceId >= 0 && currentFaceId != lastDraggedFace) {
+                    // 新しい面にドラッグされた
+                    lastDraggedFace = currentFaceId;
+                    
+                    // 新しい面のフォーカス状態を設定（最初にタップした面と同じ状態に）
+                    bool shouldFocus = octagon.isFaceFocused(dragStartFace);
+                    octagon.setFaceFocused(currentFaceId, shouldFocus);
+                    octagon.drawFace(currentFaceId);  // 再描画
+                    
+                    // センターボタン情報を更新
+                    updateCenterButtonInfo();
+                }
+            }
+        }
+    } else {
+        // パターンモードの場合
+        
+        // ホイール操作の処理
+        if (isPressed && !isCenterTapped(touchX, touchY)) {
+            // 中心からの角度を計算
+            int centerX = octagon.viewX + octagon.viewWidth / 2;
+            int centerY = octagon.viewY + octagon.viewHeight / 2;
+            
+            // 現在の角度
+            float currentAngle = atan2(touchY - centerY, touchX - centerX);
+            
+            // ドラッグ中の場合は角度の変化を計算
+            if (isPressed && !wasPressed) {
+                // 前回の角度
+                float lastAngle = atan2(lastTouchY - centerY, lastTouchX - centerX);
+                
+                // 角度の変化量
+                float angleDelta = currentAngle - lastAngle;
+                
+                // 角度の変化が大きすぎる場合は補正（-πからπの範囲に収める）
+                if (angleDelta > PI) angleDelta -= 2 * PI;
+                if (angleDelta < -PI) angleDelta += 2 * PI;
+                
+                // ホイールの回転を更新
+                updatePatternSelection(angleDelta);
+                
+                // 再描画
+                draw();
             }
         }
     }
@@ -409,7 +546,7 @@ void LumiView::handleTouch() {
                 onCenterTapped();
             }
         }
-        else if (activeTouchedUI.id >= ID_OCTAGON_FACE_BASE) {
+        else if (activeTouchedUI.id >= ID_OCTAGON_FACE_BASE && currentMode == MODE_TAP) {
             int faceId = activeTouchedUI.data;
             
             // 一時的な色を元に戻す
