@@ -10,7 +10,8 @@ OctaController::OctaController() {
     lumiView = new LumiView();
     currentHue = 0;           // 初期色相を0（赤）に設定
     currentSaturation = 255;  // 初期彩度を最大に設定
-    currentLedColor = CHSV(currentHue, currentSaturation, 255); // 初期色を設定
+    currentValueBrightness = 255; // 初期明度を最大に設定
+    currentLedColor = CHSV(currentHue, currentSaturation, currentSaturation); // 初期色を設定
 }
 
 OctaController::~OctaController() {
@@ -159,7 +160,8 @@ void OctaController::processLumiHomeState() {
     bool brightnessSliderDragging = lumiView->brightnessSlider.isBeingDragged();
     bool hueSliderDragging = lumiView->hueSlider.isBeingDragged();
     bool saturationSliderDragging = lumiView->saturationSlider.isBeingDragged();
-    bool sliderDragging = brightnessSliderDragging || hueSliderDragging || saturationSliderDragging;
+    bool valueBrightnessSliderDragging = lumiView->valueBrightnessSlider.isBeingDragged();
+    bool sliderDragging = brightnessSliderDragging || hueSliderDragging || saturationSliderDragging || valueBrightnessSliderDragging;
     
     if (sliderDragging) {
         unsigned long currentTime = millis();
@@ -171,7 +173,9 @@ void OctaController::processLumiHomeState() {
             } else if (hueSliderDragging) {
                 lumiView->drawHueSlider();
             } else if (saturationSliderDragging) {
-                lumiView->saturationSlider.draw();
+                lumiView->drawSaturationSlider();
+            } else if (valueBrightnessSliderDragging) {
+                lumiView->drawValueBrightnessSlider();
             }
             lastDrawTime = currentTime;
         }
@@ -198,6 +202,34 @@ void OctaController::processLumiHomeState() {
             Serial.println("State changed to: " + String(stateManager->getCurrentStateInfo().mainState));
         };
         
+        lumiView->onTopLeftButtonTapped = [this]() {
+            Serial.println("====== RESET BUTTON PRESSED ======");
+            
+            // 実行中のLEDパターンを停止
+            ledManager->stopPattern();
+            
+            // 全てのLEDを消灯
+            ledManager->resetAllLeds();
+            
+            // FaceDetectorのLED状態も更新
+            if (faceDetector->getCalibratedFacesCount() > 0) {
+                FaceData* faceList = faceDetector->getFaceList();
+                for (int i = 0; i < faceDetector->getCalibratedFacesCount(); i++) {
+                    faceList[i].ledState = 0;
+                }
+            }
+            
+            // OctagonRingViewの全てのハイライトを解除
+            for (int i = 0; i < NUM_FACES; i++) {
+                lumiView->octagon.setFaceHighlighted(i, false);
+            }
+            
+            // 再描画フラグを設定
+            needsRedraw = true;
+            
+            Serial.println("All LEDs reset");
+        };
+
         // 面タップでLEDを制御（トグルボタンとして動作）
         lumiView->onFaceTapped = [this](int faceId) {
             // デバッグ出力 - タップされた面ID
