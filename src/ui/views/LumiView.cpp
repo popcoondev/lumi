@@ -88,7 +88,12 @@ LumiView::LumiView()
       lastTouchY(0),
       isDragging(false),
       dragStartFace(-1),
-      lastDraggedFace(-1)
+      lastDraggedFace(-1),
+      currentProgressMode(PROGRESS_MODE_NONE),
+      progressValue(0),
+      lastProgressUpdateTime(0),
+      progressAnimationFrame(0),
+      needsProgressUpdate(false)
 {
     // オクタゴンの中心タッチ検出用の設定
     octagonCenter.centerX = 160;
@@ -138,6 +143,95 @@ void LumiView::begin() {
     saturationSlider.setTitle("S");
 }
 
+// 円形プログレスバーの描画
+void LumiView::drawCircularProgress(int value, ProgressMode mode) {
+    int centerX = octagon.viewX + octagon.viewWidth / 2;
+    int centerY = octagon.viewY + octagon.viewHeight / 2;
+    float innerRadius = min(octagon.viewWidth, octagon.viewHeight) * 0.2f;
+    float outerRadius = innerRadius + 5; // プログレスバーの幅
+    
+    // モードに応じた色を設定
+    uint16_t progressColor;
+    switch (mode) {
+        case PROGRESS_MODE_BRIGHTNESS:
+            progressColor = TFT_YELLOW;
+            break;
+        case PROGRESS_MODE_HUE:
+            // 色相に応じた色
+            progressColor = M5.Lcd.color565(
+                map(value, 0, 100, 0, 255), 
+                map((value + 33) % 100, 0, 100, 0, 255), 
+                map((value + 66) % 100, 0, 100, 0, 255)
+            );
+            break;
+        case PROGRESS_MODE_SATURATION:
+            // 現在の色相と彩度に基づく色
+            progressColor = M5.Lcd.color565(
+                map(value, 0, 100, 128, 255), 
+                map(value, 0, 100, 128, 0), 
+                map(value, 0, 100, 128, 255)
+            );
+            break;
+        case PROGRESS_MODE_PATTERN:
+            progressColor = TFT_CYAN;
+            break;
+        default:
+            progressColor = TFT_WHITE;
+            break;
+    }
+    
+    // 中央円を背景色で描画
+    M5.Lcd.fillCircle(centerX, centerY, innerRadius, backgroundColor);
+    
+    if (mode == PROGRESS_MODE_PATTERN) {
+        // パターンモードの場合は回転アニメーション
+        float startAngle = progressAnimationFrame * 15.0f; // 15度ずつ回転
+        
+        // 4つの弧を描画
+        for (int i = 0; i < 4; i++) {
+            float arcStart = startAngle + (i * 90);
+            float arcEnd = arcStart + 30; // 30度の弧
+            
+            // 弧を描画（外側から内側に向かって）
+            for (float r = outerRadius; r > innerRadius; r -= 0.5) {
+                M5.Lcd.drawArc(centerX, centerY, r, r, arcStart, arcEnd, progressColor);
+            }
+        }
+    } else {
+        // プログレスモードの場合は進捗を表示
+        float endAngle = map(value, 0, 100, 0, 360);
+        
+        // プログレス弧を描画（外側から内側に向かって）
+        for (float r = outerRadius; r > innerRadius; r -= 0.5) {
+            M5.Lcd.drawArc(centerX, centerY, r, r, 0, endAngle, progressColor);
+        }
+    }
+    
+    // 現在のモードと値を保存
+    currentProgressMode = mode;
+    progressValue = value;
+    needsProgressUpdate = false;
+}
+
+// 円形プログレスアニメーションの更新
+void LumiView::updateCircularProgressAnimation() {
+    unsigned long currentTime = millis();
+    
+    // パターンモードの場合は100msごとにアニメーションを更新
+    if (currentProgressMode == PROGRESS_MODE_PATTERN && 
+        currentTime - lastProgressUpdateTime > 100) {
+        
+        progressAnimationFrame = (progressAnimationFrame + 1) % 24; // 24フレームでループ
+        drawCircularProgress(progressValue, currentProgressMode);
+        lastProgressUpdateTime = currentTime;
+    }
+    
+    // プログレスモードで更新が必要な場合
+    if (needsProgressUpdate && currentProgressMode != PROGRESS_MODE_PATTERN) {
+        drawCircularProgress(progressValue, currentProgressMode);
+    }
+}
+
 void LumiView::draw() {
     // 画面の背景をクリア
     M5.Lcd.fillScreen(TFT_BLACK);
@@ -156,6 +250,11 @@ void LumiView::draw() {
     valueBrightnessSlider.draw();
     hueSlider.draw();
     saturationSlider.draw();
+    
+    // 円形プログレスバーを描画（現在のモードに応じて）
+    if (currentProgressMode != PROGRESS_MODE_NONE) {
+        drawCircularProgress(progressValue, currentProgressMode);
+    }
 }
 
 // センターボタン情報表示の更新
@@ -169,6 +268,8 @@ void LumiView::updateCenterButtonInfo() {
         case -1: // フォーカスなし
             text = "Pattern Change";
             color = TFT_CYAN;
+            // パターンモードのプログレスを表示
+            drawCircularProgress(0, PROGRESS_MODE_PATTERN);
             break;
         case 0: // すべて消灯
             text = "ON " + String(focusCount);
@@ -198,13 +299,6 @@ void LumiView::updateCenterButtonInfo() {
 void LumiView::drawCenterButtonInfo(const String& text, uint16_t color) {
     int centerX = octagon.viewX + octagon.viewWidth / 2;
     int centerY = octagon.viewY + octagon.viewHeight / 2;
-    float innerRadius = min(octagon.viewWidth, octagon.viewHeight) * 0.2f;
-    
-    // 中央円を背景色で描画
-    M5.Lcd.fillCircle(centerX, centerY, innerRadius, backgroundColor);
-    
-    // 中央円の輪郭を描画
-    M5.Lcd.drawCircle(centerX, centerY, innerRadius, TFT_WHITE);
     
     // テキスト表示
     M5.Lcd.setTextSize(1);
@@ -392,6 +486,21 @@ bool LumiView::checkSliderTouch(Slider& slider, int touchX, int touchY, bool isP
         // アクティブなUIをこのスライダーに設定
         if (wasPressed) {
             activeTouchedUI = TouchedUI(slider.getId());
+            
+            // スライダーに応じたプログレスモードを設定
+            int id = slider.getId();
+            if (id == ID_SLIDER_BRIGHTNESS) {
+                currentProgressMode = PROGRESS_MODE_BRIGHTNESS;
+            }
+            else if (id == ID_SLIDER_HUE) {
+                currentProgressMode = PROGRESS_MODE_HUE;
+            }
+            else if (id == ID_SLIDER_SATURATION) {
+                currentProgressMode = PROGRESS_MODE_SATURATION;
+            }
+            else if (id == ID_SLIDER_VALUE_BRIGHTNESS) {
+                currentProgressMode = PROGRESS_MODE_BRIGHTNESS; // 明度も明るさと同じ表示
+            }
         }
         
         // 値を更新
@@ -402,6 +511,9 @@ bool LumiView::checkSliderTouch(Slider& slider, int touchX, int touchY, bool isP
         // 値が変わった場合のみ再描画とコールバック実行
         if (oldValue != newValue) {
             slider.draw();
+            
+            // プログレスバーを更新
+            drawCircularProgress(newValue, currentProgressMode);
             
             int id = slider.getId();
             if (id == ID_SLIDER_BRIGHTNESS && onBrightnessChanged) {
@@ -423,6 +535,12 @@ bool LumiView::checkSliderTouch(Slider& slider, int touchX, int touchY, bool isP
     
     // ドラッグ終了時
     if (wasReleased && activeTouchedUI.id == slider.getId()) {
+        // スライダー操作終了時にプログレスモードをリセット
+        currentProgressMode = PROGRESS_MODE_NONE;
+        
+        // センターボタン情報を更新（プログレスバーを消去）
+        updateCenterButtonInfo();
+        
         activeTouchedUI = TouchedUI();
         return true;
     }

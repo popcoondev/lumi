@@ -163,6 +163,9 @@ void OctaController::processLumiHomeState() {
     bool valueBrightnessSliderDragging = lumiView->valueBrightnessSlider.isBeingDragged();
     bool sliderDragging = brightnessSliderDragging || hueSliderDragging || saturationSliderDragging || valueBrightnessSliderDragging;
     
+    // プログレスアニメーションの更新
+    lumiView->updateCircularProgressAnimation();
+    
     if (sliderDragging) {
         unsigned long currentTime = millis();
         // スライダードラッグ中は50ms間隔で操作中のスライダーのみを再描画
@@ -260,6 +263,9 @@ void OctaController::processLumiHomeState() {
                 // パターン切り替えとLED表示
                 ledManager->nextPattern();
                 ledManager->runPattern(ledManager->getCurrentPatternIndex());
+                
+                // パターンモードのプログレスを表示
+                lumiView->drawCircularProgress(0, LumiView::PROGRESS_MODE_PATTERN);
                 return;
             }
             
@@ -335,6 +341,9 @@ void OctaController::processLumiHomeState() {
             
             // センターボタン情報を更新
             lumiView->updateCenterButtonInfo();
+            
+            // プログレスバーを更新
+            lumiView->drawCircularProgress(value, LumiView::PROGRESS_MODE_BRIGHTNESS);
         };
         
         // 明度スライダーでLED明度を制御
@@ -364,6 +373,9 @@ void OctaController::processLumiHomeState() {
             
             // センターボタン情報を更新
             lumiView->updateCenterButtonInfo();
+            
+            // プログレスバーを更新
+            lumiView->drawCircularProgress(value, LumiView::PROGRESS_MODE_BRIGHTNESS);
         };
         
 
@@ -398,6 +410,9 @@ void OctaController::processLumiHomeState() {
             
             // センターボタン情報を更新
             lumiView->updateCenterButtonInfo();
+            
+            // プログレスバーを更新
+            lumiView->drawCircularProgress(value, LumiView::PROGRESS_MODE_HUE);
         };
         
         // 彩度スライダーでLED彩度を制御
@@ -431,6 +446,9 @@ void OctaController::processLumiHomeState() {
             
             // センターボタン情報を更新
             lumiView->updateCenterButtonInfo();
+            
+            // プログレスバーを更新
+            lumiView->drawCircularProgress(value, LumiView::PROGRESS_MODE_SATURATION);
         };
         
         callbacksInitialized = true;

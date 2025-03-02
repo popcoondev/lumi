@@ -115,6 +115,23 @@ public:
     void updateCenterButtonInfo();
     void drawCenterButtonInfo(const String& text, uint16_t color);
     
+    // 円形プログレスバー
+    enum ProgressMode {
+        PROGRESS_MODE_NONE,
+        PROGRESS_MODE_BRIGHTNESS,
+        PROGRESS_MODE_HUE,
+        PROGRESS_MODE_SATURATION,
+        PROGRESS_MODE_PATTERN
+    };
+    
+    void drawCircularProgress(int value, ProgressMode mode);
+    void updateCircularProgressAnimation();
+    
+    ProgressMode currentProgressMode;
+    int progressValue;
+    unsigned long lastProgressUpdateTime;
+    int progressAnimationFrame;
+    
     // 各種イベントコールバック用関数ポインタ
     std::function<void(int)> onFaceTapped;
     std::function<void()> onCenterTapped;
@@ -131,6 +148,9 @@ public:
     bool isDragging;
     int dragStartFace;
     int lastDraggedFace;
+    
+    // パフォーマンス最適化用の変数
+    bool needsProgressUpdate;
     
     // フレンドクラス宣言（OctaControllerからoctagonにアクセスできるようにする）
     friend class OctaController;
