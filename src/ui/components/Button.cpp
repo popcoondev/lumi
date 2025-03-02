@@ -61,7 +61,7 @@ bool Button::isPressed() {
             }
             else {
                 // type == BUTTON_TYPE_TEXTの場合は、テキストの色を反転
-                M5.Lcd.drawRoundRect(posX+1, posY+1, width-1, height-1, 5, WHITE);
+                M5.Lcd.drawRoundRect(posX+1, posY+1, width-1, height-6, 5, WHITE);
                 M5.Lcd.setTextColor(pressedColor, normalColor);
                 
             }

@@ -8,24 +8,30 @@
 Slider::Slider(int x, int y, int width, int height)
     : x(x), y(y), width(width), height(height), 
       value(50), isDragging(false), 
-      knobWidth(width - 20), knobHeight(20),
+      knobWidth(8), knobHeight(8),
       barColor(BLACK), knobColor(WHITE)
 {
 }
 
 void Slider::draw() {
+    int barPadding = 10;
     // バー背景
     M5.Lcd.fillRect(x, y, width, height, barColor);
 
     // バーの可動域を示すライン
-    M5.Lcd.drawLine(x + width / 2, y+10, x + width / 2, y + height-10, TFT_WHITE);
+    M5.Lcd.drawLine(x + width / 2, y + barPadding, x + width / 2, y + height - barPadding, TFT_WHITE);
     
     // つまみの位置を計算
     int knobY = y + (height - knobHeight) * (100 - value) / 100;
     
     // つまみを描画
-    M5.Lcd.fillRoundRect(x + (width - knobWidth) / 2, knobY, knobWidth, knobHeight, 5, knobColor);
-    
+    M5.Lcd.fillRoundRect(x + (width - knobWidth) / 2, knobY, knobWidth, knobHeight, 2, knobColor);
+
+    // Viewの左上にタイトルを表示
+    M5.Lcd.setTextSize(1);
+    M5.Lcd.setCursor(x+2, y+2);
+    M5.Lcd.print(title);
+
     // 値の表示
     // M5.Lcd.setTextSize(1);
     // M5.Lcd.setTextColor(TFT_WHITE);
@@ -64,10 +70,10 @@ bool Slider::handleTouch(int touchX, int touchY, bool isPressed) {
 
 // LumiViewクラスの実装
 LumiView::LumiView()
-    : topLeftButton(0, 0, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "1"),
-      bottomLeftButton(0, 240 - CORNER_BUTTON_HEIGHT, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "2"),
+    : topLeftButton(0, 0, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Reset"),
+      bottomLeftButton(0, 240 - CORNER_BUTTON_HEIGHT, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Single"),
       settingsButton(320 - CORNER_BUTTON_WIDTH, 0, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Settings"),
-      bottomRightButton(320 - CORNER_BUTTON_WIDTH, 240 - CORNER_BUTTON_HEIGHT, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "4"),
+      bottomRightButton(320 - CORNER_BUTTON_WIDTH, 240 - CORNER_BUTTON_HEIGHT, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Patterns"),
       brightnessSlider(0, 40, 40, 160),
       hueSlider(320 - 40, 40, 40, 80),
       saturationSlider(320 - 40, 120, 40, 80),
@@ -90,20 +96,24 @@ void LumiView::begin() {
     
     // ボタンのスタイル設定
     settingsButton.setColor(BLACK, TFT_LIGHTGREY);
-    settingsButton.setFontSize(1);
+    settingsButton.setFontSize(1.4);
     settingsButton.setType(BUTTON_TYPE_TEXT);
     
     topLeftButton.setColor(BLACK, TFT_LIGHTGREY);
-    topLeftButton.setFontSize(1);
+    topLeftButton.setFontSize(1.4);
     topLeftButton.setType(BUTTON_TYPE_TEXT);
 
     bottomLeftButton.setColor(BLACK, TFT_LIGHTGREY);
-    bottomLeftButton.setFontSize(1);
+    bottomLeftButton.setFontSize(1.4);
     bottomLeftButton.setType(BUTTON_TYPE_TEXT);
 
     bottomRightButton.setColor(BLACK, TFT_LIGHTGREY);
-    bottomRightButton.setFontSize(1);
+    bottomRightButton.setFontSize(1.4);
     bottomRightButton.setType(BUTTON_TYPE_TEXT);
+
+    brightnessSlider.setTitle("B");
+    hueSlider.setTitle("H");
+    saturationSlider.setTitle("S");
 }
 
 void LumiView::draw() {

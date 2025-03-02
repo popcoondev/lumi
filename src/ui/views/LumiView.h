@@ -17,6 +17,7 @@ private:
     bool isDragging;    // ドラッグ中フラグ
     uint16_t barColor;  // バーの色
     uint16_t knobColor; // つまみの色
+    String title;       // スライダーのタイトル
 
 public:
     Slider(int x, int y, int width, int height);
@@ -26,6 +27,8 @@ public:
     bool handleTouch(int touchX, int touchY, bool isPressed);
     // ドラッグ中かどうかを外部から確認できるようにする
     bool isBeingDragged() const { return isDragging; }
+    void setTitle(String title) { this->title = title; }
+    String getTitle() { return title; }
 };
 
 class LumiView {
