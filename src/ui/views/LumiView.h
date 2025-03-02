@@ -7,9 +7,19 @@
 #include "ui/views/OctagonRingView.h"
 #include "ui/components/Button.h"
 
+struct TouchedUI {
+    int id;       // UI要素のID
+    int data;     // 追加データ（面番号など）
+    
+    TouchedUI() : id(0), data(-1) {}
+    TouchedUI(int id, int data = -1) : id(id), data(data) {}
+};
+
+
 // LumiViewで利用するスライダークラス
 class Slider {
 private:
+    int id;             // スライダーのID
     int x, y, width, height;
     int value;          // 0-100の値
     int knobWidth;      // スライダーのつまみの幅
@@ -29,6 +39,10 @@ public:
     bool isBeingDragged() const { return isDragging; }
     void setTitle(String title) { this->title = title; }
     String getTitle() { return title; }
+    void setId(int id) { this->id = id; }
+    int getId() const { return id; }
+    bool containsPoint(int x, int y) const;
+
 };
 
 class LumiView {
@@ -57,6 +71,25 @@ private:
     
     // オクタゴンの中心がタップされたか判定
     bool isCenterTapped(int x, int y);
+
+    TouchedUI activeTouchedUI;  // 現在タッチ中のUI
+    bool checkButtonTouch(Button& button, int touchX, int touchY, bool isPressed, bool wasPressed, bool wasReleased);
+    bool checkSliderTouch(Slider& slider, int touchX, int touchY, bool isPressed, bool wasPressed, bool wasReleased);
+
+    // UIコンポーネント用の単純なID定数
+    enum {
+        ID_NONE = 0,
+        ID_BUTTON_RESET,
+        ID_BUTTON_SETTINGS,
+        ID_BUTTON_BOTTOM_LEFT,
+        ID_BUTTON_BOTTOM_RIGHT,
+        ID_SLIDER_BRIGHTNESS,
+        ID_SLIDER_VALUE_BRIGHTNESS,
+        ID_SLIDER_HUE,
+        ID_SLIDER_SATURATION,
+        ID_OCTAGON_CENTER,
+        ID_OCTAGON_FACE_BASE = 100  // 面IDは100+faceIndexとなる
+    };
 
 public:
     LumiView();

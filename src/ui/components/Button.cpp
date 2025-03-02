@@ -2,7 +2,7 @@
 
 Button::Button(int x, int y, int w, int h, const char* label)
     : posX(x), posY(y), width(w), height(h), label(label),
-      normalColor(DARKGREY), pressedColor(LIGHTGREY), lastPressTime(0), wasPressed(false), fontSize(2), type(BUTTON_TYPE_OUTLINE) {}
+      normalColor(DARKGREY), pressedColor(LIGHTGREY), lastPressTime(0), wasPressed(false), fontSize(2), type(BUTTON_TYPE_OUTLINE), id(0) {}
 
 void Button::begin() {
     draw();
@@ -77,4 +77,13 @@ bool Button::isPressed() {
     }
 
     return false;
+}
+
+bool Button::containsPoint(int x, int y) const {
+    return (x >= posX && x < posX + width && y >= posY && y < posY + height);
+}
+
+void Button::setPressed(bool pressed) {
+    wasPressed = pressed;
+    // 見た目の更新処理は必要に応じて
 }

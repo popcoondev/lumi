@@ -9,7 +9,8 @@ Slider::Slider(int x, int y, int width, int height)
     : x(x), y(y), width(width), height(height), 
       value(50), isDragging(false), 
       knobWidth(8), knobHeight(8),
-      barColor(BLACK), knobColor(WHITE)
+      barColor(BLACK), knobColor(WHITE),
+      title("Slider"), id(0)
 {
 }
 
@@ -68,6 +69,10 @@ bool Slider::handleTouch(int touchX, int touchY, bool isPressed) {
     return false;
 }
 
+bool Slider::containsPoint(int x, int y) const {
+    return (x >= this->x && x < this->x + width && y >= this->y && y < this->y + height);
+}
+
 // LumiViewクラスの実装
 LumiView::LumiView()
     : resetButton(0, 0, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Reset"),
@@ -94,7 +99,18 @@ void LumiView::begin() {
     octagon.setMirrored(true);
     // octagon.rotate(0.4); // π/8ラジアン（22.5度）
     octagon.rotate(PI); // πラジアン（180度）LEDの向きを合わせるため
-    
+
+    // idを設定
+    settingsButton.setId(ID_BUTTON_SETTINGS);
+    resetButton.setId(ID_BUTTON_RESET);
+    bottomLeftButton.setId(ID_BUTTON_BOTTOM_LEFT);
+    bottomRightButton.setId(ID_BUTTON_BOTTOM_RIGHT);
+    brightnessSlider.setId(ID_SLIDER_BRIGHTNESS);
+    valueBrightnessSlider.setId(ID_SLIDER_VALUE_BRIGHTNESS);
+    hueSlider.setId(ID_SLIDER_HUE);
+    saturationSlider.setId(ID_SLIDER_SATURATION);
+
+
     // ボタンのスタイル設定
     settingsButton.setColor(BLACK, TFT_LIGHTGREY);
     settingsButton.setFontSize(1.4);
@@ -141,8 +157,10 @@ void LumiView::draw() {
 void LumiView::handleTouch() {
     // M5.Touch更新はOctaControllerで行われていることを前提
     auto touch = M5.Touch.getDetail();
-    bool isPressed = (touch.isPressed() || touch.wasPressed());
-    
+    bool isPressed = touch.isPressed();
+    bool wasPressed = touch.wasPressed();
+    bool wasReleased = touch.wasReleased();
+
     // タッチ座標取得
     int touchX = touch.x;
     int touchY = touch.y;
@@ -154,94 +172,141 @@ void LumiView::handleTouch() {
         lastTouchY = touchY;
     }
     
-    // ボタンのタッチ判定
-    if (touch.wasPressed()) {
-        if (settingsButton.isPressed()) {
-            if (onTopRightButtonTapped) onTopRightButtonTapped();
-            return;
-        }
-        
-        if (resetButton.isPressed()) {
-            if (onTopLeftButtonTapped) onTopLeftButtonTapped();
-            return;
-        }
-        
-        if (bottomLeftButton.isPressed()) {
-            if (onBottomLeftButtonTapped) onBottomLeftButtonTapped();
-            return;
-        }
-        
-        if (bottomRightButton.isPressed()) {
-            if (onBottomRightButtonTapped) onBottomRightButtonTapped();
-            return;
-        }
-        
-        // オクタゴンの中心タップ判定
-        if (isCenterTapped(touchX, touchY)) {
-            if (onCenterTapped) onCenterTapped();
-            return;
-        }
-        
-        // オクタゴンの面タップ判定
+    // ボタンのタッチ処理
+    if (checkButtonTouch(settingsButton, touchX, touchY, isPressed, wasPressed, wasReleased)) return;
+    if (checkButtonTouch(resetButton, touchX, touchY, isPressed, wasPressed, wasReleased)) return;
+    if (checkButtonTouch(bottomLeftButton, touchX, touchY, isPressed, wasPressed, wasReleased)) return;
+    if (checkButtonTouch(bottomRightButton, touchX, touchY, isPressed, wasPressed, wasReleased)) return;
+    
+    // スライダーのタッチ処理
+    if (checkSliderTouch(brightnessSlider, touchX, touchY, isPressed, wasPressed, wasReleased)) return;
+    if (checkSliderTouch(hueSlider, touchX, touchY, isPressed, wasPressed, wasReleased)) return;
+    if (checkSliderTouch(saturationSlider, touchX, touchY, isPressed, wasPressed, wasReleased)) return;
+    if (checkSliderTouch(valueBrightnessSlider, touchX, touchY, isPressed, wasPressed, wasReleased)) return;
+    
+    // オクタゴンの中心タップ判定
+    if (wasPressed && isCenterTapped(touchX, touchY)) {
+        activeTouchedUI = TouchedUI(ID_OCTAGON_CENTER);
+    }
+    
+    // オクタゴンの面タップ判定
+    if (wasPressed) {
         int faceId = getTappedFace(touchX, touchY);
         if (faceId >= 0) {
-            if (onFaceTapped) onFaceTapped(faceId);
-            return;
+            activeTouchedUI = TouchedUI(ID_OCTAGON_FACE_BASE + faceId, faceId);
         }
     }
     
-    // スライダーのタッチ処理を最適化
-    // 明るさスライダーの処理
-    bool brightnessChanged = brightnessSlider.handleTouch(touchX, touchY, isPressed);
-    if (brightnessChanged || brightnessSlider.isBeingDragged()) {
-        // 操作中または値に変化があった場合のみスライダーを再描画
-        brightnessSlider.draw();
-        
-        // 値に変化があった場合のみコールバック呼び出し
-        if (brightnessChanged && onBrightnessChanged) {
-            onBrightnessChanged(brightnessSlider.getValue());
+    // タッチ終了時の処理
+    if (wasReleased) {
+        if (activeTouchedUI.id == ID_OCTAGON_CENTER) {
+            if (isCenterTapped(touchX, touchY) && onCenterTapped) {
+                onCenterTapped();
+            }
         }
-        return;
+        else if (activeTouchedUI.id >= ID_OCTAGON_FACE_BASE) {
+            // 同じ面上でリリースされたか確認
+            int faceId = getTappedFace(touchX, touchY);
+            if (faceId == activeTouchedUI.data && onFaceTapped) {
+                onFaceTapped(faceId);
+            }
+        }
+        
+        // タッチ情報をリセット
+        activeTouchedUI = TouchedUI();
+
+    }
+}
+
+// ボタンタッチ処理のヘルパーメソッド
+bool LumiView::checkButtonTouch(Button& button, int touchX, int touchY, bool isPressed, bool wasPressed, bool wasReleased) {
+    // タッチ開始時
+    if (wasPressed) {
+        if (button.containsPoint(touchX, touchY)) {
+            activeTouchedUI = TouchedUI(button.getId());
+            button.setPressed(true);
+            button.draw();
+            return true;
+        }
     }
     
-    // 明度スライダーの処理
-    bool valueBrightnessChanged = valueBrightnessSlider.handleTouch(touchX, touchY, isPressed);
-    if (valueBrightnessChanged || valueBrightnessSlider.isBeingDragged()) {
-        // 操作中または値に変化があった場合のみスライダーを再描画
-        valueBrightnessSlider.draw();
+    // ボタンがアクティブな状態でタッチ終了時
+    if (wasReleased && activeTouchedUI.id == button.getId()) {
+        button.setPressed(false);
+        button.draw();
         
-        // 値に変化があった場合のみコールバック呼び出し
-        if (valueBrightnessChanged && onValueBrightnessChanged) {
-            onValueBrightnessChanged(valueBrightnessSlider.getValue());
+        // ボタン上でリリースされた場合のみコールバック実行
+        if (button.containsPoint(touchX, touchY)) {
+            int id = button.getId();
+            if (id == ID_BUTTON_SETTINGS && onTopRightButtonTapped) {
+                onTopRightButtonTapped();
+            }
+            else if (id == ID_BUTTON_RESET && onTopLeftButtonTapped) {
+                onTopLeftButtonTapped();
+            }
+            else if (id == ID_BUTTON_BOTTOM_LEFT && onBottomLeftButtonTapped) {
+                onBottomLeftButtonTapped();
+            }
+            else if (id == ID_BUTTON_BOTTOM_RIGHT && onBottomRightButtonTapped) {
+                onBottomRightButtonTapped();
+            }
         }
-        return;
+        
+        activeTouchedUI = TouchedUI();
+        return true;
     }
+    
+    return false;
+}
 
-    // 色相スライダーの処理
-    bool hueChanged = hueSlider.handleTouch(touchX, touchY, isPressed);
-    if (hueChanged || hueSlider.isBeingDragged()) {
-        // 操作中または値に変化があった場合のみスライダーを再描画
-        hueSlider.draw();
+// スライダータッチ処理のヘルパーメソッド
+bool LumiView::checkSliderTouch(Slider& slider, int touchX, int touchY, bool isPressed, bool wasPressed, bool wasReleased) {
+    // スライダー領域内のタッチかチェック
+    bool isTouchInSlider = slider.containsPoint(touchX, touchY);
+    
+    // タッチ開始時または既にこのスライダーをドラッグ中
+    if ((wasPressed && isTouchInSlider) || 
+        (isPressed && activeTouchedUI.id == slider.getId())) {
         
-        // 値に変化があった場合のみコールバック呼び出し
-        if (hueChanged && onHueChanged) {
-            onHueChanged(hueSlider.getValue());
+        // アクティブなUIをこのスライダーに設定
+        if (wasPressed) {
+            activeTouchedUI = TouchedUI(slider.getId());
         }
-        return;
-    }
-
-    // 彩度スライダーの処理
-    bool saturationChanged = saturationSlider.handleTouch(touchX, touchY, isPressed);
-    if (saturationChanged || saturationSlider.isBeingDragged()) {
-        // 操作中または値に変化があった場合のみスライダーを再描画
-        saturationSlider.draw();
         
-        // 値に変化があった場合のみコールバック呼び出し
-        if (saturationChanged && onSaturationChanged) {
-            onSaturationChanged(saturationSlider.getValue());
+        // 値を更新
+        int oldValue = slider.getValue();
+        slider.handleTouch(touchX, touchY, isPressed);
+        int newValue = slider.getValue();
+        
+        // 値が変わった場合のみ再描画とコールバック実行
+        if (oldValue != newValue) {
+            slider.draw();
+            
+            int id = slider.getId();
+            if (id == ID_SLIDER_BRIGHTNESS && onBrightnessChanged) {
+                onBrightnessChanged(newValue);
+            }
+            else if (id == ID_SLIDER_HUE && onHueChanged) {
+                onHueChanged(newValue);
+            }
+            else if (id == ID_SLIDER_SATURATION && onSaturationChanged) {
+                onSaturationChanged(newValue);
+            }
+            else if (id == ID_SLIDER_VALUE_BRIGHTNESS && onValueBrightnessChanged) {
+                onValueBrightnessChanged(newValue);
+            }
         }
-        return;
+        
+        return true;
     }
+    
+    // ドラッグ終了時
+    if (wasReleased && activeTouchedUI.id == slider.getId()) {
+        activeTouchedUI = TouchedUI();
+        return true;
+    }
+    
+    return false;
 }
 
 int LumiView::getTappedFace(int x, int y) {

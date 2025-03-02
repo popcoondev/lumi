@@ -16,8 +16,13 @@ public:
     void setColor(uint16_t normal, uint16_t pressed);
     void setFontSize(uint8_t size);
     void setType(uint8_t type) { this->type = type; }
-
+    void setId(int id) { this->id = id; }
+    int getId() const { return id; }
+    bool containsPoint(int x, int y) const;
+    void setPressed(bool pressed);
+    
 private:
+    int id;
     int posX, posY, width, height;
     String label;
     uint16_t normalColor, pressedColor;
