@@ -38,6 +38,8 @@ private:
     uint16_t highlightColor;   // ハイライト色
     float rotationAngle;  // 回転角度
     bool isMirrored;  // 鏡写しモード
+    bool focusedFaces[NUM_FACES];  // 各面のフォーカス状態
+    uint16_t focusColor;   // フォーカス色
     
     // FaceDetectorへの参照
     FaceDetector* faceDetector;
@@ -76,6 +78,27 @@ public:
     
     // 特定の面のハイライト状態を取得
     bool isFaceHighlighted(int faceID) const;
+    
+    // 特定の面のフォーカス状態を設定
+    void setFaceFocused(int faceID, bool focused);
+    
+    // 特定の面のフォーカス状態を取得
+    bool isFaceFocused(int faceID) const;
+    
+    // フォーカス状態の面の数を取得
+    int getFocusedFacesCount() const;
+    
+    // フォーカス色の設定
+    void setFocusColor(uint16_t color);
+    
+    // フォーカス色の取得
+    uint16_t getFocusColor() const;
+    
+    // すべての面のフォーカスを解除
+    void clearAllFocus();
+    
+    // フォーカスされた面のLED状態を取得
+    int getFocusedFacesLedState() const;
     
     // ハイライト面の取得
     int getHighlightedFace();

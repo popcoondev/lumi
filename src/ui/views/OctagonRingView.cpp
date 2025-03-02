@@ -16,11 +16,13 @@ OctagonRingView::OctagonRingView()
     , isMirrored(true) // デフォルトで鏡写しに設定
     , faceDetector(nullptr) // FaceDetectorは初期化時にnull
     , tempFaceColors()
-    , hasTempColor() 
+    , hasTempColor()
+    , focusColor(TFT_YELLOW)    // フォーカス色は黄色
 {
     // ハイライト面の初期化（すべて非ハイライト）
     for (int i = 0; i < NUM_FACES; i++) {
         highlightedFaces[i] = false;
+        focusedFaces[i] = false;
     }
 
     updateGeometry();
@@ -105,27 +107,67 @@ void OctagonRingView::drawFace(int faceId) {
         color
     );
     
+    // エッジの色を決定（フォーカス状態なら黄色の太線）
+    uint16_t edgeColor = TFT_WHITE;
+    uint8_t lineWidth = 1;
+    
+    if (focusedFaces[faceId]) {
+        edgeColor = focusColor;
+        lineWidth = 3; // フォーカス時は太線
+    }
+    
     // エッジを描画（面ごとに関連するエッジのみ）
-    M5.Lcd.drawLine(
-        projected[v0][0], projected[v0][1],
-        projected[v1][0], projected[v1][1],
-        TFT_WHITE
-    );
-    M5.Lcd.drawLine(
-        projected[v1][0], projected[v1][1],
-        projected[v2][0], projected[v2][1],
-        TFT_WHITE
-    );
-    M5.Lcd.drawLine(
-        projected[v2][0], projected[v2][1],
-        projected[v3][0], projected[v3][1],
-        TFT_WHITE
-    );
-    M5.Lcd.drawLine(
-        projected[v3][0], projected[v3][1],
-        projected[v0][0], projected[v0][1],
-        TFT_WHITE
-    );
+    // フォーカス時は太線を描画
+    if (lineWidth > 1 && focusedFaces[faceId]) {
+        for (int i = 0; i < lineWidth; i++) {
+            // 外側エッジ
+            M5.Lcd.drawLine(
+                projected[v0][0] - i, projected[v0][1],
+                projected[v1][0] - i, projected[v1][1],
+                edgeColor
+            );
+            // 内側エッジ
+            M5.Lcd.drawLine(
+                projected[v2][0] - i, projected[v2][1],
+                projected[v3][0] - i, projected[v3][1],
+                edgeColor
+            );
+            // 右側エッジ
+            M5.Lcd.drawLine(
+                projected[v1][0], projected[v1][1] - i,
+                projected[v2][0], projected[v2][1] - i,
+                edgeColor
+            );
+            // 左側エッジ
+            M5.Lcd.drawLine(
+                projected[v3][0], projected[v3][1] - i,
+                projected[v0][0], projected[v0][1] - i,
+                edgeColor
+            );
+        }
+    } else {
+        // 通常の線幅で描画
+        M5.Lcd.drawLine(
+            projected[v0][0], projected[v0][1],
+            projected[v1][0], projected[v1][1],
+            edgeColor
+        );
+        M5.Lcd.drawLine(
+            projected[v1][0], projected[v1][1],
+            projected[v2][0], projected[v2][1],
+            edgeColor
+        );
+        M5.Lcd.drawLine(
+            projected[v2][0], projected[v2][1],
+            projected[v3][0], projected[v3][1],
+            edgeColor
+        );
+        M5.Lcd.drawLine(
+            projected[v3][0], projected[v3][1],
+            projected[v0][0], projected[v0][1],
+            edgeColor
+        );
+    }
 }
 
 // 中央部分のみ再描画
@@ -178,6 +220,78 @@ uint16_t OctagonRingView::getFaceColor(int faceId) const {
     }
     
     return backgroundColor;
+}
+
+// 特定の面のフォーカス状態を設定
+void OctagonRingView::setFaceFocused(int faceID, bool focused) {
+    if (faceID >= 0 && faceID < NUM_FACES) {
+        focusedFaces[faceID] = focused;
+    }
+}
+
+// 特定の面のフォーカス状態を取得
+bool OctagonRingView::isFaceFocused(int faceID) const {
+    if (faceID >= 0 && faceID < NUM_FACES) {
+        return focusedFaces[faceID];
+    }
+    return false;
+}
+
+// フォーカス状態の面の数を取得
+int OctagonRingView::getFocusedFacesCount() const {
+    int count = 0;
+    for (int i = 0; i < NUM_FACES; i++) {
+        if (focusedFaces[i]) {
+            count++;
+        }
+    }
+    return count;
+}
+
+// フォーカス色の設定
+void OctagonRingView::setFocusColor(uint16_t color) {
+    focusColor = color;
+}
+
+// フォーカス色の取得
+uint16_t OctagonRingView::getFocusColor() const {
+    return focusColor;
+}
+
+// すべての面のフォーカスを解除
+void OctagonRingView::clearAllFocus() {
+    for (int i = 0; i < NUM_FACES; i++) {
+        focusedFaces[i] = false;
+    }
+}
+
+// フォーカスされた面のLED状態を取得
+int OctagonRingView::getFocusedFacesLedState() const {
+    int onCount = 0;
+    int focusCount = 0;
+    
+    for (int i = 0; i < NUM_FACES; i++) {
+        if (focusedFaces[i]) {
+            focusCount++;
+            
+            // LED状態を確認
+            if (faceDetector != nullptr && faceDetector->getCalibratedFacesCount() > 0) {
+                FaceData* faceList = faceDetector->getFaceList();
+                if (i < faceDetector->getCalibratedFacesCount() && faceList[i].ledState == 1) {
+                    onCount++;
+                }
+            } else if (highlightedFaces[i]) {
+                // FaceDetectorがない場合はハイライト状態で代用
+                onCount++;
+            }
+        }
+    }
+    
+    // すべて点灯: 2, すべて消灯: 0, 一部点灯: 1
+    if (focusCount == 0) return -1; // フォーカスなし
+    if (onCount == 0) return 0;     // すべて消灯
+    if (onCount == focusCount) return 2; // すべて点灯
+    return 1; // 一部点灯
 }
 
 // 内部で頂点座標を計算（モデル座標系：中心が原点）

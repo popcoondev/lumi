@@ -104,6 +104,17 @@ public:
     int getHighlightedFace() { return octagon.getHighlightedFace(); }
     void setHighlightedFace(int faceId) { octagon.setHighlightedFace(faceId); }
     
+    // フォーカス関連のメソッド
+    void setFaceFocused(int faceId, bool focused) { octagon.setFaceFocused(faceId, focused); }
+    bool isFaceFocused(int faceId) { return octagon.isFaceFocused(faceId); }
+    int getFocusedFacesCount() { return octagon.getFocusedFacesCount(); }
+    void clearAllFocus() { octagon.clearAllFocus(); }
+    int getFocusedFacesLedState() { return octagon.getFocusedFacesLedState(); }
+    
+    // センターボタン情報表示
+    void updateCenterButtonInfo();
+    void drawCenterButtonInfo(const String& text, uint16_t color);
+    
     // 各種イベントコールバック用関数ポインタ
     std::function<void(int)> onFaceTapped;
     std::function<void()> onCenterTapped;
@@ -115,6 +126,11 @@ public:
     std::function<void(int)> onHueChanged;
     std::function<void(int)> onSaturationChanged;
     std::function<void(int)> onValueBrightnessChanged;
+    
+    // ドラッグ選択用の変数
+    bool isDragging;
+    int dragStartFace;
+    int lastDraggedFace;
     
     // フレンドクラス宣言（OctaControllerからoctagonにアクセスできるようにする）
     friend class OctaController;

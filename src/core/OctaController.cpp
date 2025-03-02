@@ -230,10 +230,13 @@ void OctaController::processLumiHomeState() {
             // 再描画フラグを設定
             needsRedraw = true;
             
+            // センターボタン情報を更新
+            lumiView->updateCenterButtonInfo();
+            
             Serial.println("All LEDs reset");
         };
 
-        // 面タップでLEDを制御（トグルボタンとして動作）
+        // 面タップでフォーカスをトグル（LumiView内で処理済み）
         lumiView->onFaceTapped = [this](int faceId) {
             // デバッグ出力 - タップされた面ID
             Serial.println("Face tapped: " + String(faceId));
@@ -243,59 +246,73 @@ void OctaController::processLumiHomeState() {
                 return;
             }
             
-            // OctagonRingViewの面IDをLEDの面IDに変換
-            int ledFaceId = mapViewFaceToLedFace(faceId);
+            // フォーカス処理はLumiView内で実装済み
+            // ここでは何もしない
+        };
+        
+        // 中央タップでフォーカスされた面のLEDをトグル
+        lumiView->onCenterTapped = [this]() {
+            int focusedFacesLedState = lumiView->getFocusedFacesLedState();
+            int focusedFacesCount = lumiView->getFocusedFacesCount();
             
-            // LEDの現在の状態を確認するために、LEDManagerから現在の色を取得
-            CRGB currentFaceColor = ledManager->getFaceColor(ledFaceId);
-            bool isLedOn = (currentFaceColor.r != 0 || currentFaceColor.g != 0 || currentFaceColor.b != 0);
-            
-            // LEDの状態をトグル
-            if (isLedOn) {
-                // LEDが点灯している場合は消灯
-                ledManager->lightFace(ledFaceId, CRGB::Black);
-                
-                // FaceDetectorのLED状態も更新
-                if (faceDetector->getCalibratedFacesCount() > 0) {
-                    FaceData* faceList = faceDetector->getFaceList();
-                    if (ledFaceId < faceDetector->getCalibratedFacesCount()) {
-                        faceList[ledFaceId].ledState = 0;
-                    }
-                }
-                
-                // OctagonRingViewのハイライトも解除
-                lumiView->octagon.setFaceHighlighted(faceId, false);
-                
-                Serial.println("Toggled LED off: " + String(ledFaceId));
-            } else {
-                // LEDが消灯している場合は点灯
-                ledManager->lightFace(ledFaceId, currentLedColor);
-                
-                // FaceDetectorのLED状態も更新
-                if (faceDetector->getCalibratedFacesCount() > 0) {
-                    FaceData* faceList = faceDetector->getFaceList();
-                    if (ledFaceId < faceDetector->getCalibratedFacesCount()) {
-                        faceList[ledFaceId].ledState = 1;
-                        faceList[ledFaceId].ledColor = currentLedColor;
-                    }
-                }
-                
-                // OctagonRingViewのハイライトも設定
-                lumiView->octagon.setFaceHighlighted(faceId, true);
-                lumiView->octagon.setHighlightColor(crgbToRGB565(currentLedColor));
-                
-                Serial.println("Toggled LED on: " + String(ledFaceId));
+            // フォーカスがない場合はパターン切り替え
+            if (focusedFacesCount == 0) {
+                // パターン切り替えとLED表示
+                ledManager->nextPattern();
+                ledManager->runPattern(ledManager->getCurrentPatternIndex());
+                return;
             }
+            
+            // フォーカスされた面のLED状態に基づいて処理
+            bool turnOn = (focusedFacesLedState == 0 || focusedFacesLedState == 1);
+            
+            // フォーカスされた全ての面に対して処理
+            for (int viewFaceId = 0; viewFaceId < NUM_FACES; viewFaceId++) {
+                if (lumiView->isFaceFocused(viewFaceId)) {
+                    // OctagonRingViewの面IDをLEDの面IDに変換
+                    int ledFaceId = mapViewFaceToLedFace(viewFaceId);
+                    
+                    if (turnOn) {
+                        // 点灯処理
+                        ledManager->lightFace(ledFaceId, currentLedColor);
+                        
+                        // FaceDetectorのLED状態も更新
+                        if (faceDetector->getCalibratedFacesCount() > 0) {
+                            FaceData* faceList = faceDetector->getFaceList();
+                            if (ledFaceId < faceDetector->getCalibratedFacesCount()) {
+                                faceList[ledFaceId].ledState = 1;
+                                faceList[ledFaceId].ledColor = currentLedColor;
+                            }
+                        }
+                        
+                        // OctagonRingViewのハイライトも設定
+                        lumiView->octagon.setFaceHighlighted(viewFaceId, true);
+                    } else {
+                        // 消灯処理
+                        ledManager->lightFace(ledFaceId, CRGB::Black);
+                        
+                        // FaceDetectorのLED状態も更新
+                        if (faceDetector->getCalibratedFacesCount() > 0) {
+                            FaceData* faceList = faceDetector->getFaceList();
+                            if (ledFaceId < faceDetector->getCalibratedFacesCount()) {
+                                faceList[ledFaceId].ledState = 0;
+                            }
+                        }
+                        
+                        // OctagonRingViewのハイライトも解除
+                        lumiView->octagon.setFaceHighlighted(viewFaceId, false);
+                    }
+                }
+            }
+            
+            // ハイライト色を設定
+            lumiView->octagon.setHighlightColor(crgbToRGB565(currentLedColor));
             
             // 再描画フラグを設定
             needsRedraw = true;
-        };
-        
-        // 中央タップでLEDパターンを切り替え
-        lumiView->onCenterTapped = [this]() {
-            // パターン切り替えとLED表示
-            ledManager->nextPattern();
-            ledManager->runPattern(ledManager->getCurrentPatternIndex());
+            
+            // センターボタン情報を更新
+            lumiView->updateCenterButtonInfo();
         };
         
         // 明るさスライダーでLED輝度を制御（静的変数のキャプチャを回避）
@@ -315,6 +332,9 @@ void OctaController::processLumiHomeState() {
             
             // 再描画を即時実行する代わりに次回ループで行う
             needsRedraw = true;
+            
+            // センターボタン情報を更新
+            lumiView->updateCenterButtonInfo();
         };
         
         // 明度スライダーでLED明度を制御
@@ -322,9 +342,9 @@ void OctaController::processLumiHomeState() {
             currentValueBrightness = map(value, 0, 100, 0, 255);
             currentLedColor = CHSV(currentHue, currentSaturation, currentValueBrightness);
             
-            // 点灯している全ての面の色を更新
+            // フォーカスされた面のみ色を更新
             for (int viewFace = 0; viewFace < NUM_FACES; viewFace++) {
-                if (lumiView->octagon.isFaceHighlighted(viewFace)) {
+                if (lumiView->isFaceFocused(viewFace) && lumiView->octagon.isFaceHighlighted(viewFace)) {
                     // OctagonRingViewの面IDをLEDの面IDに変換
                     int ledFace = mapViewFaceToLedFace(viewFace);
                     ledManager->lightFace(ledFace, currentLedColor);
@@ -341,6 +361,9 @@ void OctaController::processLumiHomeState() {
             
             // 再描画を即時実行する代わりに次回ループで行う
             needsRedraw = true;
+            
+            // センターボタン情報を更新
+            lumiView->updateCenterButtonInfo();
         };
         
 
@@ -350,9 +373,9 @@ void OctaController::processLumiHomeState() {
             currentHue = map(value, 0, 100, 0, 255);
             currentLedColor = CHSV(currentHue, currentSaturation, currentValueBrightness);
             
-            // 点灯している全ての面の色を更新
+            // フォーカスされた面のみ色を更新
             for (int viewFace = 0; viewFace < NUM_FACES; viewFace++) {
-                if (lumiView->octagon.isFaceHighlighted(viewFace)) {
+                if (lumiView->isFaceFocused(viewFace) && lumiView->octagon.isFaceHighlighted(viewFace)) {
                     // OctagonRingViewの面IDをLEDの面IDに変換
                     int ledFace = mapViewFaceToLedFace(viewFace);
                     ledManager->lightFace(ledFace, currentLedColor);
@@ -372,6 +395,9 @@ void OctaController::processLumiHomeState() {
             
             // 再描画を即時実行する代わりに次回ループで行う
             needsRedraw = true;
+            
+            // センターボタン情報を更新
+            lumiView->updateCenterButtonInfo();
         };
         
         // 彩度スライダーでLED彩度を制御
@@ -380,9 +406,9 @@ void OctaController::processLumiHomeState() {
             currentSaturation = map(value, 0, 100, 0, 255);
             currentLedColor = CHSV(currentHue, currentSaturation, currentValueBrightness);
             
-            // 点灯している全ての面の色を更新
+            // フォーカスされた面のみ色を更新
             for (int viewFace = 0; viewFace < NUM_FACES; viewFace++) {
-                if (lumiView->octagon.isFaceHighlighted(viewFace)) {
+                if (lumiView->isFaceFocused(viewFace) && lumiView->octagon.isFaceHighlighted(viewFace)) {
                     // OctagonRingViewの面IDをLEDの面IDに変換
                     int ledFace = mapViewFaceToLedFace(viewFace);
                     ledManager->lightFace(ledFace, currentLedColor);
@@ -402,6 +428,9 @@ void OctaController::processLumiHomeState() {
             
             // 再描画を即時実行する代わりに次回ループで行う
             needsRedraw = true;
+            
+            // センターボタン情報を更新
+            lumiView->updateCenterButtonInfo();
         };
         
         callbacksInitialized = true;
@@ -413,6 +442,9 @@ void OctaController::processLumiHomeState() {
     if ((initialDraw || requiresRedraw) && !sliderDragging) {
         // 初回表示または再描画フラグが立っている場合は描画
         lumiView->draw();
+        
+        // センターボタン情報を表示
+        lumiView->updateCenterButtonInfo();
         
         if (initialDraw) {
             initialDraw = false;
