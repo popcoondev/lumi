@@ -99,6 +99,7 @@ void LumiView::begin() {
     octagon.setMirrored(true);
     // octagon.rotate(0.4); // π/8ラジアン（22.5度）
     octagon.rotate(PI); // πラジアン（180度）LEDの向きを合わせるため
+    octagon.setBackgroundColor(BLACK);
 
     // idを設定
     settingsButton.setId(ID_BUTTON_SETTINGS);
@@ -194,27 +195,63 @@ void LumiView::handleTouch() {
         int faceId = getTappedFace(touchX, touchY);
         if (faceId >= 0) {
             activeTouchedUI = TouchedUI(ID_OCTAGON_FACE_BASE + faceId, faceId);
+            // タップ視覚フィードバック - 一時的に色を変更
+            uint16_t originalColor = octagon.getFaceColor(faceId);
+            octagon.setFaceTempColor(faceId, TFT_DARKGREY);
+            octagon.drawFace(faceId);  // 指定した面だけを再描画
+        }
+    }
+
+    // タッチ継続中の処理
+    if (isPressed && !wasPressed && !wasReleased) {
+        // オクタゴン中心のドラッグ離脱検出
+        if (activeTouchedUI.id == ID_OCTAGON_CENTER && !isCenterTapped(touchX, touchY)) {
+            // センター領域から外れた - 視覚フィードバックを元に戻す
+            M5.Lcd.fillCircle(octagon.viewX + octagon.viewWidth / 2, 
+                             octagon.viewY + octagon.viewHeight / 2, 
+                             min(octagon.viewWidth, octagon.viewHeight) * 0.1f,
+                             backgroundColor);
+            octagon.drawCenter();  // センター部分のみ再描画
+        }
+        
+        // 面からのドラッグ離脱検出
+        if (activeTouchedUI.id >= ID_OCTAGON_FACE_BASE) {
+            int currentFaceId = getTappedFace(touchX, touchY);
+            if (currentFaceId != activeTouchedUI.data) {
+                // 元の面から別の場所にドラッグされた - 色を元に戻す
+                octagon.resetFaceTempColor(activeTouchedUI.data);
+                octagon.drawFace(activeTouchedUI.data);
+            }
         }
     }
     
     // タッチ終了時の処理
     if (wasReleased) {
         if (activeTouchedUI.id == ID_OCTAGON_CENTER) {
+            // センター再描画で視覚フィードバックを元に戻す
+            octagon.drawCenter();
+            
+            // 同じ領域上でリリースされた場合のみアクション実行
             if (isCenterTapped(touchX, touchY) && onCenterTapped) {
                 onCenterTapped();
             }
         }
         else if (activeTouchedUI.id >= ID_OCTAGON_FACE_BASE) {
-            // 同じ面上でリリースされたか確認
-            int faceId = getTappedFace(touchX, touchY);
-            if (faceId == activeTouchedUI.data && onFaceTapped) {
+            int faceId = activeTouchedUI.data;
+            
+            // 一時的な色を元に戻す
+            octagon.resetFaceTempColor(faceId);
+            octagon.drawFace(faceId);
+            
+            // 同じ面上でリリースされた場合のみアクション実行
+            int releasedFaceId = getTappedFace(touchX, touchY);
+            if (releasedFaceId == faceId && onFaceTapped) {
                 onFaceTapped(faceId);
             }
         }
         
         // タッチ情報をリセット
         activeTouchedUI = TouchedUI();
-
     }
 }
 

@@ -75,6 +75,7 @@ private:
     TouchedUI activeTouchedUI;  // 現在タッチ中のUI
     bool checkButtonTouch(Button& button, int touchX, int touchY, bool isPressed, bool wasPressed, bool wasReleased);
     bool checkSliderTouch(Slider& slider, int touchX, int touchY, bool isPressed, bool wasPressed, bool wasReleased);
+    uint16_t backgroundColor;   // 背景色の保存用
 
     // UIコンポーネント用の単純なID定数
     enum {

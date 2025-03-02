@@ -52,6 +52,8 @@ private:
                         int x3, int y3) const;
 
     friend class LumiView;
+    uint16_t tempFaceColors[NUM_FACES];   // タッチフィードバック用の一時的な面の色
+    bool hasTempColor[NUM_FACES];         // 一時的な色が設定されているかのフラグ
 
 public:
     // コンストラクタ
@@ -98,7 +100,22 @@ public:
 
     // タップされた座標が指定面の内部にあるか判定
     bool isPointInFace(int faceID, int screenX, int screenY) const;
+
+    // 特定の面だけを再描画
+    void drawFace(int faceId);
     
+    // センター部分のみ再描画
+    void drawCenter();
+    
+    // 面に一時的な色を設定（タッチフィードバック用）
+    void setFaceTempColor(int faceId, uint16_t color);
+    
+    // 一時的な色を解除
+    void resetFaceTempColor(int faceId);
+    
+    // 面の現在の色を取得
+    uint16_t getFaceColor(int faceId) const;
+
 };
 
 #endif // OCTAGON_RING_VIEW_H

@@ -15,6 +15,8 @@ OctagonRingView::OctagonRingView()
     , rotationAngle(M_PI/8.0f)  // デフォルトでPI/8（22.5度）回転
     , isMirrored(true) // デフォルトで鏡写しに設定
     , faceDetector(nullptr) // FaceDetectorは初期化時にnull
+    , tempFaceColors()
+    , hasTempColor() 
 {
     // ハイライト面の初期化（すべて非ハイライト）
     for (int i = 0; i < NUM_FACES; i++) {
@@ -54,6 +56,128 @@ OctagonRingView::OctagonRingView()
         edges[idx][1] = NUM_OUTER + i;
         idx++;
     }
+
+    for (int i = 0; i < NUM_FACES; i++) {
+        tempFaceColors[i] = TFT_BLACK;
+        hasTempColor[i] = false;
+    }
+}
+
+void OctagonRingView::drawFace(int faceId) {
+    if (faceId < 0 || faceId >= NUM_FACES) return;
+    
+    int v0 = faces[faceId][0];
+    int v1 = faces[faceId][1];
+    int v2 = faces[faceId][2];
+    int v3 = faces[faceId][3];
+    
+    // 面の色を判定
+    uint16_t color = backgroundColor;
+    
+    // 一時的な色があればそれを使用
+    if (hasTempColor[faceId]) {
+        color = tempFaceColors[faceId];
+    }
+    // 通常のハイライト状態
+    else if (highlightedFaces[faceId]) {
+        color = highlightColor;
+    }
+    // FaceDetectorによる色
+    else if (faceDetector != nullptr && faceDetector->getCalibratedFacesCount() > 0) {
+        FaceData* faceList = faceDetector->getFaceList();
+        if (faceId < faceDetector->getCalibratedFacesCount() && faceList[faceId].ledState == 1) {
+            CRGB ledColor = faceList[faceId].ledColor;
+            color = M5.Lcd.color565(ledColor.r, ledColor.g, ledColor.b);
+        }
+    }
+    
+    // 台形を描画（三角形2つに分けて描画）
+    M5.Lcd.fillTriangle(
+        projected[v0][0], projected[v0][1],
+        projected[v1][0], projected[v1][1],
+        projected[v2][0], projected[v2][1],
+        color
+    );
+    M5.Lcd.fillTriangle(
+        projected[v0][0], projected[v0][1],
+        projected[v2][0], projected[v2][1],
+        projected[v3][0], projected[v3][1],
+        color
+    );
+    
+    // エッジを描画（面ごとに関連するエッジのみ）
+    M5.Lcd.drawLine(
+        projected[v0][0], projected[v0][1],
+        projected[v1][0], projected[v1][1],
+        TFT_WHITE
+    );
+    M5.Lcd.drawLine(
+        projected[v1][0], projected[v1][1],
+        projected[v2][0], projected[v2][1],
+        TFT_WHITE
+    );
+    M5.Lcd.drawLine(
+        projected[v2][0], projected[v2][1],
+        projected[v3][0], projected[v3][1],
+        TFT_WHITE
+    );
+    M5.Lcd.drawLine(
+        projected[v3][0], projected[v3][1],
+        projected[v0][0], projected[v0][1],
+        TFT_WHITE
+    );
+}
+
+// 中央部分のみ再描画
+void OctagonRingView::drawCenter() {
+    int centerX = viewX + viewWidth / 2;
+    int centerY = viewY + viewHeight / 2;
+    float innerRadius = min(viewWidth, viewHeight) * 0.2f;
+    
+    // 中央円を背景色で描画
+    M5.Lcd.fillCircle(centerX, centerY, innerRadius, backgroundColor);
+    
+    // 中央円の輪郭を描画
+    M5.Lcd.drawCircle(centerX, centerY, innerRadius, TFT_WHITE);
+}
+
+// 一時的な色を設定
+void OctagonRingView::setFaceTempColor(int faceId, uint16_t color) {
+    if (faceId >= 0 && faceId < NUM_FACES) {
+        tempFaceColors[faceId] = color;
+        hasTempColor[faceId] = true;
+    }
+}
+
+// 一時的な色を解除
+void OctagonRingView::resetFaceTempColor(int faceId) {
+    if (faceId >= 0 && faceId < NUM_FACES) {
+        hasTempColor[faceId] = false;
+    }
+}
+
+// 面の現在の色を取得
+uint16_t OctagonRingView::getFaceColor(int faceId) const {
+    if (faceId < 0 || faceId >= NUM_FACES) return backgroundColor;
+    
+    // 一時的な色があればそれを使用
+    if (hasTempColor[faceId]) {
+        return tempFaceColors[faceId];
+    }
+    // 通常のハイライト状態
+    else if (highlightedFaces[faceId]) {
+        return highlightColor;
+    }
+    // FaceDetectorによる色
+    else if (faceDetector != nullptr && faceDetector->getCalibratedFacesCount() > 0) {
+        FaceData* faceList = faceDetector->getFaceList();
+        if (faceId < faceDetector->getCalibratedFacesCount() && faceList[faceId].ledState == 1) {
+            CRGB ledColor = faceList[faceId].ledColor;
+            return M5.Lcd.color565(ledColor.r, ledColor.g, ledColor.b);
+        }
+    }
+    
+    return backgroundColor;
 }
 
 // 内部で頂点座標を計算（モデル座標系：中心が原点）
@@ -204,63 +328,11 @@ void OctagonRingView::draw() {
 
     // 台形（各面）描画
     for(int i = 0; i < NUM_FACES; i++){
-        int v0 = faces[i][0];
-        int v1 = faces[i][1];
-        int v2 = faces[i][2];
-        int v3 = faces[i][3];
-
-        // デフォルト色
-        uint16_t color = BLACK;
-        
-        // FaceDetectorが設定されている場合はFaceDataから色を取得
-        if (faceDetector != nullptr && faceDetector->getCalibratedFacesCount() > 0) {
-            FaceData* faceList = faceDetector->getFaceList();
-            if (i < faceDetector->getCalibratedFacesCount() && faceList[i].ledState == 1) {
-                // LEDが点灯している場合はFaceDataの色を使用
-                CRGB ledColor = faceList[i].ledColor;
-                color = M5.Lcd.color565(ledColor.r, ledColor.g, ledColor.b);
-                highlightedFaces[i] = true;
-            } else if (highlightedFaces[i]) {
-                // FaceDataでLEDがOFFだがハイライトされている場合はデフォルトのハイライト色を使用
-                color = highlightColor;
-            }
-        } else if (highlightedFaces[i]) {
-            // FaceDetectorが設定されていない場合は通常のハイライト色を使用
-            color = highlightColor;
-        }
-
-        // 台形を三角形2枚に分割して塗りつぶす
-        M5.Lcd.fillTriangle(
-            projected[v0][0], projected[v0][1],
-            projected[v1][0], projected[v1][1],
-            projected[v2][0], projected[v2][1],
-            color
-        );
-        M5.Lcd.fillTriangle(
-            projected[v0][0], projected[v0][1],
-            projected[v2][0], projected[v2][1],
-            projected[v3][0], projected[v3][1],
-            color
-        );
-
-        // 台形上に面番号を描画
-        // int faceCenterX = (projected[v0][0] + projected[v1][0] + projected[v2][0] + projected[v3][0]) / 4;
-        // int faceCenterY = (projected[v0][1] + projected[v1][1] + projected[v2][1] + projected[v3][1]) / 4;
-        // M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
-        // M5.Lcd.setCursor(faceCenterX, faceCenterY);
-        // M5.Lcd.print(i);
+        drawFace(i);
     }
 
-    // エッジ描画
-    for(int i = 0; i < NUM_EDGES; i++){
-        int a = edges[i][0];
-        int b = edges[i][1];
-        M5.Lcd.drawLine(
-            projected[a][0], projected[a][1],
-            projected[b][0], projected[b][1],
-            TFT_WHITE
-        );
-    }
+    // 中央部分の描画
+    // drawCenter();
 }
 
 bool OctagonRingView::isPointInTriangle(int px, int py, 

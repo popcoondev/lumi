@@ -177,6 +177,9 @@ void OctaController::processLumiHomeState() {
             } else if (valueBrightnessSliderDragging) {
                 lumiView->drawValueBrightnessSlider();
             }
+            else {
+                // 何もしない
+            }
             lastDrawTime = currentTime;
         }
         wasDragging = true;
