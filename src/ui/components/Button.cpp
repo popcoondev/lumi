@@ -86,4 +86,15 @@ bool Button::containsPoint(int x, int y) const {
 void Button::setPressed(bool pressed) {
     wasPressed = pressed;
     // 見た目の更新処理は必要に応じて
+    if(type == BUTTON_TYPE_OUTLINE) {
+        M5.Lcd.fillRoundRect(posX+1, posY+1, width-1, height-1, 5, pressedColor);
+        M5.Lcd.drawRoundRect(posX+1, posY+1, width-1, height-1, 5, WHITE);
+        M5.Lcd.setTextColor(normalColor, pressedColor);
+    }
+    else {
+        // type == BUTTON_TYPE_TEXTの場合は、テキストの色を反転
+        M5.Lcd.drawRoundRect(posX+1, posY+1, width-1, height-6, 5, WHITE);
+        M5.Lcd.setTextColor(pressedColor, normalColor);
+        
+    }
 }

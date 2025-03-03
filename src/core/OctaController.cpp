@@ -325,14 +325,8 @@ void OctaController::processLumiHomeState() {
                 int focusedFacesLedState = lumiView->getFocusedFacesLedState();
                 int focusedFacesCount = lumiView->getFocusedFacesCount();
                 
-                // フォーカスがない場合はパターン切り替え
+                // フォーカスがない場合は何もしない
                 if (focusedFacesCount == 0) {
-                    // パターン切り替えとLED表示
-                    ledManager->nextPattern();
-                    ledManager->runPattern(ledManager->getCurrentPatternIndex());
-                    
-                    // パターンモードのプログレスを表示
-                    lumiView->drawCircularProgress(0, LumiView::PROGRESS_MODE_PATTERN);
                     return;
                 }
                 

@@ -153,7 +153,7 @@ void LumiView::drawCircularProgress(int value, ProgressMode mode) {
     int centerX = octagon.viewX + octagon.viewWidth / 2;
     int centerY = octagon.viewY + octagon.viewHeight / 2;
     float innerRadius = min(octagon.viewWidth, octagon.viewHeight) * 0.2f;
-    float outerRadius = innerRadius + 5; // プログレスバーの幅
+    float outerRadius = innerRadius + 2; // プログレスバーの幅
     
     // モードに応じた色を設定
     uint16_t progressColor;
@@ -163,19 +163,19 @@ void LumiView::drawCircularProgress(int value, ProgressMode mode) {
             break;
         case PROGRESS_MODE_HUE:
             // 色相に応じた色
-            progressColor = M5.Lcd.color565(
-                map(value, 0, 100, 0, 255), 
-                map((value + 33) % 100, 0, 100, 0, 255), 
-                map((value + 66) % 100, 0, 100, 0, 255)
-            );
+            // progressColor = M5.Lcd.color565(
+            //     map(value, 0, 100, 0, 255), 
+            //     map((value + 33) % 100, 0, 100, 0, 255), 
+            //     map((value + 66) % 100, 0, 100, 0, 255)
+            // );
             break;
         case PROGRESS_MODE_SATURATION:
             // 現在の色相と彩度に基づく色
-            progressColor = M5.Lcd.color565(
-                map(value, 0, 100, 128, 255), 
-                map(value, 0, 100, 128, 0), 
-                map(value, 0, 100, 128, 255)
-            );
+            // progressColor = M5.Lcd.color565(
+            //     map(value, 0, 100, 128, 255), 
+            //     map(value, 0, 100, 128, 0), 
+            //     map(value, 0, 100, 128, 255)
+            // );
             break;
         case PROGRESS_MODE_PATTERN:
             progressColor = TFT_CYAN;
@@ -186,7 +186,7 @@ void LumiView::drawCircularProgress(int value, ProgressMode mode) {
     }
     
     // 中央円を背景色で描画
-    M5.Lcd.fillCircle(centerX, centerY, innerRadius, backgroundColor);
+    // M5.Lcd.fillCircle(centerX, centerY, innerRadius, BLACK);
     
     if (mode == PROGRESS_MODE_PATTERN) {
         // パターンモードの場合は回転アニメーション
@@ -346,6 +346,7 @@ void LumiView::draw() {
 void LumiView::updateCenterButtonInfo() {
     String text;
     uint16_t color;
+    bool showProgress = false;
     
     if (currentMode == MODE_TAP) {
         // タップモードの場合
@@ -354,18 +355,22 @@ void LumiView::updateCenterButtonInfo() {
         
         switch (ledState) {
             case -1: // フォーカスなし
-                text = "Pattern Change";
-                color = TFT_CYAN;
-                // パターンモードのプログレスを表示
-                drawCircularProgress(0, PROGRESS_MODE_PATTERN);
+                text = "";
+                color = WHITE;
+                // プログレス表示はOFF
+                currentProgressMode = PROGRESS_MODE_NONE;
                 break;
             case 0: // すべて消灯
                 text = "ON " + String(focusCount);
                 color = TFT_GREEN;
+                // プログレス表示はOFF
+                currentProgressMode = PROGRESS_MODE_NONE;
                 break;
             case 2: // すべて点灯
                 text = "OFF " + String(focusCount);
                 color = TFT_RED;
+                // プログレス表示はOFF
+                currentProgressMode = PROGRESS_MODE_NONE;
                 break;
             case 1: // 一部点灯
                 // フォーカスされた面の中で点灯している面の数を取得
@@ -377,6 +382,8 @@ void LumiView::updateCenterButtonInfo() {
                 }
                 text = "TOGGLE " + String(onCount) + "/" + String(focusCount);
                 color = TFT_YELLOW;
+                // プログレス表示はOFF
+                currentProgressMode = PROGRESS_MODE_NONE;
                 break;
         }
     } else {
@@ -386,13 +393,27 @@ void LumiView::updateCenterButtonInfo() {
             text = "STOP " + patternName;
             color = TFT_RED;
             // パターン実行中はアニメーション表示
-            drawCircularProgress(0, PROGRESS_MODE_PATTERN);
+            showProgress = true;
         } else {
             text = "PLAY " + patternName;
             color = TFT_GREEN;
+            // プログレス表示はOFF
+            currentProgressMode = PROGRESS_MODE_NONE;
         }
     }
     
+    // 中央円を背景色で描画（プログレスを消去）
+    int centerX = octagon.viewX + octagon.viewWidth / 2;
+    int centerY = octagon.viewY + octagon.viewHeight / 2;
+    float innerRadius = min(octagon.viewWidth, octagon.viewHeight) * 0.2f;
+    M5.Lcd.fillCircle(centerX, centerY, innerRadius, BLACK);
+    
+    // 必要な場合のみプログレスを表示
+    if (showProgress) {
+        drawCircularProgress(0, PROGRESS_MODE_PATTERN);
+    }
+    
+    // テキスト情報を表示
     drawCenterButtonInfo(text, color);
 }
 
@@ -577,7 +598,7 @@ bool LumiView::checkButtonTouch(Button& button, int touchX, int touchY, bool isP
         if (button.containsPoint(touchX, touchY)) {
             activeTouchedUI = TouchedUI(button.getId());
             button.setPressed(true);
-            button.draw();
+            // button.draw();
             return true;
         }
     }

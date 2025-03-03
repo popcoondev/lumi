@@ -177,7 +177,7 @@ void OctagonRingView::drawCenter() {
     float innerRadius = min(viewWidth, viewHeight) * 0.2f;
     
     // 中央円を背景色で描画
-    M5.Lcd.fillCircle(centerX, centerY, innerRadius, backgroundColor);
+    M5.Lcd.fillCircle(centerX, centerY, innerRadius, BLACK);
     
     // 中央円の輪郭を描画
     M5.Lcd.drawCircle(centerX, centerY, innerRadius, TFT_WHITE);
@@ -446,7 +446,7 @@ void OctagonRingView::draw() {
     }
 
     // 中央部分の描画
-    // drawCenter();
+    drawCenter();
 }
 
 bool OctagonRingView::isPointInTriangle(int px, int py, 
