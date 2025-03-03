@@ -107,66 +107,64 @@ void OctagonRingView::drawFace(int faceId) {
         color
     );
     
-    // エッジの色を決定（フォーカス状態なら黄色の太線）
+    // エッジの色を決定
     uint16_t edgeColor = TFT_WHITE;
-    uint8_t lineWidth = 1;
     
+    // 通常の線幅で描画
+    M5.Lcd.drawLine(
+        projected[v0][0], projected[v0][1],
+        projected[v1][0], projected[v1][1],
+        edgeColor
+    );
+    M5.Lcd.drawLine(
+        projected[v1][0], projected[v1][1],
+        projected[v2][0], projected[v2][1],
+        edgeColor
+    );
+    M5.Lcd.drawLine(
+        projected[v2][0], projected[v2][1],
+        projected[v3][0], projected[v3][1],
+        edgeColor
+    );
+    M5.Lcd.drawLine(
+        projected[v3][0], projected[v3][1],
+        projected[v0][0], projected[v0][1],
+        edgeColor
+    );
+    
+    // フォーカス状態の場合、外側に平行線を描画
     if (focusedFaces[faceId]) {
-        edgeColor = focusColor;
-        lineWidth = 3; // フォーカス時は太線
-    }
-    
-    // エッジを描画（面ごとに関連するエッジのみ）
-    // フォーカス時は太線を描画
-    if (lineWidth > 1 && focusedFaces[faceId]) {
-        for (int i = 0; i < lineWidth; i++) {
-            // 外側エッジ
-            M5.Lcd.drawLine(
-                projected[v0][0] - i, projected[v0][1],
-                projected[v1][0] - i, projected[v1][1],
-                edgeColor
-            );
-            // 内側エッジ
-            M5.Lcd.drawLine(
-                projected[v2][0] - i, projected[v2][1],
-                projected[v3][0] - i, projected[v3][1],
-                edgeColor
-            );
-            // 右側エッジ
-            M5.Lcd.drawLine(
-                projected[v1][0], projected[v1][1] - i,
-                projected[v2][0], projected[v2][1] - i,
-                edgeColor
-            );
-            // 左側エッジ
-            M5.Lcd.drawLine(
-                projected[v3][0], projected[v3][1] - i,
-                projected[v0][0], projected[v0][1] - i,
-                edgeColor
-            );
+        // 外側の底辺（v0-v1）に平行な線を描画
+        // 底辺の方向ベクトルを計算
+        int dx = projected[v1][0] - projected[v0][0];
+        int dy = projected[v1][1] - projected[v0][1];
+        
+        // 底辺に垂直な方向ベクトル（時計回りに90度回転）
+        int perpX = -dy;
+        int perpY = dx;
+        
+        // ベクトルの長さを計算
+        float length = sqrt(perpX * perpX + perpY * perpY);
+        if (length > 0) {
+            // 単位ベクトル化して2ピクセル分の長さにする
+            float normalizedPerpX = perpX / length * 2;
+            float normalizedPerpY = perpY / length * 2;
+            
+            // 底辺の外側2ピクセルの位置に線を描画
+            int startX = projected[v0][0] + normalizedPerpX;
+            int startY = projected[v0][1] + normalizedPerpY;
+            int endX = projected[v1][0] + normalizedPerpX;
+            int endY = projected[v1][1] + normalizedPerpY;
+            
+            // 黄色の線を描画（太さ2ピクセル）
+            for (int i = 0; i < 2; i++) {
+                M5.Lcd.drawLine(
+                    startX, startY + i,
+                    endX, endY + i,
+                    focusColor
+                );
+            }
         }
-    } else {
-        // 通常の線幅で描画
-        M5.Lcd.drawLine(
-            projected[v0][0], projected[v0][1],
-            projected[v1][0], projected[v1][1],
-            edgeColor
-        );
-        M5.Lcd.drawLine(
-            projected[v1][0], projected[v1][1],
-            projected[v2][0], projected[v2][1],
-            edgeColor
-        );
-        M5.Lcd.drawLine(
-            projected[v2][0], projected[v2][1],
-            projected[v3][0], projected[v3][1],
-            edgeColor
-        );
-        M5.Lcd.drawLine(
-            projected[v3][0], projected[v3][1],
-            projected[v0][0], projected[v0][1],
-            edgeColor
-        );
     }
 }
 
