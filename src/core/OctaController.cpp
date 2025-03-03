@@ -35,6 +35,7 @@ void OctaController::setup() {
     faceDetector->begin(imuSensor);
     stateManager->begin();
     lumiView->begin();
+    lumiView->setLedPatterns(ledManager->getPatternCount());
     
     // OctagonRingViewにFaceDetectorを設定
     lumiView->octagon.setFaceDetector(faceDetector);

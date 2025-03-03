@@ -92,6 +92,8 @@ private:
         ID_OCTAGON_FACE_BASE = 100  // 面IDは100+faceIndexとなる
     };
 
+    int ledPatterns = 0;
+
 public:
     LumiView();
     void begin();
@@ -168,7 +170,7 @@ public:
     
     // ホイール操作関連のメソッド
     void drawPatternWheel();
-    void updatePatternSelection(float rotationDelta);
+    void updatePatternSelection(int moveCount);
     void setOperationMode(OperationMode mode);
     OperationMode getOperationMode() const { return currentMode; }
     
@@ -192,6 +194,9 @@ public:
     Slider& getHueSlider() { return hueSlider; }
     Slider& getSaturationSlider() { return saturationSlider; }
     Slider& getValueBrightnessSlider() { return valueBrightnessSlider; }
+
+    void setLedPatterns(int patterns) { ledPatterns = patterns; }
+    int getLedPatterns() { return ledPatterns; }
 
 };
 

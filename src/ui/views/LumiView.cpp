@@ -98,7 +98,8 @@ LumiView::LumiView()
       isWheelActive(false),
       wheelRotation(0),
       selectedPatternIndex(0),
-      isPatternPlaying(false)
+      isPatternPlaying(false),
+      backgroundColor(BLACK)
 {
     // オクタゴンの中心タッチ検出用の設定
     octagonCenter.centerX = 160;
@@ -159,29 +160,25 @@ void LumiView::drawCircularProgress(int value, ProgressMode mode) {
     uint16_t progressColor;
     switch (mode) {
         case PROGRESS_MODE_BRIGHTNESS:
-            progressColor = TFT_YELLOW;
+            // progressColor = TFT_YELLOW;
             break;
         case PROGRESS_MODE_HUE:
             // 色相に応じた色
-            // progressColor = M5.Lcd.color565(
-            //     map(value, 0, 100, 0, 255), 
-            //     map((value + 33) % 100, 0, 100, 0, 255), 
-            //     map((value + 66) % 100, 0, 100, 0, 255)
-            // );
+            // progressColor = TFT_MAGENTA;
             break;
         case PROGRESS_MODE_SATURATION:
             // 現在の色相と彩度に基づく色
-            // progressColor = M5.Lcd.color565(
-            //     map(value, 0, 100, 128, 255), 
-            //     map(value, 0, 100, 128, 0), 
-            //     map(value, 0, 100, 128, 255)
-            // );
+            // progressColor = TFT_BLUE;
             break;
         case PROGRESS_MODE_PATTERN:
-            progressColor = TFT_CYAN;
+            if (isPatternPlaying) {
+                progressColor = TFT_GREEN;
+            } else {
+                progressColor = TFT_RED;
+            }
             break;
         default:
-            progressColor = TFT_WHITE;
+            // progressColor = TFT_WHITE;
             break;
     }
     
@@ -249,39 +246,20 @@ void LumiView::setOperationMode(OperationMode mode) {
         bottomRightButton.setLabel("Tap");
         isWheelActive = true;
         
-        // パターンモードに切り替えたときはフォーカスをクリア
-        clearAllFocus();
     }
+    
+    clearAllFocus();
     
     // ボタンを再描画
     bottomRightButton.draw();
 }
 
-// パターンホイールの描画
+// パターンドットの描画
 void LumiView::drawPatternWheel() {
     if (!isWheelActive) return;
     
     int centerX = octagon.viewX + octagon.viewWidth / 2;
     int centerY = octagon.viewY + octagon.viewHeight / 2;
-    float outerRadius = min(octagon.viewWidth, octagon.viewHeight) * 0.45f;
-    float markerRadius = outerRadius * 0.85f;
-    
-    // パターン数（LEDManagerから取得する想定）
-    const int patternCount = 8; // 仮の値
-    
-    // 各パターンの位置にマーカーを描画
-    for (int i = 0; i < patternCount; i++) {
-        float angle = wheelRotation + (2 * PI * i / patternCount);
-        int markerX = centerX + markerRadius * cos(angle);
-        int markerY = centerY + markerRadius * sin(angle);
-        
-        // 選択中のパターンは大きく黄色で表示
-        if (i == selectedPatternIndex) {
-            M5.Lcd.fillCircle(markerX, markerY, 8, TFT_YELLOW);
-        } else {
-            M5.Lcd.fillCircle(markerX, markerY, 5, TFT_WHITE);
-        }
-    }
     
     // 選択中のパターン名を表示
     String patternName = "Pattern " + String(selectedPatternIndex + 1);
@@ -292,35 +270,27 @@ void LumiView::drawPatternWheel() {
 }
 
 // パターン選択の更新
-void LumiView::updatePatternSelection(float rotationDelta) {
+// moveCountに何回next実行するべきかを指定
+void LumiView::updatePatternSelection(int moveCount) {
     if (!isWheelActive) return;
     
-    // ホイールの回転を更新
-    wheelRotation += rotationDelta;
-    
     // パターン数（LEDManagerから取得する想定）
-    const int patternCount = 8; // 仮の値
+    const int patternCount = ledPatterns;
+
+    // 選択中のパターンを更新
+    selectedPatternIndex = (selectedPatternIndex + moveCount + patternCount) % patternCount;
     
-    // 回転角度からパターンインデックスを計算
-    float normalizedRotation = wheelRotation / (2 * PI);
-    normalizedRotation = normalizedRotation - floor(normalizedRotation); // 0-1の範囲に正規化
-    
-    int newPatternIndex = floor(normalizedRotation * patternCount);
-    if (newPatternIndex != selectedPatternIndex) {
-        selectedPatternIndex = newPatternIndex;
-        // パターン変更のコールバックはOctaControllerで処理
-    }
 }
 
 void LumiView::draw() {
     // 画面の背景をクリア
     M5.Lcd.fillScreen(TFT_BLACK);
     
-    if (currentMode == MODE_TAP || !isWheelActive) {
-        // タップモードの場合は通常のオクタゴンを描画
-        octagon.draw();
-    } else {
-        // パターンモードの場合はホイール表示
+    // オクタゴンを描画（モードに関わらず常に描画）
+    octagon.draw();
+    
+    // パターンモードの場合は選択中のパターンを示すドットを描画
+    if (currentMode == MODE_PATTERN && isWheelActive) {
         drawPatternWheel();
     }
     
@@ -429,6 +399,26 @@ void LumiView::drawCenterButtonInfo(const String& text, uint16_t color) {
     M5.Lcd.drawString(text, centerX, centerY);
 }
 
+// オクタゴンの中心がタップされたか判定
+bool LumiView::isCenterTapped(int x, int y) {
+    int centerX = octagon.viewX + octagon.viewWidth / 2;
+    int centerY = octagon.viewY + octagon.viewHeight / 2;
+    float innerRadius = min(octagon.viewWidth, octagon.viewHeight) * 0.2f;
+    
+    // 中心からの距離を計算
+    float dx = x - centerX;
+    float dy = y - centerY;
+    float distSq = dx * dx + dy * dy;
+    
+    // 中心円内かどうかを判定
+    return distSq < innerRadius * innerRadius;
+}
+
+// オクタゴンの面がタップされたか判定
+int LumiView::getTappedFace(int x, int y) {
+    return octagon.getFaceAtPoint(x, y);
+}
+
 void LumiView::handleTouch() {
     // M5.Touch更新はOctaControllerで行われていることを前提
     auto touch = M5.Touch.getDetail();
@@ -508,49 +498,44 @@ void LumiView::handleTouch() {
             // 面のドラッグ選択処理
             if (isDragging) {
                 int currentFaceId = getTappedFace(touchX, touchY);
-                if (currentFaceId >= 0 && currentFaceId != lastDraggedFace) {
-                    // 新しい面にドラッグされた
-                    lastDraggedFace = currentFaceId;
-                    
-                    // 新しい面のフォーカス状態を設定（最初にタップした面と同じ状態に）
-                    bool shouldFocus = octagon.isFaceFocused(dragStartFace);
-                    octagon.setFaceFocused(currentFaceId, shouldFocus);
-                    octagon.drawFace(currentFaceId);  // 再描画
-                    
-                    // センターボタン情報を更新
-                    updateCenterButtonInfo();
+                if (currentMode == MODE_TAP) {
+                    if (currentFaceId >= 0 && currentFaceId != lastDraggedFace) {
+                        // 新しい面にドラッグされた
+                        lastDraggedFace = currentFaceId;
+                        
+                        // 新しい面のフォーカス状態を設定（最初にタップした面と同じ状態に）
+                        bool shouldFocus = octagon.isFaceFocused(dragStartFace);
+                        octagon.setFaceFocused(currentFaceId, shouldFocus);
+                        octagon.drawFace(currentFaceId);  // 再描画
+                        
+                        // センターボタン情報を更新
+                        updateCenterButtonInfo();
+                    }
                 }
             }
         }
-    } else {
+    }
+    else {
         // パターンモードの場合
+        if (wasPressed && isCenterTapped(touchX, touchY)) {
+            // センター再描画で視覚フィードバックを元に戻す
+            octagon.drawCenter();
+            updateCenterButtonInfo(); // 情報表示を更新
+            
+            // センターがタップされた場合はパターン再生トグル
+            isPatternPlaying = !isPatternPlaying;
+            updateCenterButtonInfo();
+        }
         
-        // ホイール操作の処理
-        if (isPressed && !isCenterTapped(touchX, touchY)) {
-            // 中心からの角度を計算
-            int centerX = octagon.viewX + octagon.viewWidth / 2;
-            int centerY = octagon.viewY + octagon.viewHeight / 2;
-            
-            // 現在の角度
-            float currentAngle = atan2(touchY - centerY, touchX - centerX);
-            
-            // ドラッグ中の場合は角度の変化を計算
-            if (isPressed && !wasPressed) {
-                // 前回の角度
-                float lastAngle = atan2(lastTouchY - centerY, lastTouchX - centerX);
-                
-                // 角度の変化量
-                float angleDelta = currentAngle - lastAngle;
-                
-                // 角度の変化が大きすぎる場合は補正（-πからπの範囲に収める）
-                if (angleDelta > PI) angleDelta -= 2 * PI;
-                if (angleDelta < -PI) angleDelta += 2 * PI;
-                
-                // ホイールの回転を更新
-                updatePatternSelection(angleDelta);
-                
-                // 再描画
-                draw();
+        // face3でprev, face7でnextとする
+        if (wasPressed) {
+            int faceId = getTappedFace(touchX, touchY);
+            if (faceId == 3) {
+                updatePatternSelection(-1);
+                drawPatternWheel();
+            } else if (faceId == 7) {
+                updatePatternSelection(1);
+                drawPatternWheel();
             }
         }
     }
@@ -567,7 +552,7 @@ void LumiView::handleTouch() {
                 onCenterTapped();
             }
         }
-        else if (activeTouchedUI.id >= ID_OCTAGON_FACE_BASE && currentMode == MODE_TAP) {
+        else if (activeTouchedUI.id >= ID_OCTAGON_FACE_BASE) {
             int faceId = activeTouchedUI.data;
             
             // 一時的な色を元に戻す
@@ -637,68 +622,57 @@ bool LumiView::checkSliderTouch(Slider& slider, int touchX, int touchY, bool isP
     // スライダー領域内のタッチかチェック
     bool isTouchInSlider = slider.containsPoint(touchX, touchY);
     
-    // タッチ開始時または既にこのスライダーをドラッグ中
-    if ((wasPressed && isTouchInSlider) || 
-        (isPressed && activeTouchedUI.id == slider.getId())) {
+    // タッチ開始時
+    if (wasPressed && isTouchInSlider) {
+        activeTouchedUI = TouchedUI(slider.getId());
+        slider.handleTouch(touchX, touchY, true);
         
-        // アクティブなUIをこのスライダーに設定
-        if (wasPressed) {
-            activeTouchedUI = TouchedUI(slider.getId());
-            
-            // スライダーに応じたプログレスモードを設定
-            int id = slider.getId();
-            if (id == ID_SLIDER_BRIGHTNESS) {
-                currentProgressMode = PROGRESS_MODE_BRIGHTNESS;
-            }
-            else if (id == ID_SLIDER_HUE) {
-                currentProgressMode = PROGRESS_MODE_HUE;
-            }
-            else if (id == ID_SLIDER_SATURATION) {
-                currentProgressMode = PROGRESS_MODE_SATURATION;
-            }
-            else if (id == ID_SLIDER_VALUE_BRIGHTNESS) {
-                currentProgressMode = PROGRESS_MODE_BRIGHTNESS; // 明度も明るさと同じ表示
-            }
+        // スライダー値変更のコールバック
+        int id = slider.getId();
+        int value = slider.getValue();
+        
+        if (id == ID_SLIDER_BRIGHTNESS && onBrightnessChanged) {
+            onBrightnessChanged(value);
         }
-        
-        // 値を更新
-        int oldValue = slider.getValue();
-        slider.handleTouch(touchX, touchY, isPressed);
-        int newValue = slider.getValue();
-        
-        // 値が変わった場合のみ再描画とコールバック実行
-        if (oldValue != newValue) {
-            slider.draw();
-            
-            // プログレスバーを更新
-            drawCircularProgress(newValue, currentProgressMode);
-            
-            int id = slider.getId();
-            if (id == ID_SLIDER_BRIGHTNESS && onBrightnessChanged) {
-                onBrightnessChanged(newValue);
-            }
-            else if (id == ID_SLIDER_HUE && onHueChanged) {
-                onHueChanged(newValue);
-            }
-            else if (id == ID_SLIDER_SATURATION && onSaturationChanged) {
-                onSaturationChanged(newValue);
-            }
-            else if (id == ID_SLIDER_VALUE_BRIGHTNESS && onValueBrightnessChanged) {
-                onValueBrightnessChanged(newValue);
-            }
+        else if (id == ID_SLIDER_HUE && onHueChanged) {
+            onHueChanged(value);
+        }
+        else if (id == ID_SLIDER_SATURATION && onSaturationChanged) {
+            onSaturationChanged(value);
+        }
+        else if (id == ID_SLIDER_VALUE_BRIGHTNESS && onValueBrightnessChanged) {
+            onValueBrightnessChanged(value);
         }
         
         return true;
     }
     
-    // ドラッグ終了時
+    // ドラッグ中の処理
+    if (isPressed && !wasPressed && !wasReleased && activeTouchedUI.id == slider.getId()) {
+        if (slider.handleTouch(touchX, touchY, true)) {
+            // スライダー値変更のコールバック
+            int id = slider.getId();
+            int value = slider.getValue();
+            
+            if (id == ID_SLIDER_BRIGHTNESS && onBrightnessChanged) {
+                onBrightnessChanged(value);
+            }
+            else if (id == ID_SLIDER_HUE && onHueChanged) {
+                onHueChanged(value);
+            }
+            else if (id == ID_SLIDER_SATURATION && onSaturationChanged) {
+                onSaturationChanged(value);
+            }
+            else if (id == ID_SLIDER_VALUE_BRIGHTNESS && onValueBrightnessChanged) {
+                onValueBrightnessChanged(value);
+            }
+        }
+        return true;
+    }
+    
+    // タッチ終了時
     if (wasReleased && activeTouchedUI.id == slider.getId()) {
-        // スライダー操作終了時にプログレスモードをリセット
-        currentProgressMode = PROGRESS_MODE_NONE;
-        
-        // センターボタン情報を更新（プログレスバーを消去）
-        updateCenterButtonInfo();
-        
+        slider.handleTouch(touchX, touchY, false);
         activeTouchedUI = TouchedUI();
         return true;
     }
@@ -706,63 +680,30 @@ bool LumiView::checkSliderTouch(Slider& slider, int touchX, int touchY, bool isP
     return false;
 }
 
-int LumiView::getTappedFace(int x, int y) {
-    Serial.println("getTappedFace x: " + String(x) + " y: " + String(y));
-    
-    // 中心タップの場合は-1を返す
-    if (isCenterTapped(x, y)) {
-        return -1;
-    }
-    
-    // タップされた面をOctagonRingViewのメソッドを使って判定
-    return octagon.getFaceAtPoint(x, y);
-}
-
-bool LumiView::isCenterTapped(int x, int y) {
-    Serial.println("isCenterTapped x: " + String(x) + " y: " + String(y));
-    
-    // 画面中央からの距離を計算（OctagonRingViewの配置を考慮）
-    // 注：OctagonRingViewがビュー全体の中央に配置されている前提
-    int centerX = octagon.viewX + octagon.viewWidth / 2;
-    int centerY = octagon.viewY + octagon.viewHeight / 2;
-    
-    int relX = x - centerX;
-    int relY = y - centerY;
-    float distSq = relX * relX + relY * relY;
-    
-    // 中心円の半径（スクリーンサイズの20%程度）
-    float centerRadiusSq = min(octagon.viewWidth, octagon.viewHeight) * 0.2f;
-    centerRadiusSq *= centerRadiusSq; // 二乗値
-    
-    bool result = (distSq < centerRadiusSq);
-    Serial.println("isCenterTapped result: " + String(result ? "true" : "false"));
-    return result;
-}
-
-// スライダーのみを再描画するメソッド
+// スライダーの描画
 void LumiView::drawSliders() {
     brightnessSlider.draw();
+    valueBrightnessSlider.draw();
     hueSlider.draw();
     saturationSlider.draw();
-    valueBrightnessSlider.draw();
 }
 
-// 明るさスライダーのみを再描画
+// 明るさスライダーの描画
 void LumiView::drawBrightnessSlider() {
     brightnessSlider.draw();
 }
 
-// 色スライダーのみを再描画
+// 明度スライダーの描画
+void LumiView::drawValueBrightnessSlider() {
+    valueBrightnessSlider.draw();
+}
+
+// 色相スライダーの描画
 void LumiView::drawHueSlider() {
     hueSlider.draw();
 }
 
-// 彩度スライダーのみを再描画
+// 彩度スライダーの描画
 void LumiView::drawSaturationSlider() {
     saturationSlider.draw();
-}
-
-// 明度スライダーのみを再描画
-void LumiView::drawValueBrightnessSlider() {
-    valueBrightnessSlider.draw();
 }
