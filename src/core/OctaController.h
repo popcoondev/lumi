@@ -9,6 +9,7 @@
 #include "../system/StateManager.h"
 #include "ButtonEvent.h"
 #include "../ui/views/LumiView.h"
+#include "../mic/MicManager.h"
 
 // フレームレート制御のための定数
 #define TARGET_FPS 30
@@ -25,6 +26,8 @@ private:
     FaceDetector* faceDetector;
     StateManager* stateManager;
     LumiView* lumiView;
+    MicManager* micManager;
+    std::function<void(int)> micCallback;
     
     unsigned long lastUpdateTime; // 最後の更新時間
     CRGB currentLedColor;         // 現在選択されている色

@@ -8,10 +8,54 @@ OctaController::OctaController() {
     faceDetector = new FaceDetector(MAX_FACES); // 最大面数
     stateManager = new StateManager();
     lumiView = new LumiView();
+    micManager = new MicManager();
     currentHue = 0;           // 初期色相を0（赤）に設定
     currentSaturation = 255;  // 初期彩度を最大に設定
     currentValueBrightness = 255; // 初期明度を最大に設定
     currentLedColor = CHSV(currentHue, currentSaturation, currentSaturation); // 初期色を設定
+
+    micCallback = [this](int soundLevel) {
+        //LISTENモードの場合のみ処理
+        if (lumiView->getOperationMode() != LumiView::MODE_LISTEN) {
+            return;
+        }
+
+        // マイクの音量レベルを受け取るコールバック関数
+        // ここで音量レベルに応じた処理を行う
+
+        // 音量に応じてランダムに面を点灯
+        // 音量が大きいほど多くの面が点灯
+        int facesToLight = map(soundLevel, 0, 100, 0, NUM_FACES);
+
+        // 全ての面をリセット
+        ledManager->resetAllLeds();
+        for (int i = 0; i < NUM_FACES; i++) {
+            lumiView->octagon.setFaceHighlighted(i, false);
+        }
+
+        // ランダムな面を点灯
+        for (int i = 0; i < facesToLight; i++) {
+            int faceId = random(NUM_FACES);
+
+            // ランダムな色を生成
+            CRGB color = CHSV(random(256), 255, 255);
+
+            // LEDを点灯
+            int ledFaceId = mapViewFaceToLedFace(faceId);
+            ledManager->lightFace(ledFaceId, color);
+
+            // OctagonRingViewのハイライトも設定
+            lumiView->octagon.setFaceHighlighted(faceId, true);
+        }
+
+        // 音量レベルを表示
+        String levelText = "Level: " + String(soundLevel);
+        lumiView->drawCenterButtonInfo(levelText, TFT_CYAN);
+
+        // マイクの音量レベルを表示
+        Serial.println("Sound Level: " + String(soundLevel));
+    };
+
 }
 
 OctaController::~OctaController() {
@@ -21,6 +65,7 @@ OctaController::~OctaController() {
     delete faceDetector;
     delete stateManager;
     delete lumiView;
+    delete micManager;
 }
 
 void OctaController::setup() {
@@ -139,7 +184,6 @@ uint16_t OctaController::crgbToRGB565(CRGB color) {
     return M5.Lcd.color565(color.r, color.g, color.b);
 }
 
-
 void OctaController::processLumiHomeState() {
     static bool callbacksInitialized = false;
     static bool initialDraw = true;
@@ -169,67 +213,67 @@ void OctaController::processLumiHomeState() {
     
     // リッスンモードの場合はマイク入力を処理
     if (lumiView->getOperationMode() == LumiView::MODE_LISTEN) {
-        static unsigned long lastMicUpdateTime = 0;
-        static int soundLevel = 0;
-        static int prevSoundLevel = 0;
+        // static unsigned long lastMicUpdateTime = 0;
+        // static int soundLevel = 0;
+        // static int prevSoundLevel = 0;
         
-        unsigned long currentTime = millis();
+        // unsigned long currentTime = millis();
         
-        // 100msごとにマイク入力を更新
-        if (currentTime - lastMicUpdateTime > 100) {
-            // マイクからの入力を取得
-            int16_t sample[128];
+        // // 100msごとにマイク入力を更新
+        // if (currentTime - lastMicUpdateTime > 100) {
+        //     // マイクからの入力を取得
+        //     int16_t sample[128];
             
-            // マイクからサンプルを読み取り
-            size_t count = M5.Mic.record(sample, 128, 16000);
+        //     // マイクからサンプルを読み取り
+        //     size_t count = M5.Mic.record(sample, 128, 16000);
             
-            // 音量レベルを計算（絶対値の平均）
-            int sum = 0;
+        //     // 音量レベルを計算（絶対値の平均）
+        //     int sum = 0;
             
-            for (int i = 0; i < count; i++) {
-                sum += abs(sample[i]);
-            }
+        //     for (int i = 0; i < count; i++) {
+        //         sum += abs(sample[i]);
+        //     }
             
-            // 平均音量を計算し、0-100の範囲にマッピング
-            soundLevel = map(sum / count, 0, 2000, 0, 100);
-            soundLevel = constrain(soundLevel, 0, 100);
+        //     // 平均音量を計算し、0-100の範囲にマッピング
+        //     soundLevel = map(sum / count, 0, 2000, 0, 100);
+        //     soundLevel = constrain(soundLevel, 0, 100);
             
-            // 音量が変化した場合のみLEDを更新
-            if (abs(soundLevel - prevSoundLevel) > 5) {
-                prevSoundLevel = soundLevel;
+        //     // 音量が変化した場合のみLEDを更新
+        //     if (abs(soundLevel - prevSoundLevel) > 5) {
+        //         prevSoundLevel = soundLevel;
                 
-                // 音量に応じてランダムに面を点灯
-                // 音量が大きいほど多くの面が点灯
-                int facesToLight = map(soundLevel, 0, 100, 0, NUM_FACES);
+        //         // 音量に応じてランダムに面を点灯
+        //         // 音量が大きいほど多くの面が点灯
+        //         int facesToLight = map(soundLevel, 0, 100, 0, NUM_FACES);
                 
-                // 全ての面をリセット
-                ledManager->resetAllLeds();
-                for (int i = 0; i < NUM_FACES; i++) {
-                    lumiView->octagon.setFaceHighlighted(i, false);
-                }
+        //         // 全ての面をリセット
+        //         ledManager->resetAllLeds();
+        //         for (int i = 0; i < NUM_FACES; i++) {
+        //             lumiView->octagon.setFaceHighlighted(i, false);
+        //         }
                 
-                // ランダムな面を点灯
-                for (int i = 0; i < facesToLight; i++) {
-                    int faceId = random(NUM_FACES);
+        //         // ランダムな面を点灯
+        //         for (int i = 0; i < facesToLight; i++) {
+        //             int faceId = random(NUM_FACES);
                     
-                    // ランダムな色を生成
-                    CRGB color = CHSV(random(256), 255, 255);
+        //             // ランダムな色を生成
+        //             CRGB color = CHSV(random(256), 255, 255);
                     
-                    // LEDを点灯
-                    int ledFaceId = mapViewFaceToLedFace(faceId);
-                    ledManager->lightFace(ledFaceId, color);
+        //             // LEDを点灯
+        //             int ledFaceId = mapViewFaceToLedFace(faceId);
+        //             ledManager->lightFace(ledFaceId, color);
                     
-                    // OctagonRingViewのハイライトも設定
-                    lumiView->octagon.setFaceHighlighted(faceId, true);
-                }
+        //             // OctagonRingViewのハイライトも設定
+        //             lumiView->octagon.setFaceHighlighted(faceId, true);
+        //         }
                 
-                // 音量レベルを表示
-                String levelText = "Level: " + String(soundLevel);
-                lumiView->drawCenterButtonInfo(levelText, TFT_CYAN);
-            }
+        //         // 音量レベルを表示
+        //         String levelText = "Level: " + String(soundLevel);
+        //         lumiView->drawCenterButtonInfo(levelText, TFT_CYAN);
+        //     }
             
-            lastMicUpdateTime = currentTime;
-        }
+        //     lastMicUpdateTime = currentTime;
+        // }
     }
     
     if (sliderDragging) {
@@ -379,8 +423,8 @@ void OctaController::processLumiHomeState() {
                     ledManager->stopPattern();
                 }
                 
-                // マイク初期化
-                M5.Mic.begin();
+                // マイク開始
+                micManager->startTask(micCallback);
                 
                 // 中央にマイクモードを表示
                 lumiView->drawCenterButtonInfo("MIC", TFT_CYAN);
@@ -389,7 +433,7 @@ void OctaController::processLumiHomeState() {
                 lumiView->setOperationMode(LumiView::MODE_TAP);
                 
                 // マイク停止
-                M5.Mic.end();
+                micManager->stopTask();
                 
                 // 全てのLEDを消灯
                 ledManager->resetAllLeds();
