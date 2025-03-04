@@ -209,9 +209,6 @@ void OctaController::processLumiHomeState() {
     bool valueBrightnessSliderDragging = lumiView->valueBrightnessSlider.isBeingDragged();
     bool sliderDragging = brightnessSliderDragging || hueSliderDragging || saturationSliderDragging || valueBrightnessSliderDragging;
     
-    // プログレスアニメーションの更新
-    lumiView->updateCircularProgressAnimation();
-    
     // リッスンモードの場合はマイク入力を処理
     if (lumiView->getOperationMode() == LumiView::MODE_LISTEN) {
         // static unsigned long lastMicUpdateTime = 0;
@@ -411,10 +408,6 @@ void OctaController::processLumiHomeState() {
                 lumiView->selectedPatternIndex = ledManager->getCurrentPatternIndex();
                 lumiView->isPatternPlaying = ledManager->isPatternRunning();
                 
-                // パターンモードのプログレスを表示
-                if (lumiView->isPatternPlaying) {
-                    lumiView->drawCircularProgress(0, LumiView::PROGRESS_MODE_PATTERN);
-                }
             } else if (lumiView->getOperationMode() == LumiView::MODE_PATTERN) {
                 // パターンモード → リッスンモード
                 lumiView->setOperationMode(LumiView::MODE_LISTEN);
@@ -511,8 +504,6 @@ void OctaController::processLumiHomeState() {
                     ledManager->runPattern(lumiView->selectedPatternIndex);
                     lumiView->isPatternPlaying = true;
                     
-                    // パターンモードのプログレスを表示
-                    lumiView->drawCircularProgress(0, LumiView::PROGRESS_MODE_PATTERN);
                 }
             } else if (lumiView->getOperationMode() == LumiView::MODE_LISTEN) {
                 // リッスンモードの場合は何もしない
@@ -548,8 +539,6 @@ void OctaController::processLumiHomeState() {
             // センターボタン情報を更新
             lumiView->updateCenterButtonInfo();
             
-            // プログレスバーを更新
-            lumiView->drawCircularProgress(value, LumiView::PROGRESS_MODE_BRIGHTNESS);
         };
         
         // 明度スライダーでLED明度を制御
@@ -580,8 +569,6 @@ void OctaController::processLumiHomeState() {
             // センターボタン情報を更新
             lumiView->updateCenterButtonInfo();
             
-            // プログレスバーを更新
-            lumiView->drawCircularProgress(value, LumiView::PROGRESS_MODE_BRIGHTNESS);
         };
         
 
@@ -616,9 +603,7 @@ void OctaController::processLumiHomeState() {
             
             // センターボタン情報を更新
             lumiView->updateCenterButtonInfo();
-            
-            // プログレスバーを更新
-            lumiView->drawCircularProgress(value, LumiView::PROGRESS_MODE_HUE);
+           
         };
         
         // 彩度スライダーでLED彩度を制御
@@ -653,8 +638,6 @@ void OctaController::processLumiHomeState() {
             // センターボタン情報を更新
             lumiView->updateCenterButtonInfo();
             
-            // プログレスバーを更新
-            lumiView->drawCircularProgress(value, LumiView::PROGRESS_MODE_SATURATION);
         };
         
         callbacksInitialized = true;

@@ -539,10 +539,12 @@ int OctagonRingView::getFaceAtPoint(int screenX, int screenY) const {
     // 0はそのまま
     
     // 角度値とマッピング後のデバッグ出力
-    Serial.println("adjusted angle: " + String(angle * 180 / M_PI) + 
-                  " degrees, raw faceId: " + String(faceId) +
-                  ", offset faceId: " + String(offsetFaceId) +
-                  ", final faceId: " + String(finalFaceId));
+    if(0) {
+        Serial.println("adjusted angle: " + String(angle * 180 / M_PI) + 
+                    " degrees, raw faceId: " + String(faceId) +
+                    ", offset faceId: " + String(offsetFaceId) +
+                    ", final faceId: " + String(finalFaceId));
+    }
     
     // 外側の境界チェック
     float outerRadius = min(viewWidth, viewHeight) * 0.45f;

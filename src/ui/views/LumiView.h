@@ -116,24 +116,7 @@ public:
     // センターボタン情報表示
     void updateCenterButtonInfo();
     void drawCenterButtonInfo(const String& text, uint16_t color);
-    
-    // 円形プログレスバー
-    enum ProgressMode {
-        PROGRESS_MODE_NONE,
-        PROGRESS_MODE_BRIGHTNESS,
-        PROGRESS_MODE_HUE,
-        PROGRESS_MODE_SATURATION,
-        PROGRESS_MODE_PATTERN
-    };
-    
-    void drawCircularProgress(int value, ProgressMode mode);
-    void updateCircularProgressAnimation();
-    
-    ProgressMode currentProgressMode;
-    int progressValue;
-    unsigned long lastProgressUpdateTime;
-    int progressAnimationFrame;
-    
+        
     // 各種イベントコールバック用関数ポインタ
     std::function<void(int)> onFaceTapped;
     std::function<void()> onCenterTapped;
@@ -150,10 +133,7 @@ public:
     bool isDragging;
     int dragStartFace;
     int lastDraggedFace;
-    
-    // パフォーマンス最適化用の変数
-    bool needsProgressUpdate;
-    
+        
     // モード管理
     enum OperationMode {
         MODE_TAP,       // タップ操作モード（面の個別制御）
@@ -163,14 +143,10 @@ public:
     
     OperationMode currentMode;
     
-    // ホイール操作
-    bool isWheelActive;
-    float wheelRotation;
     int selectedPatternIndex;
     bool isPatternPlaying;
     
     // ホイール操作関連のメソッド
-    void drawPatternWheel();
     void updatePatternSelection(int moveCount);
     void setOperationMode(OperationMode mode);
     OperationMode getOperationMode() const { return currentMode; }
