@@ -157,7 +157,8 @@ public:
     // モード管理
     enum OperationMode {
         MODE_TAP,       // タップ操作モード（面の個別制御）
-        MODE_PATTERN    // パターン再生モード（LEDパターン選択・再生）
+        MODE_PATTERN,   // パターン再生モード（LEDパターン選択・再生）
+        MODE_LISTEN     // マイク入力モード（音量に応じてLEDをランダム点灯）
     };
     
     OperationMode currentMode;

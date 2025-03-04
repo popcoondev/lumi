@@ -242,10 +242,12 @@ void LumiView::setOperationMode(OperationMode mode) {
     if (mode == MODE_TAP) {
         bottomRightButton.setLabel("Pattern");
         isWheelActive = false;
-    } else {
-        bottomRightButton.setLabel("Tap");
+    } else if (mode == MODE_PATTERN) {
+        bottomRightButton.setLabel("Listen");
         isWheelActive = true;
-        
+    } else if (mode == MODE_LISTEN) {
+        bottomRightButton.setLabel("Tap");
+        isWheelActive = false;
     }
     
     clearAllFocus();
@@ -356,7 +358,7 @@ void LumiView::updateCenterButtonInfo() {
                 currentProgressMode = PROGRESS_MODE_NONE;
                 break;
         }
-    } else {
+    } else if (currentMode == MODE_PATTERN) {
         // パターンモードの場合
         String patternName = "Pattern " + String(selectedPatternIndex + 1);
         if (isPatternPlaying) {
@@ -370,6 +372,12 @@ void LumiView::updateCenterButtonInfo() {
             // プログレス表示はOFF
             currentProgressMode = PROGRESS_MODE_NONE;
         }
+    } else if (currentMode == MODE_LISTEN) {
+        // リッスンモードの場合
+        text = "MIC";
+        color = TFT_CYAN;
+        // プログレス表示はOFF
+        currentProgressMode = PROGRESS_MODE_NONE;
     }
     
     // 中央円を背景色で描画（プログレスを消去）

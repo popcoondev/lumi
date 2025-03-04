@@ -167,6 +167,71 @@ void OctaController::processLumiHomeState() {
     // プログレスアニメーションの更新
     lumiView->updateCircularProgressAnimation();
     
+    // リッスンモードの場合はマイク入力を処理
+    if (lumiView->getOperationMode() == LumiView::MODE_LISTEN) {
+        static unsigned long lastMicUpdateTime = 0;
+        static int soundLevel = 0;
+        static int prevSoundLevel = 0;
+        
+        unsigned long currentTime = millis();
+        
+        // 100msごとにマイク入力を更新
+        if (currentTime - lastMicUpdateTime > 100) {
+            // マイクからの入力を取得
+            int16_t sample[128];
+            
+            // マイクからサンプルを読み取り
+            size_t count = M5.Mic.record(sample, 128, 16000);
+            
+            // 音量レベルを計算（絶対値の平均）
+            int sum = 0;
+            
+            for (int i = 0; i < count; i++) {
+                sum += abs(sample[i]);
+            }
+            
+            // 平均音量を計算し、0-100の範囲にマッピング
+            soundLevel = map(sum / count, 0, 2000, 0, 100);
+            soundLevel = constrain(soundLevel, 0, 100);
+            
+            // 音量が変化した場合のみLEDを更新
+            if (abs(soundLevel - prevSoundLevel) > 5) {
+                prevSoundLevel = soundLevel;
+                
+                // 音量に応じてランダムに面を点灯
+                // 音量が大きいほど多くの面が点灯
+                int facesToLight = map(soundLevel, 0, 100, 0, NUM_FACES);
+                
+                // 全ての面をリセット
+                ledManager->resetAllLeds();
+                for (int i = 0; i < NUM_FACES; i++) {
+                    lumiView->octagon.setFaceHighlighted(i, false);
+                }
+                
+                // ランダムな面を点灯
+                for (int i = 0; i < facesToLight; i++) {
+                    int faceId = random(NUM_FACES);
+                    
+                    // ランダムな色を生成
+                    CRGB color = CHSV(random(256), 255, 255);
+                    
+                    // LEDを点灯
+                    int ledFaceId = mapViewFaceToLedFace(faceId);
+                    ledManager->lightFace(ledFaceId, color);
+                    
+                    // OctagonRingViewのハイライトも設定
+                    lumiView->octagon.setFaceHighlighted(faceId, true);
+                }
+                
+                // 音量レベルを表示
+                String levelText = "Level: " + String(soundLevel);
+                lumiView->drawCenterButtonInfo(levelText, TFT_CYAN);
+            }
+            
+            lastMicUpdateTime = currentTime;
+        }
+    }
+    
     if (sliderDragging) {
         unsigned long currentTime = millis();
         // スライダードラッグ中は50ms間隔で操作中のスライダーのみを再描画
@@ -305,14 +370,29 @@ void OctaController::processLumiHomeState() {
                 if (lumiView->isPatternPlaying) {
                     lumiView->drawCircularProgress(0, LumiView::PROGRESS_MODE_PATTERN);
                 }
-            } else {
-                // パターンモード → タップモード
-                lumiView->setOperationMode(LumiView::MODE_TAP);
+            } else if (lumiView->getOperationMode() == LumiView::MODE_PATTERN) {
+                // パターンモード → リッスンモード
+                lumiView->setOperationMode(LumiView::MODE_LISTEN);
                 
                 // パターン実行中の場合は停止
                 if (ledManager->isPatternRunning()) {
                     ledManager->stopPattern();
                 }
+                
+                // マイク初期化
+                M5.Mic.begin();
+                
+                // 中央にマイクモードを表示
+                lumiView->drawCenterButtonInfo("MIC", TFT_CYAN);
+            } else {
+                // リッスンモード → タップモード
+                lumiView->setOperationMode(LumiView::MODE_TAP);
+                
+                // マイク停止
+                M5.Mic.end();
+                
+                // 全てのLEDを消灯
+                ledManager->resetAllLeds();
             }
             
             // 再描画
@@ -375,7 +455,7 @@ void OctaController::processLumiHomeState() {
                 
                 // ハイライト色を設定
                 lumiView->octagon.setHighlightColor(crgbToRGB565(currentLedColor));
-            } else {
+            } else if (lumiView->getOperationMode() == LumiView::MODE_PATTERN) {
                 // パターンモードの場合
                 if (lumiView->isPatternPlaying) {
                     // パターン停止
@@ -389,6 +469,10 @@ void OctaController::processLumiHomeState() {
                     // パターンモードのプログレスを表示
                     lumiView->drawCircularProgress(0, LumiView::PROGRESS_MODE_PATTERN);
                 }
+            } else if (lumiView->getOperationMode() == LumiView::MODE_LISTEN) {
+                // リッスンモードの場合は何もしない
+                // 音量に応じて自動的にLEDが点灯するため
+                lumiView->drawCenterButtonInfo("MIC", TFT_CYAN);
             }
             
             // 再描画フラグを設定
