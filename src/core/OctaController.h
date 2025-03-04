@@ -27,7 +27,8 @@ private:
     StateManager* stateManager;
     LumiView* lumiView;
     MicManager* micManager;
-    std::function<void(int)> micCallback;
+    std::function<void(const std::array<double, 8>&, double)> micCallback;
+
     
     unsigned long lastUpdateTime; // 最後の更新時間
     CRGB currentLedColor;         // 現在選択されている色

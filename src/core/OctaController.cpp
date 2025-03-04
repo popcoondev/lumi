@@ -14,48 +14,49 @@ OctaController::OctaController() {
     currentValueBrightness = 255; // 初期明度を最大に設定
     currentLedColor = CHSV(currentHue, currentSaturation, currentSaturation); // 初期色を設定
 
-    micCallback = [this](int soundLevel) {
-        //LISTENモードの場合のみ処理
-        if (lumiView->getOperationMode() != LumiView::MODE_LISTEN) {
-            return;
+    micCallback = [this](const std::array<double, 8>& bandLevels, double bpm) {
+        Serial.println("FFT callback received");
+        // デバッグ出力
+        for (int i = 0; i < 8; i++) {
+            Serial.print(bandLevels[i]);
+            Serial.print(" ");
         }
+        Serial.println();
 
-        // マイクの音量レベルを受け取るコールバック関数
-        // ここで音量レベルに応じた処理を行う
+        // 各面の LED を FFT 結果に基づいて更新
+        for (int face = 0; face < NUM_FACES; face++) {
+            // ここでは bandLevels[face] の値を 0～100 と仮定して 0～255 にマッピング
+            // uint8_t brightness = constrain(map(bandLevels[face], 0, 100, 0, 255), 0, 255);
+            uint8_t brightness = constrain(map(bandLevels[face], 0, 20000, 0, 255), 0, 255);
 
-        // 音量に応じてランダムに面を点灯
-        // 音量が大きいほど多くの面が点灯
-        int facesToLight = map(soundLevel, 0, 100, 0, NUM_FACES);
-
-        // 全ての面をリセット
-        ledManager->resetAllLeds();
-        for (int i = 0; i < NUM_FACES; i++) {
-            lumiView->octagon.setFaceHighlighted(i, false);
-        }
-
-        // ランダムな面を点灯
-        for (int i = 0; i < facesToLight; i++) {
-            int faceId = random(NUM_FACES);
-
-            // ランダムな色を生成
-            CRGB color = CHSV(random(256), 255, 255);
-
-            // LEDを点灯
-            int ledFaceId = mapViewFaceToLedFace(faceId);
+            // 低音側から高音側へグラデーション（例：色相を 0～160 にマッピング）
+            CHSV color = CHSV(map(face, 0, NUM_FACES - 1, 0, 160), 255, brightness);
+            int ledFaceId = mapViewFaceToLedFace(face);
             ledManager->lightFace(ledFaceId, color);
 
-            // OctagonRingViewのハイライトも設定
-            lumiView->octagon.setFaceHighlighted(faceId, true);
+            // 一定以上の輝度なら Octagon の面をハイライト
+            lumiView->octagon.setFaceHighlighted(face, brightness > 50);
         }
 
-        // 音量レベルを表示
-        String levelText = "Level: " + String(soundLevel);
+        // ドミナントな帯域（最も大きな振幅）の検出と中央面の強調表示
+        int dominantBand = 0;
+        double maxLevel = 0;
+        for (int i = 0; i < 8; i++) {
+            if (bandLevels[i] > maxLevel) {
+                maxLevel = bandLevels[i];
+                dominantBand = i;
+            }
+        }
+        // int centerFace = NUM_FACES / 2;
+        // CHSV dominantColor = CHSV(0, 0, constrain(map(maxLevel, 0, 100, 0, 255), 0, 255));
+        // ledManager->lightFace(mapViewFaceToLedFace(centerFace), dominantColor);
+
+        // 中央画面にデバッグ情報を表示
+        String bpmText = bpm > 0 ? String(bpm) : "detecting...";
+        String levelText = "bands: " + String(dominantBand) + "\nbpm: " + bpmText;
         lumiView->drawCenterButtonInfo(levelText, TFT_CYAN);
-
-        // マイクの音量レベルを表示
-        Serial.println("Sound Level: " + String(soundLevel));
+        Serial.println(levelText);
     };
-
 }
 
 OctaController::~OctaController() {

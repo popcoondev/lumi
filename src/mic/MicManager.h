@@ -1,10 +1,11 @@
 #ifndef MIC_MANAGER_H
 #define MIC_MANAGER_H
-
 #include <Arduino.h>
+#include <array>
+#include <functional>
 
-// コールバック関数の型定義（音量レベルを引数に渡す）
-typedef std::function<void(int)> MicCallback;
+// FFTコールバックの型定義（8帯域の振幅レベルを引数に渡す）
+typedef std::function<void(const std::array<double, 8>&, double)> FFTCallback;
 
 class MicManager {
 public:
@@ -12,7 +13,7 @@ public:
     ~MicManager();
 
     // タスクを開始（タスクが既に動作中の場合は再利用）
-    void startTask(MicCallback callback);
+    void startTask(FFTCallback callback);
 
     // タスクを停止
     void stopTask();
@@ -27,8 +28,8 @@ private:
     // タスク動作中かどうかのフラグ
     bool taskRunning;
 
-    // 音量レベル更新用のコールバック関数
-    std::function<void(int)> micCallback;
+    // FFT結果更新用のコールバック関数
+    FFTCallback fftCallback;
 };
 
 #endif // MIC_MANAGER_H

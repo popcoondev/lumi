@@ -399,6 +399,10 @@ void LumiView::updateCenterButtonInfo() {
 void LumiView::drawCenterButtonInfo(const String& text, uint16_t color) {
     int centerX = octagon.viewX + octagon.viewWidth / 2;
     int centerY = octagon.viewY + octagon.viewHeight / 2;
+
+    // 中央円を背景色で描画
+    float innerRadius = min(octagon.viewWidth, octagon.viewHeight) * 0.2f;
+    M5.Lcd.fillCircle(centerX, centerY, innerRadius, BLACK);
     
     // テキスト表示
     M5.Lcd.setTextSize(1);
