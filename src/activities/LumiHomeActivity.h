@@ -8,6 +8,8 @@
 #include "../led/LEDManager.h"
 #include "../system/FaceDetector.h"
 #include "../mic/MicManager.h"
+#include "../fragments/ButtonFragment.h"
+#include <memory>
 
 class LumiHomeActivity : public framework::Activity {
 public:
@@ -52,10 +54,10 @@ public:
 private:
     // UIコンポーネント
     OctagonRingView m_octagon;
-    Button m_settingsButton;
-    Button m_resetButton;
-    Button m_bottomLeftButton;
-    Button m_bottomRightButton;
+    std::shared_ptr<ButtonFragment> m_settingsButton;
+    std::shared_ptr<ButtonFragment> m_resetButton;
+    std::shared_ptr<ButtonFragment> m_bottomLeftButton;
+    std::shared_ptr<ButtonFragment> m_bottomRightButton;
     Slider m_brightnessSlider;
     Slider m_valueBrightnessSlider;
     Slider m_hueSlider;
@@ -89,6 +91,13 @@ private:
     int m_lastDraggedFace;
     
     // タッチされたUI要素
+    struct TouchedUI {
+        int id;
+        int data;
+        
+        TouchedUI(int id = ID_NONE, int data = 0) : id(id), data(data) {}
+    };
+    
     TouchedUI m_activeTouchedUI;
     
     // UIコンポーネント用のID定数（LumiViewと同じ定義）
@@ -109,7 +118,6 @@ private:
     // ヘルパーメソッド
     int getTappedFace(int x, int y);
     bool isCenterTapped(int x, int y);
-    bool checkButtonTouch(Button& button, int touchX, int touchY, bool isPressed, bool wasPressed, bool wasReleased);
     bool checkSliderTouch(Slider& slider, int touchX, int touchY, bool isPressed, bool wasPressed, bool wasReleased);
     void drawCenterButtonInfo(const String& text, uint16_t color);
     int mapViewFaceToLedFace(int viewFaceId);
