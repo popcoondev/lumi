@@ -200,8 +200,25 @@ void OctaController::processLumiHomeState() {
         initialDraw = false;
     }
     
-    // タッチイベント処理
-    lumiHomeActivity->handleTouch();
+    // M5.Touchの状態を取得
+    auto touch = M5.Touch.getDetail();
+    bool isPressed = touch.isPressed();
+    bool wasPressed = touch.wasPressed();
+    bool wasReleased = touch.wasReleased();
+    
+    // タッチイベントをフレームワークのイベントに変換
+    if (wasPressed || isPressed || wasReleased) {
+        framework::TouchAction action;
+        if (wasPressed) action = framework::TouchAction::DOWN;
+        else if (wasReleased) action = framework::TouchAction::UP;
+        else action = framework::TouchAction::MOVE;
+        
+        framework::TouchEvent touchEvent(action, touch.x, touch.y);
+        
+        // ActivityのhandleEventメソッドを呼び出す
+        lumiHomeActivity->handleEvent(touchEvent);
+    }
+
 }
 
 void OctaController::LumiHomeSetInitialDraw() {

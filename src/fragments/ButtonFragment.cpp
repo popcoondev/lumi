@@ -23,7 +23,9 @@ void ButtonFragment::onDestroy() {
     Fragment::onDestroy();
 }
 
-bool ButtonFragment::handleEvent(const framework::Event& event) {
+bool ButtonFragment::handleEvent(const framework::Event& event) {    
+    int eventID = (int)event.getType();
+    Serial.println("Event received, getType = " + String(eventID));
     // Check if base class handles the event
     if (Fragment::handleEvent(event)) {
         return true;

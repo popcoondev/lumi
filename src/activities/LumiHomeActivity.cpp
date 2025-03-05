@@ -3,7 +3,7 @@
 #include "../core/Constants.h"
 
 #define CORNER_BUTTON_WIDTH 70
-#define CORNER_BUTTON_HEIGHT 40
+#define CORNER_BUTTON_HEIGHT 30
 
 // CRGB色をM5Stack LCD用のuint16_t色に変換する関数
 uint16_t crgbToRGB565(CRGB color) {
@@ -44,10 +44,10 @@ LumiHomeActivity::LumiHomeActivity()
     m_octagonCenter.radius = 30;
     
     // ButtonFragment インスタンスの作成
-    m_settingsButton = std::make_shared<ButtonFragment>(ID_BUTTON_SETTINGS);
-    m_resetButton = std::make_shared<ButtonFragment>(ID_BUTTON_RESET);
-    m_bottomLeftButton = std::make_shared<ButtonFragment>(ID_BUTTON_BOTTOM_LEFT);
-    m_bottomRightButton = std::make_shared<ButtonFragment>(ID_BUTTON_BOTTOM_RIGHT);
+    m_settingsButton = new ButtonFragment(ID_BUTTON_SETTINGS);
+    m_resetButton = new ButtonFragment(ID_BUTTON_RESET);
+    m_bottomLeftButton = new ButtonFragment(ID_BUTTON_BOTTOM_LEFT);
+    m_bottomRightButton = new ButtonFragment(ID_BUTTON_BOTTOM_RIGHT);
     
     // ButtonFragment の位置とサイズを設定
     m_settingsButton->setDisplayArea(320 - CORNER_BUTTON_WIDTH, 0, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT);
@@ -56,10 +56,10 @@ LumiHomeActivity::LumiHomeActivity()
     m_bottomRightButton->setDisplayArea(320 - CORNER_BUTTON_WIDTH, 240 - CORNER_BUTTON_HEIGHT, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT);
     
     // ラベルの設定
-    m_settingsButton->setLabel("Settings");
-    m_resetButton->setLabel("Reset");
-    m_bottomLeftButton->setLabel("Reset");
-    m_bottomRightButton->setLabel("Pattern");
+    // m_settingsButton->setLabel("Settings");
+    // m_resetButton->setLabel("Reset");
+    // m_bottomLeftButton->setLabel("Reset");
+    // m_bottomRightButton->setLabel("Pattern");
 }
 
 LumiHomeActivity::~LumiHomeActivity() {
@@ -85,10 +85,6 @@ bool LumiHomeActivity::onCreate() {
     
     // イベントバスへの登録
     framework::EventBus::getInstance().subscribe(this);
-    framework::EventBus::getInstance().subscribe(m_settingsButton.get());
-    framework::EventBus::getInstance().subscribe(m_resetButton.get());
-    framework::EventBus::getInstance().subscribe(m_bottomLeftButton.get());
-    framework::EventBus::getInstance().subscribe(m_bottomRightButton.get());
     
     return true;
 }
@@ -110,7 +106,7 @@ void LumiHomeActivity::initialize(LEDManager* ledManager, FaceDetector* faceDete
     m_settingsButton->setColor(BLACK, TFT_LIGHTGREY);
     m_settingsButton->setFontSize(1.4);
     m_settingsButton->setType(BUTTON_TYPE_TEXT);
-    
+
     m_resetButton->setLabel("Reset");
     m_resetButton->setColor(BLACK, TFT_LIGHTGREY);
     m_resetButton->setFontSize(1.4);
@@ -496,6 +492,12 @@ void LumiHomeActivity::initialize(LEDManager* ledManager, FaceDetector* faceDete
         
         m_saturationSlider.draw();
     };
+
+    addFragment(m_settingsButton, "settingsButton");
+    addFragment(m_resetButton, "resetButton");
+    addFragment(m_bottomLeftButton, "bottomLeftButton");
+    addFragment(m_bottomRightButton, "bottomRightButton");
+
 }
 
 bool LumiHomeActivity::onStart() {
@@ -523,10 +525,10 @@ void LumiHomeActivity::onStop() {
 void LumiHomeActivity::onDestroy() {
     // イベントバスからの登録解除
     framework::EventBus::getInstance().unsubscribe(this);
-    framework::EventBus::getInstance().unsubscribe(m_settingsButton.get());
-    framework::EventBus::getInstance().unsubscribe(m_resetButton.get());
-    framework::EventBus::getInstance().unsubscribe(m_bottomLeftButton.get());
-    framework::EventBus::getInstance().unsubscribe(m_bottomRightButton.get());
+    // framework::EventBus::getInstance().unsubscribe(m_settingsButton.get());
+    // framework::EventBus::getInstance().unsubscribe(m_resetButton.get());
+    // framework::EventBus::getInstance().unsubscribe(m_bottomLeftButton.get());
+    // framework::EventBus::getInstance().unsubscribe(m_bottomRightButton.get());
     
     // ButtonFragment の破棄
     m_settingsButton->onDestroy();
@@ -538,6 +540,7 @@ void LumiHomeActivity::onDestroy() {
 }
 
 bool LumiHomeActivity::handleEvent(const framework::Event& event) {
+    Serial.println("Event received");
     // 基底クラスのイベント処理
     if (Activity::handleEvent(event)) {
         return true;
@@ -548,7 +551,7 @@ bool LumiHomeActivity::handleEvent(const framework::Event& event) {
         case framework::EventType::TOUCH: {
             const framework::TouchEvent& touchEvent = static_cast<const framework::TouchEvent&>(event);
             // タッチイベント処理
-            // 実装は省略
+            handleTouch();
             return true;
         }
         

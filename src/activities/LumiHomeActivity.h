@@ -54,10 +54,10 @@ public:
 private:
     // UIコンポーネント
     OctagonRingView m_octagon;
-    std::shared_ptr<ButtonFragment> m_settingsButton;
-    std::shared_ptr<ButtonFragment> m_resetButton;
-    std::shared_ptr<ButtonFragment> m_bottomLeftButton;
-    std::shared_ptr<ButtonFragment> m_bottomRightButton;
+    ButtonFragment* m_settingsButton;
+    ButtonFragment* m_resetButton;
+    ButtonFragment* m_bottomLeftButton;
+    ButtonFragment* m_bottomRightButton;
     Slider m_brightnessSlider;
     Slider m_valueBrightnessSlider;
     Slider m_hueSlider;
