@@ -9,20 +9,33 @@ void Button::begin() {
 }
 
 void Button::draw() {
-    M5.Lcd.fillRoundRect(posX, posY, width, height, 5, normalColor);
     if (type == BUTTON_TYPE_OUTLINE) {
-        M5.Lcd.drawRoundRect(posX, posY, width, height, 5, WHITE);
+        if (!wasPressed) {
+            M5.Lcd.fillRoundRect(posX, posY, width, height, 5, normalColor);
+            M5.Lcd.drawRoundRect(posX, posY, width, height, 5, LIGHTGREY);
+            M5.Lcd.setTextColor(WHITE, normalColor);
+        }
+        else {
+            M5.Lcd.fillRoundRect(posX+1, posY+1, width-1, height-1, 5, pressedColor);
+            M5.Lcd.drawRoundRect(posX+1, posY+1, width-1, height-1, 5, LIGHTGREY);
+            M5.Lcd.setTextColor(WHITE, pressedColor);
+        }
+    } else if (type == BUTTON_TYPE_TEXT) {
+        if (!wasPressed) {
+            M5.Lcd.fillRoundRect(posX+1, posY+1, width-1, height-1, 5, BLACK);
+            M5.Lcd.drawRoundRect(posX+1, posY+1, width-1, height-1, 5, BLACK);
+            M5.Lcd.setTextColor(WHITE, BLACK);
+        }
+        else {
+            M5.Lcd.fillRoundRect(posX+1, posY+1, width-1, height-1, 5, BLACK);
+            M5.Lcd.drawRoundRect(posX+1, posY+1, width-1, height-1, 5, WHITE);
+            M5.Lcd.setTextColor(WHITE, BLACK);
+        }
     }
+
     M5.Lcd.setTextSize(fontSize);
-    M5.Lcd.setTextColor(WHITE, normalColor);
-    
-    // フォントサイズに応じてテキスト位置を調整
-    int textOffsetX = 10;
-    int textOffsetY = (height - (fontSize * 8)) / 2; // フォントの高さに基づいて中央揃え
-    if (textOffsetY < 2) textOffsetY = 2; // 最小マージン
-    
-    M5.Lcd.setCursor(posX + textOffsetX, posY + textOffsetY);
-    M5.Lcd.print(label);
+    M5.Lcd.setTextDatum(MC_DATUM);
+    M5.Lcd.drawString(label, posX + width / 2, posY + height / 2);
 }
 
 void Button::setLabel(const char* newLabel) {
@@ -42,41 +55,41 @@ void Button::setFontSize(uint8_t size) {
 }
 
 bool Button::isPressed() {
-    M5.update();
-    if (M5.Touch.getCount() > 0) {
-        auto touch = M5.Touch.getDetail();
-        if (touch.x >= posX && touch.x <= posX + width &&
-            touch.y >= posY && touch.y <= posY + height) {
+    // M5.update();
+    // if (M5.Touch.getCount() > 0) {
+    //     auto touch = M5.Touch.getDetail();
+    //     if (touch.x >= posX && touch.x <= posX + width &&
+    //         touch.y >= posY && touch.y <= posY + height) {
 
-            // チャタリング防止（100ms 以内の連続タップを無視）
-            if (millis() - lastPressTime < 100) {
-                return false;
-            }
-            lastPressTime = millis();
-            wasPressed = true;
-            if(type == BUTTON_TYPE_OUTLINE) {
-                M5.Lcd.fillRoundRect(posX+1, posY+1, width-1, height-1, 5, pressedColor);
-                M5.Lcd.drawRoundRect(posX+1, posY+1, width-1, height-1, 5, WHITE);
-                M5.Lcd.setTextColor(normalColor, pressedColor);
-            }
-            else {
-                // type == BUTTON_TYPE_TEXTの場合は、テキストの色を反転
-                M5.Lcd.drawRoundRect(posX+1, posY+1, width-1, height-6, 5, WHITE);
-                M5.Lcd.setTextColor(pressedColor, normalColor);
+    //         // チャタリング防止（100ms 以内の連続タップを無視）
+    //         if (millis() - lastPressTime < 100) {
+    //             return false;
+    //         }
+    //         lastPressTime = millis();
+    //         wasPressed = true;
+    //         if(type == BUTTON_TYPE_OUTLINE) {
+    //             M5.Lcd.fillRoundRect(posX+1, posY+1, width-1, height-1, 5, pressedColor);
+    //             M5.Lcd.drawRoundRect(posX+1, posY+1, width-1, height-1, 5, WHITE);
+    //             M5.Lcd.setTextColor(normalColor, pressedColor);
+    //         }
+    //         else {
+    //             // type == BUTTON_TYPE_TEXTの場合は、テキストの色を反転
+    //             M5.Lcd.drawRoundRect(posX+1, posY+1, width-1, height-6, 5, WHITE);
+    //             M5.Lcd.setTextColor(pressedColor, normalColor);
                 
-            }
-            return false;  // 押した直後は無効
-        }
-    } 
+    //         }
+    //         return false;  // 押した直後は無効
+    //     }
+    // } 
 
-    // リリース後に "押された" 状態を確定
-    if (wasPressed) {
-        wasPressed = false;
-        draw();
-        return true;
-    }
+    // // リリース後に "押された" 状態を確定
+    // if (wasPressed) {
+    //     wasPressed = false;
+    //     draw();
+    //     return true;
+    // }
 
-    return false;
+    return wasPressed;
 }
 
 bool Button::containsPoint(int x, int y) const {
@@ -85,16 +98,16 @@ bool Button::containsPoint(int x, int y) const {
 
 void Button::setPressed(bool pressed) {
     wasPressed = pressed;
-    // 見た目の更新処理は必要に応じて
-    if(type == BUTTON_TYPE_OUTLINE) {
-        M5.Lcd.fillRoundRect(posX+1, posY+1, width-1, height-1, 5, pressedColor);
-        M5.Lcd.drawRoundRect(posX+1, posY+1, width-1, height-1, 5, WHITE);
-        M5.Lcd.setTextColor(normalColor, pressedColor);
-    }
-    else {
-        // type == BUTTON_TYPE_TEXTの場合は、テキストの色を反転
-        M5.Lcd.drawRoundRect(posX+1, posY+1, width-1, height-6, 5, WHITE);
-        M5.Lcd.setTextColor(pressedColor, normalColor);
+    // // 見た目の更新処理は必要に応じて
+    // if(type == BUTTON_TYPE_OUTLINE) {
+    //     M5.Lcd.fillRoundRect(posX+1, posY+1, width-1, height-1, 5, pressedColor);
+    //     M5.Lcd.drawRoundRect(posX+1, posY+1, width-1, height-1, 5, WHITE);
+    //     M5.Lcd.setTextColor(normalColor, pressedColor);
+    // }
+    // else {
+    //     // type == BUTTON_TYPE_TEXTの場合は、テキストの色を反転
+    //     M5.Lcd.drawRoundRect(posX+1, posY+1, width-1, height-6, 5, WHITE);
+    //     M5.Lcd.setTextColor(pressedColor, normalColor);
         
-    }
+    // }
 }

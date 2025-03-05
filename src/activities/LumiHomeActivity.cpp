@@ -3,7 +3,7 @@
 #include "../core/Constants.h"
 
 #define CORNER_BUTTON_WIDTH 70
-#define CORNER_BUTTON_HEIGHT 40
+#define CORNER_BUTTON_HEIGHT 30
 
 // CRGB色をM5Stack LCD用のuint16_t色に変換する関数
 uint16_t crgbToRGB565(CRGB color) {
@@ -12,10 +12,10 @@ uint16_t crgbToRGB565(CRGB color) {
 
 LumiHomeActivity::LumiHomeActivity()
     : Activity(0, "LumiHomeActivity"),
-      m_settingsButton(320 - CORNER_BUTTON_WIDTH, 0, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Settings"),
-      m_resetButton(0, 0, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Reset"),
-      m_bottomLeftButton(0, 240 - CORNER_BUTTON_HEIGHT, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Reset"),
-      m_bottomRightButton(320 - CORNER_BUTTON_WIDTH, 240 - CORNER_BUTTON_HEIGHT, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT, "Pattern"),
+      m_settingsButton(nullptr),
+      m_resetButton(nullptr),
+      m_bottomLeftButton(nullptr),
+      m_bottomRightButton(nullptr),
       m_brightnessSlider(0, 40, 40, 80),
       m_valueBrightnessSlider(0, 120, 40, 80),
       m_hueSlider(320 - 40, 40, 40, 80),
@@ -42,6 +42,24 @@ LumiHomeActivity::LumiHomeActivity()
     m_octagonCenter.centerX = 160;
     m_octagonCenter.centerY = 120;
     m_octagonCenter.radius = 30;
+    
+    // ButtonFragment インスタンスの作成
+    m_settingsButton = new ButtonFragment(ID_BUTTON_SETTINGS);
+    m_resetButton = new ButtonFragment(ID_BUTTON_RESET);
+    m_bottomLeftButton = new ButtonFragment(ID_BUTTON_BOTTOM_LEFT);
+    m_bottomRightButton = new ButtonFragment(ID_BUTTON_BOTTOM_RIGHT);
+    
+    // ButtonFragment の位置とサイズを設定
+    m_settingsButton->setDisplayArea(320 - CORNER_BUTTON_WIDTH, 0, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT);
+    m_resetButton->setDisplayArea(0, 0, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT);
+    m_bottomLeftButton->setDisplayArea(0, 240 - CORNER_BUTTON_HEIGHT, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT);
+    m_bottomRightButton->setDisplayArea(320 - CORNER_BUTTON_WIDTH, 240 - CORNER_BUTTON_HEIGHT, CORNER_BUTTON_WIDTH, CORNER_BUTTON_HEIGHT);
+    
+    // ラベルの設定
+    // m_settingsButton->setLabel("Settings");
+    // m_resetButton->setLabel("Reset");
+    // m_bottomLeftButton->setLabel("Reset");
+    // m_bottomRightButton->setLabel("Pattern");
 }
 
 LumiHomeActivity::~LumiHomeActivity() {
@@ -53,11 +71,13 @@ bool LumiHomeActivity::onCreate() {
         return false;
     }
     
-    // IDを設定
-    m_settingsButton.setId(ID_BUTTON_SETTINGS);
-    m_resetButton.setId(ID_BUTTON_RESET);
-    m_bottomLeftButton.setId(ID_BUTTON_BOTTOM_LEFT);
-    m_bottomRightButton.setId(ID_BUTTON_BOTTOM_RIGHT);
+    // ButtonFragment の作成
+    m_settingsButton->onCreate();
+    m_resetButton->onCreate();
+    m_bottomLeftButton->onCreate();
+    m_bottomRightButton->onCreate();
+    
+    // スライダーのIDを設定
     m_brightnessSlider.setId(ID_SLIDER_BRIGHTNESS);
     m_valueBrightnessSlider.setId(ID_SLIDER_VALUE_BRIGHTNESS);
     m_hueSlider.setId(ID_SLIDER_HUE);
@@ -82,21 +102,50 @@ void LumiHomeActivity::initialize(LEDManager* ledManager, FaceDetector* faceDete
     m_octagon.setFaceDetector(faceDetector);
     
     // ボタンのスタイル設定
-    m_settingsButton.setColor(BLACK, TFT_LIGHTGREY);
-    m_settingsButton.setFontSize(1.4);
-    m_settingsButton.setType(BUTTON_TYPE_TEXT);
+    m_settingsButton->setLabel("Settings");
+    m_settingsButton->setColor(BLACK, TFT_LIGHTGREY);
+    m_settingsButton->setFontSize(1.4);
+    m_settingsButton->setType(BUTTON_TYPE_TEXT);
+
+    m_resetButton->setLabel("Reset");
+    m_resetButton->setColor(BLACK, TFT_LIGHTGREY);
+    m_resetButton->setFontSize(1.4);
+    m_resetButton->setType(BUTTON_TYPE_TEXT);
     
-    m_resetButton.setColor(BLACK, TFT_LIGHTGREY);
-    m_resetButton.setFontSize(1.4);
-    m_resetButton.setType(BUTTON_TYPE_TEXT);
+    m_bottomLeftButton->setLabel("Reset");
+    m_bottomLeftButton->setColor(BLACK, TFT_LIGHTGREY);
+    m_bottomLeftButton->setFontSize(1.4);
+    m_bottomLeftButton->setType(BUTTON_TYPE_TEXT);
     
-    m_bottomLeftButton.setColor(BLACK, TFT_LIGHTGREY);
-    m_bottomLeftButton.setFontSize(1.4);
-    m_bottomLeftButton.setType(BUTTON_TYPE_TEXT);
+    m_bottomRightButton->setLabel("Pattern");
+    m_bottomRightButton->setColor(BLACK, TFT_LIGHTGREY);
+    m_bottomRightButton->setFontSize(1.4);
+    m_bottomRightButton->setType(BUTTON_TYPE_TEXT);
     
-    m_bottomRightButton.setColor(BLACK, TFT_LIGHTGREY);
-    m_bottomRightButton.setFontSize(1.4);
-    m_bottomRightButton.setType(BUTTON_TYPE_TEXT);
+    // クリックハンドラの設定
+    m_settingsButton->setClickHandler([this]() {
+        if (onTopRightButtonTapped) {
+            onTopRightButtonTapped();
+        }
+    });
+    
+    m_resetButton->setClickHandler([this]() {
+        if (onTopLeftButtonTapped) {
+            onTopLeftButtonTapped();
+        }
+    });
+    
+    m_bottomLeftButton->setClickHandler([this]() {
+        if (onBottomLeftButtonTapped) {
+            onBottomLeftButtonTapped();
+        }
+    });
+    
+    m_bottomRightButton->setClickHandler([this]() {
+        if (onBottomRightButtonTapped) {
+            onBottomRightButtonTapped();
+        }
+    });
     
     // スライダーのタイトル設定
     m_brightnessSlider.setTitle("B");
@@ -443,6 +492,12 @@ void LumiHomeActivity::initialize(LEDManager* ledManager, FaceDetector* faceDete
         
         m_saturationSlider.draw();
     };
+
+    addFragment(m_settingsButton, "settingsButton");
+    addFragment(m_resetButton, "resetButton");
+    addFragment(m_bottomLeftButton, "bottomLeftButton");
+    addFragment(m_bottomRightButton, "bottomRightButton");
+
 }
 
 bool LumiHomeActivity::onStart() {
@@ -470,11 +525,22 @@ void LumiHomeActivity::onStop() {
 void LumiHomeActivity::onDestroy() {
     // イベントバスからの登録解除
     framework::EventBus::getInstance().unsubscribe(this);
+    // framework::EventBus::getInstance().unsubscribe(m_settingsButton.get());
+    // framework::EventBus::getInstance().unsubscribe(m_resetButton.get());
+    // framework::EventBus::getInstance().unsubscribe(m_bottomLeftButton.get());
+    // framework::EventBus::getInstance().unsubscribe(m_bottomRightButton.get());
+    
+    // ButtonFragment の破棄
+    m_settingsButton->onDestroy();
+    m_resetButton->onDestroy();
+    m_bottomLeftButton->onDestroy();
+    m_bottomRightButton->onDestroy();
     
     Activity::onDestroy();
 }
 
 bool LumiHomeActivity::handleEvent(const framework::Event& event) {
+    Serial.println("Event received");
     // 基底クラスのイベント処理
     if (Activity::handleEvent(event)) {
         return true;
@@ -485,15 +551,35 @@ bool LumiHomeActivity::handleEvent(const framework::Event& event) {
         case framework::EventType::TOUCH: {
             const framework::TouchEvent& touchEvent = static_cast<const framework::TouchEvent&>(event);
             // タッチイベント処理
-            // 実装は省略
+            handleTouch();
             return true;
         }
         
         case framework::EventType::BUTTON: {
             const framework::ButtonEvent& buttonEvent = static_cast<const framework::ButtonEvent&>(event);
             // ボタンイベント処理
-            // 実装は省略
-            return true;
+            uint32_t buttonId = buttonEvent.getButtonId();
+            
+            if (buttonEvent.getAction() == framework::ButtonAction::CLICK) {
+                // ボタンIDに応じた処理
+                if (buttonId == ID_BUTTON_SETTINGS && onTopRightButtonTapped) {
+                    onTopRightButtonTapped();
+                    return true;
+                }
+                else if (buttonId == ID_BUTTON_RESET && onTopLeftButtonTapped) {
+                    onTopLeftButtonTapped();
+                    return true;
+                }
+                else if (buttonId == ID_BUTTON_BOTTOM_LEFT && onBottomLeftButtonTapped) {
+                    onBottomLeftButtonTapped();
+                    return true;
+                }
+                else if (buttonId == ID_BUTTON_BOTTOM_RIGHT && onBottomRightButtonTapped) {
+                    onBottomRightButtonTapped();
+                    return true;
+                }
+            }
+            return false;
         }
         
         case framework::EventType::SLIDER: {
@@ -516,10 +602,10 @@ void LumiHomeActivity::draw() {
     m_octagon.draw();
     
     // 四隅のボタンを描画
-    m_settingsButton.draw();
-    m_resetButton.draw();
-    m_bottomLeftButton.draw();
-    m_bottomRightButton.draw();
+    m_settingsButton->draw();
+    m_resetButton->draw();
+    m_bottomLeftButton->draw();
+    m_bottomRightButton->draw();
     
     // スライダーを描画
     m_brightnessSlider.draw();
@@ -549,11 +635,7 @@ void LumiHomeActivity::handleTouch() {
         m_lastTouchY = touchY;
     }
     
-    // ボタンのタッチ処理
-    if (checkButtonTouch(m_settingsButton, touchX, touchY, isPressed, wasPressed, wasReleased)) return;
-    if (checkButtonTouch(m_resetButton, touchX, touchY, isPressed, wasPressed, wasReleased)) return;
-    if (checkButtonTouch(m_bottomLeftButton, touchX, touchY, isPressed, wasPressed, wasReleased)) return;
-    if (checkButtonTouch(m_bottomRightButton, touchX, touchY, isPressed, wasPressed, wasReleased)) return;
+    // ボタンのタッチ処理は ButtonFragment が自動的に処理するため不要
     
     // スライダーのタッチ処理
     if (checkSliderTouch(m_brightnessSlider, touchX, touchY, isPressed, wasPressed, wasReleased)) return;
@@ -682,46 +764,6 @@ void LumiHomeActivity::handleTouch() {
     }
 }
 
-// ボタンタッチ処理のヘルパーメソッド
-bool LumiHomeActivity::checkButtonTouch(Button& button, int touchX, int touchY, bool isPressed, bool wasPressed, bool wasReleased) {
-    // タッチ開始時
-    if (wasPressed) {
-        if (button.containsPoint(touchX, touchY)) {
-            m_activeTouchedUI = TouchedUI(button.getId());
-            button.setPressed(true);
-            button.draw();
-            return true;
-        }
-    }
-    
-    // ボタンがアクティブな状態でタッチ終了時
-    if (wasReleased && m_activeTouchedUI.id == button.getId()) {
-        button.setPressed(false);
-        button.draw();
-        
-        // ボタン上でリリースされた場合のみコールバック実行
-        if (button.containsPoint(touchX, touchY)) {
-            int id = button.getId();
-            if (id == ID_BUTTON_SETTINGS && onTopRightButtonTapped) {
-                onTopRightButtonTapped();
-            }
-            else if (id == ID_BUTTON_RESET && onTopLeftButtonTapped) {
-                onTopLeftButtonTapped();
-            }
-            else if (id == ID_BUTTON_BOTTOM_LEFT && onBottomLeftButtonTapped) {
-                onBottomLeftButtonTapped();
-            }
-            else if (id == ID_BUTTON_BOTTOM_RIGHT && onBottomRightButtonTapped) {
-                onBottomRightButtonTapped();
-            }
-        }
-        
-        m_activeTouchedUI = TouchedUI();
-        return true;
-    }
-    
-    return false;
-}
 
 // スライダータッチ処理のヘルパーメソッド
 bool LumiHomeActivity::checkSliderTouch(Slider& slider, int touchX, int touchY, bool isPressed, bool wasPressed, bool wasReleased) {
@@ -892,18 +934,18 @@ void LumiHomeActivity::setOperationMode(OperationMode mode) {
     
     // モードに応じたボタンラベルの設定
     if (mode == MODE_TAP) {
-        m_bottomRightButton.setLabel("Pattern");
+        m_bottomRightButton->setLabel("Pattern");
     } else if (mode == MODE_PATTERN) {
-        m_bottomRightButton.setLabel("Listen");
+        m_bottomRightButton->setLabel("Listen");
     } else if (mode == MODE_LISTEN) {
-        m_bottomRightButton.setLabel("Tap");
+        m_bottomRightButton->setLabel("Tap");
     }
     
     // フォーカスをクリア
     m_octagon.clearAllFocus();
     
     // ボタンを再描画
-    m_bottomRightButton.draw();
+    m_bottomRightButton->draw();
 }
 
 // OctagonRingViewの面IDをLEDの面IDに変換
