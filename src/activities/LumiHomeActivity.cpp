@@ -356,8 +356,7 @@ void LumiHomeActivity::initialize(LEDManager* ledManager, FaceDetector* faceDete
             }
         }
         
-        // センターボタン情報を更新
-        updateCenterButtonInfo();
+        m_brightnessSlider.draw();
     };
     
     // 明度スライダーでLED明度を制御
@@ -382,8 +381,8 @@ void LumiHomeActivity::initialize(LEDManager* ledManager, FaceDetector* faceDete
             }
         }
         
-        // センターボタン情報を更新
-        updateCenterButtonInfo();
+        m_valueBrightnessSlider.draw();
+        
     };
     
     // カラースライダーでLED色相を制御
@@ -412,8 +411,8 @@ void LumiHomeActivity::initialize(LEDManager* ledManager, FaceDetector* faceDete
         // OctagonRingViewのハイライト色も更新
         m_octagon.setHighlightColor(crgbToRGB565(m_currentLedColor));
         
-        // センターボタン情報を更新
-        updateCenterButtonInfo();
+        m_hueSlider.draw();
+
     };
     
     // 彩度スライダーでLED彩度を制御
@@ -442,8 +441,7 @@ void LumiHomeActivity::initialize(LEDManager* ledManager, FaceDetector* faceDete
         // OctagonRingViewのハイライト色も更新
         m_octagon.setHighlightColor(crgbToRGB565(m_currentLedColor));
         
-        // センターボタン情報を更新
-        updateCenterButtonInfo();
+        m_saturationSlider.draw();
     };
 }
 
