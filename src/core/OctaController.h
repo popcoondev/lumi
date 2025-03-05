@@ -10,6 +10,7 @@
 #include "ButtonEvent.h"
 #include "../ui/views/LumiView.h"
 #include "../mic/MicManager.h"
+#include "../activities/LumiHomeActivity.h"
 
 // フレームレート制御のための定数
 #define TARGET_FPS 30
@@ -26,6 +27,7 @@ private:
     FaceDetector* faceDetector;
     StateManager* stateManager;
     LumiView* lumiView;
+    LumiHomeActivity* lumiHomeActivity;
     MicManager* micManager;
     std::function<void(const std::array<double, 8>&, double)> micCallback;
 
