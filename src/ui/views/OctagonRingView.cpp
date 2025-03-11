@@ -75,15 +75,17 @@ void OctagonRingView::drawFace(int faceId) {
     
     // 面の色を判定
     uint16_t color = backgroundColor;
-    
+    if (focusedFaces[faceId]) {
+        color = focusColor;
+    }
     // 一時的な色があればそれを使用
-    if (hasTempColor[faceId]) {
+    else if (hasTempColor[faceId]) {
         color = tempFaceColors[faceId];
     }
     // 通常のハイライト状態
-    else if (highlightedFaces[faceId]) {
-        color = highlightColor;
-    }
+    // else if (highlightedFaces[faceId]) {
+    //     color = highlightColor;
+    // }
     // FaceDetectorによる色
     else if (faceDetector != nullptr && faceDetector->getCalibratedFacesCount() > 0) {
         FaceData* faceList = faceDetector->getFaceList();
@@ -133,39 +135,39 @@ void OctagonRingView::drawFace(int faceId) {
     );
     
     // フォーカス状態の場合、外側に平行線を描画
-    if (focusedFaces[faceId]) {
-        // 外側の底辺（v0-v1）に平行な線を描画
-        // 底辺の方向ベクトルを計算
-        int dx = projected[v1][0] - projected[v0][0];
-        int dy = projected[v1][1] - projected[v0][1];
+    // if (focusedFaces[faceId]) {
+    //     // 外側の底辺（v0-v1）に平行な線を描画
+    //     // 底辺の方向ベクトルを計算
+    //     int dx = projected[v1][0] - projected[v0][0];
+    //     int dy = projected[v1][1] - projected[v0][1];
         
-        // 底辺に垂直な方向ベクトル（時計回りに90度回転）
-        int perpX = -dy;
-        int perpY = dx;
+    //     // 底辺に垂直な方向ベクトル（時計回りに90度回転）
+    //     int perpX = -dy;
+    //     int perpY = dx;
         
-        // ベクトルの長さを計算
-        float length = sqrt(perpX * perpX + perpY * perpY);
-        if (length > 0) {
-            // 単位ベクトル化して2ピクセル分の長さにする
-            float normalizedPerpX = perpX / length * 2;
-            float normalizedPerpY = perpY / length * 2;
+    //     // ベクトルの長さを計算
+    //     float length = sqrt(perpX * perpX + perpY * perpY);
+    //     if (length > 0) {
+    //         // 単位ベクトル化して2ピクセル分の長さにする
+    //         float normalizedPerpX = perpX / length * 2;
+    //         float normalizedPerpY = perpY / length * 2;
             
-            // 底辺の外側2ピクセルの位置に線を描画
-            int startX = projected[v0][0] + normalizedPerpX;
-            int startY = projected[v0][1] + normalizedPerpY;
-            int endX = projected[v1][0] + normalizedPerpX;
-            int endY = projected[v1][1] + normalizedPerpY;
+    //         // 底辺の外側2ピクセルの位置に線を描画
+    //         int startX = projected[v0][0] + normalizedPerpX;
+    //         int startY = projected[v0][1] + normalizedPerpY;
+    //         int endX = projected[v1][0] + normalizedPerpX;
+    //         int endY = projected[v1][1] + normalizedPerpY;
             
-            // 黄色の線を描画（太さ2ピクセル）
-            for (int i = 0; i < 2; i++) {
-                M5.Lcd.drawLine(
-                    startX, startY + i,
-                    endX, endY + i,
-                    focusColor
-                );
-            }
-        }
-    }
+    //         // 黄色の線を描画（太さ2ピクセル）
+    //         for (int i = 0; i < 2; i++) {
+    //             M5.Lcd.drawLine(
+    //                 startX, startY + i,
+    //                 endX, endY + i,
+    //                 focusColor
+    //             );
+    //         }
+    //     }
+    // }
 }
 
 // 中央部分のみ再描画
@@ -178,7 +180,7 @@ void OctagonRingView::drawCenter() {
     M5.Lcd.fillCircle(centerX, centerY, innerRadius, BLACK);
     
     // 中央円の輪郭を描画
-    M5.Lcd.drawCircle(centerX, centerY, innerRadius, TFT_WHITE);
+    // M5.Lcd.drawCircle(centerX, centerY, innerRadius, TFT_WHITE);
 }
 
 // 一時的な色を設定
