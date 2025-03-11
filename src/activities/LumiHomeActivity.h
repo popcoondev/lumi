@@ -4,11 +4,12 @@
 #include "../framework/Activity.h"
 #include "../ui/views/OctagonRingView.h"
 #include "../ui/components/Button.h"
-#include "../ui/views/LumiView.h" // Sliderクラスの定義のため
+#include "../ui/views/LumiView.h" // 依存関係に必要
 #include "../led/LEDManager.h"
 #include "../system/FaceDetector.h"
 #include "../mic/MicManager.h"
 #include "../fragments/ButtonFragment.h"
+#include "../fragments/SliderFragment.h"
 #include <memory>
 
 class LumiHomeActivity : public framework::Activity {
@@ -51,6 +52,7 @@ public:
     // OctaControllerとの連携用メソッド
     void updateCenterButtonInfo();
 
+    bool isOctagonHandled() const { return m_octagonHandled; }
 private:
     // UIコンポーネント
     OctagonRingView m_octagon;
@@ -58,10 +60,10 @@ private:
     ButtonFragment* m_resetButton;
     ButtonFragment* m_bottomLeftButton;
     ButtonFragment* m_bottomRightButton;
-    Slider m_brightnessSlider;
-    Slider m_valueBrightnessSlider;
-    Slider m_hueSlider;
-    Slider m_saturationSlider;
+    SliderFragment* m_brightnessSlider;
+    SliderFragment* m_valueBrightnessSlider;
+    SliderFragment* m_hueSlider;
+    SliderFragment* m_saturationSlider;
     
     // マネージャー
     LEDManager* m_ledManager;
@@ -89,7 +91,8 @@ private:
     bool m_isDragging;
     int m_dragStartFace;
     int m_lastDraggedFace;
-    
+    bool m_octagonHandled;  // OctagonRingViewがタッチを処理したかのフラグ
+
     // タッチされたUI要素
     struct TouchedUI {
         int id;
@@ -118,7 +121,6 @@ private:
     // ヘルパーメソッド
     int getTappedFace(int x, int y);
     bool isCenterTapped(int x, int y);
-    bool checkSliderTouch(Slider& slider, int touchX, int touchY, bool isPressed, bool wasPressed, bool wasReleased);
     void drawCenterButtonInfo(const String& text, uint16_t color);
     int mapViewFaceToLedFace(int viewFaceId);
     int mapLedFaceToViewFace(int ledFaceId);

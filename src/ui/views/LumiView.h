@@ -17,6 +17,7 @@ struct TouchedUI {
 
 
 // LumiViewで利用するスライダークラス
+// Sliderクラスの定義を更新（getValue()をconstに）
 class Slider {
 private:
     int id;             // スライダーのID
@@ -33,7 +34,7 @@ public:
     Slider(int x, int y, int width, int height);
     void draw();
     void setValue(int val);
-    int getValue();
+    int getValue() const;  // constを追加
     bool handleTouch(int touchX, int touchY, bool isPressed);
     // ドラッグ中かどうかを外部から確認できるようにする
     bool isBeingDragged() const { return isDragging; }
@@ -43,6 +44,7 @@ public:
     int getId() const { return id; }
     bool containsPoint(int x, int y) const;
 
+    friend class SliderFragment;
 };
 
 class LumiView {
