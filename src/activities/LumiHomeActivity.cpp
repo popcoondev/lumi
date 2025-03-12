@@ -295,57 +295,16 @@ void LumiHomeActivity::initialize(LEDManager* ledManager, FaceDetector* faceDete
             m_selectedPatternIndex = m_ledManager->getCurrentPatternIndex();
             m_isPatternPlaying = m_ledManager->isPatternRunning();
             
-        } else if (m_currentMode == MODE_PATTERN) {
-            // パターンモード → リッスンモード
-            setOperationMode(MODE_LISTEN);
-            
-            // パターン実行中の場合は停止
-            if (m_ledManager->isPatternRunning()) {
-                m_ledManager->stopPattern();
-            }
-            
-            // マイク開始
-            m_micManager->startTask([this](const std::array<double, 8>& bandLevels, double bpm) {
-                Serial.println("FFT callback received");
-                // デバッグ出力
-                for (int i = 0; i < 8; i++) {
-                    Serial.print(bandLevels[i]);
-                    Serial.print(" ");
-                }
-                Serial.println();
-
-                // 各面の LED を FFT 結果に基づいて更新
-                for (int face = 0; face < NUM_FACES; face++) {
-                    uint8_t brightness = constrain(map(bandLevels[face], 0, 20000, 0, 255), 0, 255);
-
-                    // 低音側から高音側へグラデーション（例：色相を 0～160 にマッピング）
-                    CHSV color = CHSV(map(face, 0, NUM_FACES - 1, 0, 160), 255, brightness);
-                    int ledFaceId = mapViewFaceToLedFace(face);
-                    m_ledManager->lightFace(ledFaceId, color);
-
-                    // 一定以上の輝度なら Octagon の面をハイライト
-                    m_octagon.setFaceHighlighted(face, brightness > 50);
-                }
-
-                // ドミナントな帯域（最も大きな振幅）の検出と中央面の強調表示
-                int dominantBand = 0;
-                double maxLevel = 0;
-                for (int i = 0; i < 8; i++) {
-                    if (bandLevels[i] > maxLevel) {
-                        maxLevel = bandLevels[i];
-                        dominantBand = i;
-                    }
-                }
-
-                // 中央画面にデバッグ情報を表示
-                String bpmText = bpm > 0 ? String(bpm) : "detecting...";
-                String levelText = "bands: " + String(dominantBand) + "\nbpm: " + bpmText;
-                drawCenterButtonInfo(levelText, TFT_CYAN);
-                Serial.println(levelText);
-            });
-            
-            // 中央にマイクモードを表示
-            drawCenterButtonInfo("MIC", TFT_CYAN);
+    } else if (m_currentMode == MODE_PATTERN) {
+        // パターンモード → パターンモード (MODE_PATTERNに遷移すべき)
+        setOperationMode(MODE_PATTERN);
+        
+        // パターンモードの初期設定を再度行う
+        m_selectedPatternIndex = m_ledManager->getCurrentPatternIndex();
+        m_isPatternPlaying = m_ledManager->isPatternRunning();
+        
+        // センターボタン情報を更新
+        updateCenterButtonInfo();
         } else {
             // リッスンモード → タップモード
             setOperationMode(MODE_TAP);
