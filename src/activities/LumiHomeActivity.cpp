@@ -133,7 +133,7 @@ void LumiHomeActivity::initialize(LEDManager* ledManager, FaceDetector* faceDete
     m_resetButton->setFontSize(1.4);
     m_resetButton->setType(BUTTON_TYPE_TEXT);
     
-    m_bottomLeftButton->setLabel("Reset");
+    m_bottomLeftButton->setLabel("");
     m_bottomLeftButton->setColor(BLACK, TFT_LIGHTGREY);
     m_bottomLeftButton->setFontSize(1.4);
     m_bottomLeftButton->setType(BUTTON_TYPE_TEXT);
@@ -272,40 +272,10 @@ void LumiHomeActivity::initialize(LEDManager* ledManager, FaceDetector* faceDete
         Serial.println("All LEDs reset, focus cleared, and sliders reset");
     };
     
-    // 左下ボタン（リセットボタン）- 全LED消灯
+    // 左下ボタン - 機能なし
     onBottomLeftButtonTapped = [this]() {
-        Serial.println("====== BOTTOM LEFT RESET BUTTON PRESSED ======");
-        
-        // 実行中のLEDパターンを停止
-        m_ledManager->stopPattern();
-        
-        // 全てのLEDを消灯
-        m_ledManager->resetAllLeds();
-        
-        // FaceDetectorのLED状態も更新
-        if (m_faceDetector->getCalibratedFacesCount() > 0) {
-            FaceData* faceList = m_faceDetector->getFaceList();
-            for (int i = 0; i < m_faceDetector->getCalibratedFacesCount(); i++) {
-                faceList[i].ledState = 0;
-            }
-        }
-        
-        // OctagonRingViewの全てのハイライトを解除
-        for (int i = 0; i < NUM_FACES; i++) {
-            m_octagon.setFaceHighlighted(i, false);
-            // 一時的な色も解除
-            m_octagon.resetFaceTempColor(i);
-        }
-        // ハイライト色も初期化
-        m_octagon.setHighlightColor(crgbToRGB565(m_currentLedColor));
-        
-        // フォーカスもすべて解除
-        m_octagon.clearAllFocus();
-        
-        // センターボタン情報を更新
-        updateCenterButtonInfo();
-        
-        Serial.println("All LEDs reset and focus cleared");
+        // 何も処理を行わない
+        Serial.println("====== BOTTOM LEFT BUTTON PRESSED - NO ACTION ======");
     };
 
     // 面タップでフォーカスをトグル
