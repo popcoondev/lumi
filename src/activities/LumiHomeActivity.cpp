@@ -233,12 +233,43 @@ void LumiHomeActivity::initialize(LEDManager* ledManager, FaceDetector* faceDete
         // OctagonRingViewの全てのハイライトを解除
         for (int i = 0; i < NUM_FACES; i++) {
             m_octagon.setFaceHighlighted(i, false);
+            // 一時的な色も解除
+            m_octagon.resetFaceTempColor(i);
         }
+        // ハイライト色も初期化
+        m_octagon.setHighlightColor(crgbToRGB565(m_currentLedColor));
+        
+        // フォーカスもすべて解除
+        m_octagon.clearAllFocus();
+        
+        // スライダーを初期位置に戻す
+        // 色相を初期値(0)に設定
+        m_currentHue = 0;
+        m_hueSlider->setValue(0);
+        m_hueSlider->draw();
+        
+        // 彩度を初期値(255)に設定
+        m_currentSaturation = 255;
+        m_saturationSlider->setValue(100); // 100%
+        m_saturationSlider->draw();
+        
+        // 明度を初期値(255)に設定
+        m_currentValueBrightness = 255;
+        m_valueBrightnessSlider->setValue(100); // 100%
+        m_valueBrightnessSlider->draw();
+        
+        // 全体の明るさを初期値に設定
+        m_ledManager->setBrightness(255);
+        m_brightnessSlider->setValue(100); // 100%
+        m_brightnessSlider->draw();
+        
+        // 現在の色を更新
+        m_currentLedColor = CHSV(m_currentHue, m_currentSaturation, m_currentValueBrightness);
         
         // センターボタン情報を更新
         updateCenterButtonInfo();
         
-        Serial.println("All LEDs reset");
+        Serial.println("All LEDs reset, focus cleared, and sliders reset");
     };
     
     // 左下ボタン（リセットボタン）- 全LED消灯
@@ -262,7 +293,11 @@ void LumiHomeActivity::initialize(LEDManager* ledManager, FaceDetector* faceDete
         // OctagonRingViewの全てのハイライトを解除
         for (int i = 0; i < NUM_FACES; i++) {
             m_octagon.setFaceHighlighted(i, false);
+            // 一時的な色も解除
+            m_octagon.resetFaceTempColor(i);
         }
+        // ハイライト色も初期化
+        m_octagon.setHighlightColor(crgbToRGB565(m_currentLedColor));
         
         // フォーカスもすべて解除
         m_octagon.clearAllFocus();
