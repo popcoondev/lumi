@@ -91,6 +91,14 @@ void OctaController::setup() {
     // LumiHomeActivityの初期化
     lumiHomeActivity->onCreate();
     lumiHomeActivity->initialize(ledManager, faceDetector, micManager);
+    
+    // 設定画面遷移用のコールバックを設定
+    lumiHomeActivity->setSettingsTransitionCallback([this]() {
+        stateManager->changeState(STATE_NONE);
+    });
+    
+    // マイク入力処理用のコールバックを設定
+    lumiHomeActivity->setMicCallback(micCallback);
 
     // 設定の読み込み
     faceDetector->loadFaces();

@@ -51,6 +51,16 @@ public:
     
     // OctaControllerとの連携用メソッド
     void updateCenterButtonInfo();
+    
+    // 設定画面遷移用のコールバック設定
+    void setSettingsTransitionCallback(std::function<void()> callback) {
+        onRequestSettingsTransition = callback;
+    }
+    
+    // マイク入力処理用コールバック設定
+    void setMicCallback(FFTCallback callback) {
+        micCallback = callback;
+    }
 
     bool isOctagonHandled() const { return m_octagonHandled; }
 private:
@@ -137,6 +147,8 @@ private:
     std::function<void(int)> onHueChanged;
     std::function<void(int)> onSaturationChanged;
     std::function<void(int)> onValueBrightnessChanged;
+    std::function<void()> onRequestSettingsTransition;
+    FFTCallback micCallback;  // マイク入力処理用コールバック
 };
 
 #endif // LUMI_HOME_ACTIVITY_H

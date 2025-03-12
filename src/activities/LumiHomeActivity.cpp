@@ -203,11 +203,14 @@ void LumiHomeActivity::initialize(LEDManager* ledManager, FaceDetector* faceDete
     onTopRightButtonTapped = [this]() {
         Serial.println("====== CHANGING STATE TO MENU ======");
         
-        // 画面をクリアして状態を変更
-        M5.Lcd.fillScreen(TFT_BLACK);
-        
-        // 次のループで確実に初期描画されるようにuiManagerを強制リセット
-        // ここではStateManagerを直接操作しないため、OctaControllerに任せる
+        // 状態変更をリクエスト
+        if (onRequestSettingsTransition) {
+            onRequestSettingsTransition();
+        } else {
+            // コールバックが設定されていない場合のフォールバック
+            // 画面をクリアするだけ（現在の実装）
+            M5.Lcd.fillScreen(TFT_BLACK);
+        }
         
         Serial.println("State changed requested");
     };
@@ -301,12 +304,13 @@ void LumiHomeActivity::initialize(LEDManager* ledManager, FaceDetector* faceDete
             m_isPatternPlaying = m_ledManager->isPatternRunning();
             
     } else if (m_currentMode == MODE_PATTERN) {
-        // パターンモード → パターンモード (MODE_PATTERNに遷移すべき)
-        setOperationMode(MODE_PATTERN);
+        // パターンモード → リッスンモード
+        setOperationMode(MODE_LISTEN);
         
-        // パターンモードの初期設定を再度行う
-        m_selectedPatternIndex = m_ledManager->getCurrentPatternIndex();
-        m_isPatternPlaying = m_ledManager->isPatternRunning();
+        // マイク入力の開始
+        if (micCallback) {
+            m_micManager->startTask(micCallback);
+        }
         
         // センターボタン情報を更新
         updateCenterButtonInfo();
@@ -393,7 +397,8 @@ void LumiHomeActivity::initialize(LEDManager* ledManager, FaceDetector* faceDete
         } else if (m_currentMode == MODE_LISTEN) {
             // リッスンモードの場合は何もしない
             // 音量に応じて自動的にLEDが点灯するため
-            drawCenterButtonInfo("MIC", TFT_CYAN);
+            // センターボタン情報は updateCenterButtonInfo() で更新されるので
+            // ここでは何もしない
         }
         
         // センターボタン情報を更新
@@ -773,7 +778,27 @@ void LumiHomeActivity::handleTouch() {
             
             // 同じ領域上でリリースされた場合のみアクション実行
             if (isCenterTapped(touchX, touchY) && onCenterTapped) {
-                onCenterTapped();
+                // センターボタンの領域をクリア
+                int centerX = m_octagonCenter.centerX;
+                int centerY = m_octagonCenter.centerY;
+                float innerRadius = m_octagonCenter.radius;
+                M5.Lcd.fillCircle(centerX, centerY, innerRadius, BLACK);
+                
+                // パターンモードの場合、パターンの再生/停止を実行
+                if (m_currentMode == MODE_PATTERN) {
+                    m_isPatternPlaying = !m_isPatternPlaying;
+                    if (m_isPatternPlaying) {
+                        m_ledManager->runPattern(m_selectedPatternIndex);
+                    } else {
+                        m_ledManager->stopPattern();
+                    }
+                } else {
+                    // 他のモードの場合は通常のコールバックを呼び出す
+                    onCenterTapped();
+                }
+                
+                // センターボタン情報を必ず再描画
+                updateCenterButtonInfo();
             }
             
             m_octagonHandled = true;  // タッチを処理したとマーク
@@ -809,13 +834,13 @@ void LumiHomeActivity::drawCenterButtonInfo(const String& text, uint16_t color) 
     int centerX = 160; // オクタゴンの中心X座標
     int centerY = 120; // オクタゴンの中心Y座標
 
-    // 中央円を背景色で描画
+    // 中央円を背景色で描画 - 完全に消去するために少し大きめに描画
     float innerRadius = 30; // 中心円の半径
-    M5.Lcd.fillCircle(centerX, centerY, innerRadius, BLACK);
+    M5.Lcd.fillCircle(centerX, centerY, innerRadius + 2, BLACK);
     
     // テキスト表示
     M5.Lcd.setTextSize(1);
-    M5.Lcd.setTextColor(color);
+    M5.Lcd.setTextColor(color, BLACK); // 背景色も指定して確実に消去
     M5.Lcd.setTextDatum(MC_DATUM);
     M5.Lcd.drawString(text, centerX, centerY);
 }
@@ -847,10 +872,16 @@ void LumiHomeActivity::updatePatternSelection(int moveCount) {
 
     // 選択中のパターンを更新
     m_selectedPatternIndex = (m_selectedPatternIndex + moveCount + patternCount) % patternCount;
+    
+    // センターボタン情報を更新
+    updateCenterButtonInfo();
 }
 
 // センターボタン情報表示の更新
 void LumiHomeActivity::updateCenterButtonInfo() {
+    // まずオクタゴンの中心部分を再描画して完全にクリア
+    m_octagon.drawCenter();
+    
     String text;
     uint16_t color;
     
@@ -899,7 +930,7 @@ void LumiHomeActivity::updateCenterButtonInfo() {
         text = "MIC";
         color = TFT_CYAN;
     }
-        
+    
     // テキスト情報を表示
     drawCenterButtonInfo(text, color);
 }
@@ -920,8 +951,8 @@ void LumiHomeActivity::setOperationMode(OperationMode mode) {
     // フォーカスをクリア
     m_octagon.clearAllFocus();
     
-    // ボタンを再描画
-    m_bottomRightButton->draw();
+    // 画面全体を再描画
+    draw();
 }
 
 // OctagonRingViewの面IDをLEDの面IDに変換
