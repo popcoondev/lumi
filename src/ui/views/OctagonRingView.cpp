@@ -73,6 +73,7 @@ OctagonRingView::OctagonRingView()
 // 中央ボタンの情報テキスト設定
 void OctagonRingView::setCenterInfo(const String& text, uint16_t color) {
     centerButton.setInfo(text, color);
+    centerButton.draw();  // 情報設定後に再描画
 }
 
 void OctagonRingView::drawFace(int faceId) {
