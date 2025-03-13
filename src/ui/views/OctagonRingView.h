@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <M5Unified.h>
 #include "../system/FaceDetector.h"
+#include "../ui/components/Button.h"
 
 // 八角形リングのジオメトリ定数
 #define NUM_OUTER 8  // 外側の頂点数
@@ -34,12 +35,14 @@ private:
     int viewX, viewY;  // 表示領域左上座標
     int viewWidth, viewHeight;  // 表示領域サイズ
     uint16_t backgroundColor;  // 背景色
-    bool highlightedFaces[NUM_FACES];  // 各面のハイライト状態
-    uint16_t highlightColor;   // ハイライト色
     float rotationAngle;  // 回転角度
     bool isMirrored;  // 鏡写しモード
-    bool focusedFaces[NUM_FACES];  // 各面のフォーカス状態
-    uint16_t focusColor;   // フォーカス色
+    uint16_t highlightColor;   // ハイライト色（後方互換性のため）
+    uint16_t focusColor;       // フォーカス色（後方互換性のため）
+    bool highlightedFaces[NUM_FACES];  // 各面のハイライト状態（後方互換性のため）
+    bool focusedFaces[NUM_FACES];      // 各面のフォーカス状態（後方互換性のため）
+    uint16_t tempFaceColors[NUM_FACES]; // 一時的な色（後方互換性のため）
+    bool hasTempColor[NUM_FACES];       // 一時的な色フラグ（後方互換性のため）
     
     // FaceDetectorへの参照
     FaceDetector* faceDetector;
@@ -54,8 +57,10 @@ private:
                         int x3, int y3) const;
 
     friend class LumiView;
-    uint16_t tempFaceColors[NUM_FACES];   // タッチフィードバック用の一時的な面の色
-    bool hasTempColor[NUM_FACES];         // 一時的な色が設定されているかのフラグ
+    
+    // ボタンオブジェクト
+    TrapezoidButton faceButtons[NUM_FACES];  // 各面のボタン
+    CenterButton centerButton;               // 中央ボタン
 
 public:
     // コンストラクタ
@@ -138,7 +143,20 @@ public:
     
     // 面の現在の色を取得
     uint16_t getFaceColor(int faceId) const;
-
+    
+    // 中央ボタンの情報テキスト設定
+    void setCenterInfo(const String& text, uint16_t color);
+    
+    // 中央ボタンの取得
+    CenterButton& getCenterButton() { return centerButton; }
+    
+    // 面ボタンの取得
+    TrapezoidButton& getFaceButton(int faceId) { 
+        if (faceId >= 0 && faceId < NUM_FACES) {
+            return faceButtons[faceId];
+        }
+        return faceButtons[0]; // 範囲外の場合は最初の面を返す
+    }
 };
 
 #endif // OCTAGON_RING_VIEW_H

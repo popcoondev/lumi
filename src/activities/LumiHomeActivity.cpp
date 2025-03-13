@@ -339,7 +339,17 @@ void LumiHomeActivity::initialize(LEDManager* ledManager, FaceDetector* faceDete
             }
             
             // フォーカスされた面のLED状態に基づいて処理
-            bool turnOn = (focusedFacesLedState == 0 || focusedFacesLedState == 1);
+            bool turnOn;
+            if (focusedFacesLedState == 0) {
+                // すべて消灯の場合は点灯
+                turnOn = true;
+            } else if (focusedFacesLedState == 2) {
+                // すべて点灯の場合は消灯
+                turnOn = false;
+            } else {
+                // 一部点灯の場合は消灯に統一
+                turnOn = false;
+            }
             
             // フォーカスされた全ての面に対して処理
             for (int viewFaceId = 0; viewFaceId < NUM_FACES; viewFaceId++) {
@@ -666,9 +676,20 @@ void LumiHomeActivity::handleTouch() {
     
     // タッチ状態の更新
     m_isTouchActive = isPressed;
+    
+    // タッチ座標の記録
+    static int touchStartX = 0;
+    static int touchStartY = 0;
+    
     if (isPressed) {
         m_lastTouchX = touchX;
         m_lastTouchY = touchY;
+    }
+    
+    // タッチ開始位置を記録
+    if (wasPressed) {
+        touchStartX = touchX;
+        touchStartY = touchY;
     }
     
     // 処理フラグをリセット
@@ -771,13 +792,20 @@ void LumiHomeActivity::handleTouch() {
     
     // タッチ終了時の処理
     if (wasReleased) {
+        // タップ判定のための距離計算
+        int dx = touchX - touchStartX;
+        int dy = touchY - touchStartY;
+        int distSquared = dx * dx + dy * dy;
+        const int TAP_THRESHOLD_SQUARED = 100; // タップと判定する最大距離の二乗（10ピクセル）
+        bool isTap = (distSquared <= TAP_THRESHOLD_SQUARED);
+        
         if (m_activeTouchedUI.id == ID_OCTAGON_CENTER) {
             // センター再描画で視覚フィードバックを元に戻す
             m_octagon.drawCenter();
             updateCenterButtonInfo(); // 情報表示を更新
             
-            // 同じ領域上でリリースされた場合のみアクション実行
-            if (isCenterTapped(touchX, touchY) && onCenterTapped) {
+            // タップと判定された場合のみアクション実行
+            if (isCenterTapped(touchStartX, touchStartY) && isTap && onCenterTapped) {
                 // センターボタンの領域をクリア
                 int centerX = m_octagonCenter.centerX;
                 int centerY = m_octagonCenter.centerY;
@@ -815,10 +843,24 @@ void LumiHomeActivity::handleTouch() {
             m_dragStartFace = -1;
             m_lastDraggedFace = -1;
             
-            // 同じ面上でリリースされた場合のみアクション実行
-            int releasedFaceId = getTappedFace(touchX, touchY);
-            if (releasedFaceId == faceId && onFaceTapped) {
-                onFaceTapped(faceId);
+            // タップ判定
+            if (isTap) {
+                // MODE_PATTERNでのFace3/Face7のタップ処理
+                if (m_currentMode == MODE_PATTERN) {
+                    if (faceId == 3) {
+                        updatePatternSelection(-1);
+                        m_octagonHandled = true;
+                    } else if (faceId == 7) {
+                        updatePatternSelection(1);
+                        m_octagonHandled = true;
+                    }
+                }
+                
+                // 同じ面上でリリースされた場合のみアクション実行
+                int releasedFaceId = getTappedFace(touchX, touchY);
+                if (releasedFaceId == faceId && onFaceTapped) {
+                    onFaceTapped(faceId);
+                }
             }
             
             m_octagonHandled = true;  // タッチを処理したとマーク

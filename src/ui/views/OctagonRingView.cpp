@@ -11,20 +11,19 @@ OctagonRingView::OctagonRingView()
     , viewWidth(100)
     , viewHeight(100)
     , backgroundColor(BLACK)
-    , highlightColor(WHITE)     // デフォルトのハイライト色は白
     , rotationAngle(M_PI/8.0f)  // デフォルトでPI/8（22.5度）回転
     , isMirrored(true) // デフォルトで鏡写しに設定
-    , faceDetector(nullptr) // FaceDetectorは初期化時にnull
-    , tempFaceColors()
-    , hasTempColor()
+    , highlightColor(WHITE)     // デフォルトのハイライト色は白
     , focusColor(TFT_YELLOW)    // フォーカス色は黄色
+    , faceDetector(nullptr) // FaceDetectorは初期化時にnull
 {
     // ハイライト面の初期化（すべて非ハイライト）
     for (int i = 0; i < NUM_FACES; i++) {
         highlightedFaces[i] = false;
         focusedFaces[i] = false;
+        tempFaceColors[i] = TFT_BLACK;
+        hasTempColor[i] = false;
     }
-
     updateGeometry();
 
     // 面(台形)の定義：外側i, 外側(i+1), 内側(i+1), 内側i
@@ -59,10 +58,21 @@ OctagonRingView::OctagonRingView()
         idx++;
     }
 
+    // 各面ボタンの初期化
     for (int i = 0; i < NUM_FACES; i++) {
-        tempFaceColors[i] = TFT_BLACK;
-        hasTempColor[i] = false;
+        faceButtons[i].setFaceId(i);
+        faceButtons[i].setHighlightColor(WHITE);
+        faceButtons[i].setFocusColor(TFT_YELLOW);
+        faceButtons[i].setFaceDetector(faceDetector);
     }
+    
+    // 中央ボタンの初期化
+    centerButton.setColor(BLACK, BLACK);
+}
+
+// 中央ボタンの情報テキスト設定
+void OctagonRingView::setCenterInfo(const String& text, uint16_t color) {
+    centerButton.setInfo(text, color);
 }
 
 void OctagonRingView::drawFace(int faceId) {
@@ -442,11 +452,41 @@ void OctagonRingView::draw() {
 
     // 台形（各面）描画
     for(int i = 0; i < NUM_FACES; i++){
+        // 後方互換性のため、古い実装も呼び出す
         drawFace(i);
+        
+        // 新しいボタンクラスの設定
+        int v0 = faces[i][0];
+        int v1 = faces[i][1];
+        int v2 = faces[i][2];
+        int v3 = faces[i][3];
+        
+        // 台形の頂点を設定
+        faceButtons[i].setTrapezoidVertices(
+            projected[v0][0], projected[v0][1],
+            projected[v1][0], projected[v1][1],
+            projected[v2][0], projected[v2][1],
+            projected[v3][0], projected[v3][1]
+        );
+        
+        // 状態を設定
+        faceButtons[i].setHighlighted(highlightedFaces[i]);
+        faceButtons[i].setFocused(focusedFaces[i]);
+        if (hasTempColor[i]) {
+            faceButtons[i].setTempColor(tempFaceColors[i]);
+        } else {
+            faceButtons[i].resetTempColor();
+        }
     }
 
+    // 中央ボタンの設定
+    float innerRadius = min(viewWidth, viewHeight) * 0.2f;
+    centerButton.setRadius(innerRadius);
+    centerButton.setPosition(centerX - innerRadius, centerY - innerRadius, innerRadius * 2, innerRadius * 2);
+    
     // 中央部分の描画
     drawCenter();
+    centerButton.draw();
 }
 
 bool OctagonRingView::isPointInTriangle(int px, int py, 
@@ -466,6 +506,14 @@ bool OctagonRingView::isPointInTriangle(int px, int py,
     return areaSumWithEpsilon >= areaOrig && area1 > 0 && area2 > 0 && area3 > 0;
 }
 
+// タップされた座標が指定面の内部にあるか判定
+bool OctagonRingView::isPointInFace(int faceID, int screenX, int screenY) const {
+    if (faceID < 0 || faceID >= NUM_FACES) return false;
+    
+    // 新しいボタンクラスのcontainsPointメソッドを使用
+    return faceButtons[faceID].containsPoint(screenX, screenY);
+}
+
 int OctagonRingView::getFaceAtPoint(int screenX, int screenY) const {
     Serial.println("getFaceAtPoint x: " + String(screenX) + " y: " + String(screenY));
 
@@ -476,84 +524,19 @@ int OctagonRingView::getFaceAtPoint(int screenX, int screenY) const {
         return -1;
     }
     
-    // 中心点からの距離を計算
-    int centerX = viewX + viewWidth / 2;
-    int centerY = viewY + viewHeight / 2;
-    float dx = screenX - centerX;
-    float dy = screenY - centerY;
-    float distSq = dx * dx + dy * dy;
-    
-    // 中心近くの場合は-1を返す
-    float innerRadius = min(viewWidth, viewHeight) * 0.2f;
-    if (distSq < innerRadius * innerRadius) {
+    // 中心ボタンのチェック
+    if (centerButton.containsPoint(screenX, screenY)) {
         Serial.println("center area");
         return -1;
     }
     
-    // タップ点の角度（0〜2π）を計算
-    float angle = atan2(dy, dx);
-    if (angle < 0) angle += 2 * M_PI;
-    
-    // デバッグ出力
-    Serial.println("original angle: " + String(angle * 180 / M_PI) + " degrees");
-    
-    // 鏡写しモード（x軸反転）の処理
-    if (isMirrored) {
-        angle = 2 * M_PI - angle;
-        if (angle >= 2 * M_PI) angle -= 2 * M_PI;
+    // 各面ボタンをチェック
+    for (int i = 0; i < NUM_FACES; i++) {
+        if (faceButtons[i].containsPoint(screenX, screenY)) {
+            return i;
+        }
     }
     
-    // 回転角度の適用
-    angle -= rotationAngle;
-    if (angle < 0) angle += 2 * M_PI;
-    if (angle >= 2 * M_PI) angle -= 2 * M_PI;
-    
-    // 角度から面を算出（8分割）
-    int faceId = (int)(angle * NUM_FACES / (2 * M_PI));
-    
-    // オフセット調整（右下が面0になるように）
-    int offsetFaceId = (faceId + 6) % NUM_FACES;
-    
-    // 面の順序を連続的にするためのマッピング
-    // ログから: 0,7,6,5,4... となっているので、時計回りに 0,1,2,3,4... となるように修正
-    int finalFaceId = offsetFaceId;
-    
-    // 新しいマッピングテーブルを作成
-    static const int faceOrderMap[NUM_FACES] = {
-        0, // 0 → 0 (そのまま)
-        1, // 1 → 1 (そのまま)
-        2, // 2 → 2 (そのまま)
-        3, // 3 → 3 (そのまま)
-        4, // 4 → 4 (そのまま)
-        5, // 5 → 5 (そのまま)
-        6, // 6 → 6 (そのまま)
-        7  // 7 → 7 (そのまま)
-    };
-    
-    // ログから: 0,7,6となっているので、0,1,2に変換
-    if (offsetFaceId == 7) finalFaceId = 1;
-    else if (offsetFaceId == 6) finalFaceId = 2;
-    else if (offsetFaceId == 5) finalFaceId = 3;
-    else if (offsetFaceId == 4) finalFaceId = 4;
-    else if (offsetFaceId == 3) finalFaceId = 5;
-    else if (offsetFaceId == 2) finalFaceId = 6;
-    else if (offsetFaceId == 1) finalFaceId = 7;
-    // 0はそのまま
-    
-    // 角度値とマッピング後のデバッグ出力
-    if(0) {
-        Serial.println("adjusted angle: " + String(angle * 180 / M_PI) + 
-                    " degrees, raw faceId: " + String(faceId) +
-                    ", offset faceId: " + String(offsetFaceId) +
-                    ", final faceId: " + String(finalFaceId));
-    }
-    
-    // 外側の境界チェック
-    float outerRadius = min(viewWidth, viewHeight) * 0.45f;
-    if (distSq > outerRadius * outerRadius) {
-        Serial.println("outside outer radius");
-        return -1;
-    }
-    
-    return finalFaceId;
+    // どの面にも含まれない場合
+    return -1;
 }
