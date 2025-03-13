@@ -696,8 +696,9 @@ void LumiHomeActivity::handleTouch() {
     m_octagonHandled = false;
     
     // オクタゴンの中心タップ判定
-    if (wasPressed && isCenterTapped(touchX, touchY)) {
+    if (wasPressed && m_octagon.getCenterButton().containsPoint(touchX, touchY)) {
         m_activeTouchedUI = TouchedUI(ID_OCTAGON_CENTER);
+        m_octagon.getCenterButton().setPressed(true);
         m_octagonHandled = true;  // タッチを処理したとマーク
     }
     
@@ -772,13 +773,6 @@ void LumiHomeActivity::handleTouch() {
     else if (m_currentMode == MODE_PATTERN) {
         // パターンモードの場合
         if (wasPressed) {
-            if (isCenterTapped(touchX, touchY)) {
-                // センターがタップされた場合はパターン再生トグル
-                m_isPatternPlaying = !m_isPatternPlaying;
-                updateCenterButtonInfo();
-                m_octagonHandled = true;  // タッチを処理したとマーク
-            }
-
             int faceId = getTappedFace(touchX, touchY);
             if (faceId == 3) {
                 updatePatternSelection(-1);
@@ -800,18 +794,11 @@ void LumiHomeActivity::handleTouch() {
         bool isTap = (distSquared <= TAP_THRESHOLD_SQUARED);
         
         if (m_activeTouchedUI.id == ID_OCTAGON_CENTER) {
-            // センター再描画で視覚フィードバックを元に戻す
-            m_octagon.drawCenter();
-            updateCenterButtonInfo(); // 情報表示を更新
+            // ボタンの押下状態を解除
+            m_octagon.getCenterButton().setPressed(false);
             
             // タップと判定された場合のみアクション実行
-            if (isCenterTapped(touchStartX, touchStartY) && isTap && onCenterTapped) {
-                // センターボタンの領域をクリア
-                int centerX = m_octagonCenter.centerX;
-                int centerY = m_octagonCenter.centerY;
-                float innerRadius = m_octagonCenter.radius;
-                M5.Lcd.fillCircle(centerX, centerY, innerRadius, BLACK);
-                
+            if (m_octagon.getCenterButton().containsPoint(touchStartX, touchStartY) && isTap) {
                 // パターンモードの場合、パターンの再生/停止を実行
                 if (m_currentMode == MODE_PATTERN) {
                     m_isPatternPlaying = !m_isPatternPlaying;
@@ -822,12 +809,14 @@ void LumiHomeActivity::handleTouch() {
                     }
                 } else {
                     // 他のモードの場合は通常のコールバックを呼び出す
-                    onCenterTapped();
+                    if (onCenterTapped) {
+                        onCenterTapped();
+                    }
                 }
-                
-                // センターボタン情報を必ず再描画
-                updateCenterButtonInfo();
             }
+            
+            // センターボタン情報を更新
+            updateCenterButtonInfo();
             
             m_octagonHandled = true;  // タッチを処理したとマーク
         }
@@ -921,9 +910,6 @@ void LumiHomeActivity::updatePatternSelection(int moveCount) {
 
 // センターボタン情報表示の更新
 void LumiHomeActivity::updateCenterButtonInfo() {
-    // まずオクタゴンの中心部分を再描画して完全にクリア
-    m_octagon.drawCenter();
-    
     String text;
     uint16_t color;
     
@@ -973,8 +959,8 @@ void LumiHomeActivity::updateCenterButtonInfo() {
         color = TFT_CYAN;
     }
     
-    // テキスト情報を表示
-    drawCenterButtonInfo(text, color);
+    // CenterButtonクラスのsetInfo()メソッドを使用
+    m_octagon.setCenterInfo(text, color);
 }
 
 // 操作モード設定

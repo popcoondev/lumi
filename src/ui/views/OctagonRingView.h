@@ -147,7 +147,7 @@ public:
     // 中央ボタンの情報テキスト設定
     void setCenterInfo(const String& text, uint16_t color);
     
-    // 中央ボタンの取得
+    // 中央ボタンへのアクセサ
     CenterButton& getCenterButton() { return centerButton; }
     
     // 面ボタンの取得
