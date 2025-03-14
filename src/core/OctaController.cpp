@@ -10,6 +10,8 @@ OctaController::OctaController() {
     lumiView = new LumiView();
     lumiHomeActivity = new LumiHomeActivity();
     micManager = new MicManager();
+    networkManager = new NetworkManager();
+    webServerManager = new WebServerManager(ledManager);
     currentHue = 0;           // 初期色相を0（赤）に設定
     currentSaturation = 255;  // 初期彩度を最大に設定
     currentValueBrightness = 255; // 初期明度を最大に設定
@@ -69,6 +71,8 @@ OctaController::~OctaController() {
     delete lumiView;
     delete lumiHomeActivity;
     delete micManager;
+    delete networkManager;
+    delete webServerManager;
 }
 
 void OctaController::setup() {
@@ -102,11 +106,34 @@ void OctaController::setup() {
 
     // 設定の読み込み
     faceDetector->loadFaces();
+    
+    // ネットワークマネージャの初期化
+    if (networkManager->begin()) {
+        Serial.println("Network manager initialized successfully");
+        
+        // Webサーバーマネージャの初期化
+        if (webServerManager->begin()) {
+            Serial.println("Web server manager initialized successfully");
+            webServerManager->start();
+            Serial.println("Web server started");
+            
+            // IPアドレスの表示
+            Serial.print("Device IP address: ");
+            Serial.println(networkManager->getLocalIP());
+        } else {
+            Serial.println("Failed to initialize web server manager");
+        }
+    } else {
+        Serial.println("Failed to initialize network manager");
+    }
 }
 
 void OctaController::loop() {
     // 先にM5のボタン状態を更新
     M5.update();
+    
+    // ネットワーク接続を維持
+    networkManager->update();
     
     // 現在の状態取得
     StateInfo stateInfo = stateManager->getCurrentStateInfo();

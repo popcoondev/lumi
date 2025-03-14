@@ -11,6 +11,8 @@
 #include "../ui/views/LumiView.h"
 #include "../mic/MicManager.h"
 #include "../activities/LumiHomeActivity.h"
+#include "../network/NetworkManager.h"
+#include "../network/WebServerManager.h"
 
 // フレームレート制御のための定数
 #define TARGET_FPS 30
@@ -29,6 +31,8 @@ private:
     LumiView* lumiView;
     LumiHomeActivity* lumiHomeActivity;
     MicManager* micManager;
+    NetworkManager* networkManager;
+    WebServerManager* webServerManager;
     std::function<void(const std::array<double, 8>&, double)> micCallback;
 
     
