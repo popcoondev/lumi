@@ -45,7 +45,7 @@ void Slider::setValue(int val) {
     value = constrain(val, 0, 100);
 }
 
-int Slider::getValue() {
+int Slider::getValue() const {
     return value;
 }
 

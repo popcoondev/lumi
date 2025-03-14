@@ -91,6 +91,14 @@ void OctaController::setup() {
     // LumiHomeActivityの初期化
     lumiHomeActivity->onCreate();
     lumiHomeActivity->initialize(ledManager, faceDetector, micManager);
+    
+    // 設定画面遷移用のコールバックを設定
+    lumiHomeActivity->setSettingsTransitionCallback([this]() {
+        stateManager->changeState(STATE_NONE);
+    });
+    
+    // マイク入力処理用のコールバックを設定
+    lumiHomeActivity->setMicCallback(micCallback);
 
     // 設定の読み込み
     faceDetector->loadFaces();
@@ -206,19 +214,24 @@ void OctaController::processLumiHomeState() {
     bool wasPressed = touch.wasPressed();
     bool wasReleased = touch.wasReleased();
     
-    // タッチイベントをフレームワークのイベントに変換
     if (wasPressed || isPressed || wasReleased) {
-        framework::TouchAction action;
-        if (wasPressed) action = framework::TouchAction::DOWN;
-        else if (wasReleased) action = framework::TouchAction::UP;
-        else action = framework::TouchAction::MOVE;
+        // まず、OctagonRingViewとセンターの処理を優先
+        // これによりタップによるLED点灯機能を保持
+        lumiHomeActivity->handleTouch();
         
-        framework::TouchEvent touchEvent(action, touch.x, touch.y);
-        
-        // ActivityのhandleEventメソッドを呼び出す
-        lumiHomeActivity->handleEvent(touchEvent);
+        // その後、UI要素のイベント処理
+        // ただし、OctagonRingViewがタッチを処理した場合は
+        // 他のUI要素には伝播させない
+        if (!lumiHomeActivity->isOctagonHandled()) {
+            framework::TouchAction action;
+            if (wasPressed) action = framework::TouchAction::DOWN;
+            else if (wasReleased) action = framework::TouchAction::UP;
+            else action = framework::TouchAction::MOVE;
+            
+            framework::TouchEvent touchEvent(action, touch.x, touch.y);
+            lumiHomeActivity->handleEvent(touchEvent);
+        }
     }
-
 }
 
 void OctaController::LumiHomeSetInitialDraw() {
