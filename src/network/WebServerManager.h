@@ -20,6 +20,12 @@ private:
     
     // 404ハンドラのセットアップ
     void setupNotFoundHandler();
+    
+    // LED制御のヘルパーメソッド
+    void handleLedFaceControl(int faceId, AsyncWebServerRequest *request);
+    
+    // パターン制御のヘルパーメソッド
+    void handlePatternControl(int patternId, AsyncWebServerRequest *request);
 
 public:
     WebServerManager(LEDManager* ledManager);
