@@ -9,9 +9,12 @@ OctaController::OctaController() {
     stateManager = new StateManager();
     lumiView = new LumiView();
     lumiHomeActivity = new LumiHomeActivity();
+    splashActivity = new SplashActivity();
     micManager = new MicManager();
     networkManager = new NetworkManager();
     webServerManager = new WebServerManager(ledManager);
+    isInitializing = true;
+    initStartTime = 0;
     currentHue = 0;           // 初期色相を0（赤）に設定
     currentSaturation = 255;  // 初期彩度を最大に設定
     currentValueBrightness = 255; // 初期明度を最大に設定
@@ -70,6 +73,7 @@ OctaController::~OctaController() {
     delete stateManager;
     delete lumiView;
     delete lumiHomeActivity;
+    delete splashActivity;
     delete micManager;
     delete networkManager;
     delete webServerManager;
@@ -79,6 +83,15 @@ void OctaController::setup() {
     // M5Stack初期化
     M5.begin();
     Serial.begin(115200);
+    
+    // スプラッシュ画面の表示
+    splashActivity->onCreate();
+    splashActivity->onStart();
+    splashActivity->onResume();
+    
+    // 初期化開始時間を記録
+    initStartTime = millis();
+    Serial.println("Splash screen displayed, init start time: " + String(initStartTime));
     
     // 各マネージャの初期化
     uiManager->begin();
@@ -131,6 +144,34 @@ void OctaController::setup() {
 void OctaController::loop() {
     // 先にM5のボタン状態を更新
     M5.update();
+    
+    // 初期化中はスプラッシュ画面を表示
+    if (isInitializing) {
+        // スプラッシュ画面のアニメーションを更新
+        splashActivity->update();
+        
+        // 最低でも2秒間はスプラッシュ画面を表示
+        unsigned long currentTime = millis();
+        unsigned long elapsedTime = currentTime - initStartTime;
+        
+        if (elapsedTime >= 2000) {
+            // 初期化完了
+            isInitializing = false;
+            
+            Serial.println("Splash screen displayed for " + String(elapsedTime) + "ms, switching to LumiHomeActivity");
+            
+            // スプラッシュ画面を閉じる
+            splashActivity->onPause();
+            splashActivity->onStop();
+            
+            // LumiHomeActivityを表示
+            stateManager->changeState(STATE_LUMI_HOME);
+            LumiHomeSetInitialDraw();
+        }
+        
+        // 初期化中は他の処理をスキップ
+        return;
+    }
     
     // ネットワーク接続を維持
     networkManager->update();

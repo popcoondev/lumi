@@ -11,6 +11,7 @@
 #include "../ui/views/LumiView.h"
 #include "../mic/MicManager.h"
 #include "../activities/LumiHomeActivity.h"
+#include "../activities/SplashActivity.h"
 #include "../network/NetworkManager.h"
 #include "../network/WebServerManager.h"
 
@@ -30,9 +31,12 @@ private:
     StateManager* stateManager;
     LumiView* lumiView;
     LumiHomeActivity* lumiHomeActivity;
+    SplashActivity* splashActivity;
     MicManager* micManager;
     NetworkManager* networkManager;
     WebServerManager* webServerManager;
+    bool isInitializing;
+    unsigned long initStartTime;
     std::function<void(const std::array<double, 8>&, double)> micCallback;
 
     
