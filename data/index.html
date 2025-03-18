@@ -1,90 +1,390 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lumi Controller</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <title>M5Stack Octagon LED Controller</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <style>
+        .canvas-container {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            aspect-ratio: 1;
+            position: relative;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+
+        .connection-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--bs-dark);
+            border-radius: 20px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: var(--bs-danger);
+        }
+
+        .status-indicator.connected {
+            background-color: var(--bs-success);
+        }
+
+        .status-text {
+            font-size: 14px;
+            color: var(--bs-light);
+        }
+
+        #statusMessage {
+            transition: opacity 0.3s ease;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>Lumi Controller</h1>
-            <div id="status">
-                <span id="connection-status">接続中...</span>
+        <div class="row justify-content-center mt-4">
+            <div class="col-12 text-center">
+                <h1 class="mb-4">M5Stack Octagon LED Controller</h1>
+                <div class="connection-status mb-3">
+                    <span class="status-indicator"></span>
+                    <span class="status-text">接続状態</span>
+                </div>
             </div>
-        </header>
-        
-        <main>
-            <section class="control-section">
-                <h2>LED制御</h2>
-                
-                <div class="control-group">
-                    <h3>面の選択</h3>
-                    <div class="face-selector">
-                        <button class="face-button" data-face="0">面 1</button>
-                        <button class="face-button" data-face="1">面 2</button>
-                        <button class="face-button" data-face="2">面 3</button>
-                        <button class="face-button" data-face="3">面 4</button>
-                        <button class="face-button" data-face="4">面 5</button>
-                        <button class="face-button" data-face="5">面 6</button>
-                        <button class="face-button" data-face="6">面 7</button>
-                        <button class="face-button" data-face="7">面 8</button>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-8 col-lg-6">
+                <div class="canvas-container">
+                    <canvas id="ledController"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="row justify-content-center mt-4">
+            <div class="col-12 col-md-8 col-lg-6">
+                <div class="row">
+                    <div class="col">
+                        <button id="resetBtn" class="btn btn-outline-secondary w-100">Reset</button>
+                    </div>
+                    <div class="col">
+                        <button id="patternBtn" class="btn btn-outline-primary w-100">Pattern</button>
                     </div>
                 </div>
-                
-                <div class="control-group">
-                    <h3>色の選択</h3>
-                    <div class="color-picker">
-                        <input type="color" id="color-picker" value="#ff0000">
-                        <div class="color-presets">
-                            <button class="color-preset" style="background-color: #ff0000;" data-color="#ff0000"></button>
-                            <button class="color-preset" style="background-color: #00ff00;" data-color="#00ff00"></button>
-                            <button class="color-preset" style="background-color: #0000ff;" data-color="#0000ff"></button>
-                            <button class="color-preset" style="background-color: #ffff00;" data-color="#ffff00"></button>
-                            <button class="color-preset" style="background-color: #ff00ff;" data-color="#ff00ff"></button>
-                            <button class="color-preset" style="background-color: #00ffff;" data-color="#00ffff"></button>
-                            <button class="color-preset" style="background-color: #ffffff;" data-color="#ffffff"></button>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="control-group">
-                    <h3>アクション</h3>
-                    <div class="action-buttons">
-                        <button id="apply-color">選択した面に色を適用</button>
-                        <button id="reset-leds">全てのLEDをリセット</button>
-                    </div>
-                </div>
-            </section>
-            
-            <section class="control-section">
-                <h2>パターン制御</h2>
-                
-                <div class="control-group">
-                    <h3>パターンの選択</h3>
-                    <div class="pattern-selector">
-                        <select id="pattern-select">
-                            <option value="">読み込み中...</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="control-group">
-                    <h3>パターン制御</h3>
-                    <div class="pattern-controls">
-                        <button id="run-pattern">パターンを実行</button>
-                        <button id="stop-pattern">パターンを停止</button>
-                    </div>
-                </div>
-            </section>
-        </main>
-        
-        <footer>
-            <p>Lumi Controller &copy; 2025</p>
-        </footer>
+            </div>
+        </div>
+
+        <div class="row justify-content-center mt-3">
+            <div class="col-12 text-center">
+                <div id="statusMessage" class="alert d-none" role="alert"></div>
+            </div>
+        </div>
     </div>
-    
-    <script src="/js/script.js"></script>
+
+    <script>
+        class LEDController {
+            constructor() {
+                this.canvas = document.getElementById('ledController');
+                this.ctx = this.canvas.getContext('2d');
+                this.ledStates = new Array(8).fill(false);
+                this.centerPressed = false;
+                this.isSliding = false;
+                this.touchedSegments = new Set();
+                this.currentTouchState = false;
+                this.focusedSegment = -1; // フォーカスされているセグメント（-1は未フォーカス）
+
+                this.setupCanvas();
+                this.setupButtons();
+                this.addEventListeners();
+                this.draw();
+            }
+
+            setupCanvas() {
+                const container = this.canvas.parentElement;
+                const size = Math.min(container.offsetWidth, container.offsetHeight);
+                this.canvas.width = size;
+                this.canvas.height = size;
+
+                this.center = size / 2;
+                this.radius = (size / 2) * 0.8; // 外側の八角形
+                this.innerRadius = this.radius * 0.6; // 内側の八角形
+                this.focusRadius = this.radius * 1.1; // フォーカスライン用の半径
+            }
+
+            setupButtons() {
+                document.getElementById('resetBtn').addEventListener('click', () => {
+                    this.setAllLEDs(false);
+                    this.focusedSegment = -1;
+                    this.draw();
+                });
+
+                document.getElementById('patternBtn').addEventListener('click', () => {
+                    this.showStatus('パターン機能は開発中です', 'info');
+                });
+            }
+
+            addEventListeners() {
+                this.canvas.addEventListener('pointerdown', this.handlePointerDown.bind(this));
+                this.canvas.addEventListener('pointermove', this.handlePointerMove.bind(this));
+                this.canvas.addEventListener('pointerup', this.handlePointerUp.bind(this));
+                this.canvas.addEventListener('pointerout', this.handlePointerUp.bind(this));
+                window.addEventListener('resize', () => {
+                    this.setupCanvas();
+                    this.draw();
+                });
+            }
+
+            getOctagonPoints(radius) {
+                const points = [];
+                for (let i = 0; i < 8; i++) {
+                    // -π/8（-22.5度）回転させて、底辺をx軸と平行にする
+                    const angle = (i * Math.PI / 4) - (Math.PI / 8);
+                    points.push({
+                        x: this.center + radius * Math.cos(angle),
+                        y: this.center + radius * Math.sin(angle)
+                    });
+                }
+                return points;
+            }
+
+            getLEDSegment(x, y) {
+                const distance = Math.sqrt(
+                    Math.pow(x - this.center, 2) + Math.pow(y - this.center, 2)
+                );
+
+                // 内側の八角形の中にある場合は中央ボタン
+                if (distance <= this.innerRadius) {
+                    return -1;
+                }
+
+                // 外側の八角形の外にある場合は無効
+                if (distance > this.radius) {
+                    return -2;
+                }
+
+                // 角度を計算（-22.5度から時計回りに）
+                let angle = Math.atan2(y - this.center, x - this.center);
+                // 角度を[0, 2π]の範囲に正規化
+                if (angle < 0) angle += 2 * Math.PI;
+                // -22.5度（-π/8）の回転を考慮して角度を調整
+                angle = (angle + Math.PI / 8) % (2 * Math.PI);
+
+                // 8つのセグメントに分割（0から7）
+                return Math.floor(angle / (Math.PI / 4));
+            }
+
+            async handlePointerDown(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                const segment = this.getLEDSegment(x, y);
+
+                if (segment === -1) {
+                    // 内側の八角形内（中央ボタン）
+                    this.centerPressed = true;
+                    if (this.focusedSegment !== -1) {
+                        // フォーカスされている面の状態を切り替え
+                        await this.toggleLED(this.focusedSegment);
+                    } else {
+                        // フォーカスがない場合は従来通り全体を切り替え
+                        const newState = !this.ledStates.every(state => state);
+                        await this.setAllLEDs(newState);
+                    }
+                } else if (segment >= 0) {
+                    // LED セグメント
+                    this.focusedSegment = segment; // タップした面をフォーカス
+                    this.isSliding = true;
+                    this.touchedSegments.clear();
+                    this.currentTouchState = !this.ledStates[segment];
+                    await this.toggleLED(segment);
+                    this.touchedSegments.add(segment);
+                }
+
+                this.draw();
+            }
+
+            async handlePointerMove(e) {
+                if (!this.isSliding) return;
+
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                const segment = this.getLEDSegment(x, y);
+
+                if (segment >= 0 && !this.touchedSegments.has(segment)) {
+                    await this.setLED(segment, this.currentTouchState);
+                    this.touchedSegments.add(segment);
+                }
+
+                this.draw();
+            }
+
+            handlePointerUp() {
+                this.centerPressed = false;
+                this.isSliding = false;
+                this.touchedSegments.clear();
+                this.draw();
+            }
+
+            async setAllLEDs(state) {
+                try {
+                    if (state) {
+                        // 点灯の場合は各面に対して個別に設定
+                        for (let i = 0; i < 8; i++) {
+                            await fetch(`/api/led/face/${i}`, {
+                                method: 'POST'
+                            });
+                        }
+                    } else {
+                        // 消灯の場合はリセットAPIを使用
+                        await fetch('/api/led/reset', {
+                            method: 'POST'
+                        });
+                    }
+
+                    this.ledStates.fill(state);
+                    this.showStatus('すべてのLEDを' + (state ? '点灯' : '消灯') + 'しました', 'success');
+                } catch (error) {
+                    this.showStatus(error.message, 'danger');
+                    // デモ用に状態を更新
+                    this.ledStates.fill(state);
+                }
+            }
+
+            async setLED(segment, state) {
+                try {
+                    if (state) {
+                        await fetch(`/api/led/face/${segment}`, {
+                            method: 'POST'
+                        });
+                    } else {
+                        // 個別の消灯APIがないため、点灯時のみAPIを呼び出す
+                        // 消灯時はUIのみ更新
+                    }
+
+                    this.ledStates[segment] = state;
+                    this.showStatus(`LED ${segment + 1}を${state ? '点灯' : '消灯'}しました`, 'success');
+                } catch (error) {
+                    this.showStatus(error.message, 'danger');
+                    // デモ用に状態を更新
+                    this.ledStates[segment] = state;
+                }
+            }
+
+            async toggleLED(segment) {
+                const newState = !this.ledStates[segment];
+                await this.setLED(segment, newState);
+            }
+
+            showStatus(message, type) {
+                const statusEl = document.getElementById('statusMessage');
+                statusEl.textContent = message;
+                statusEl.className = `alert alert-${type}`;
+                statusEl.classList.remove('d-none');
+
+                setTimeout(() => {
+                    statusEl.classList.add('d-none');
+                }, 3000);
+            }
+
+            drawFocusLine(segment) {
+                const startAngle = (segment * Math.PI / 4) - (Math.PI / 8);
+                const endAngle = ((segment + 1) * Math.PI / 4) - (Math.PI / 8);
+                const midAngle = (startAngle + endAngle) / 2;
+
+                // フォーカスラインの長さ
+                const lineLength = this.radius * 0.2;
+
+                // フォーカスラインの始点と終点を計算
+                const startX = this.center + this.focusRadius * Math.cos(midAngle);
+                const startY = this.center + this.focusRadius * Math.sin(midAngle);
+                const endX = this.center + (this.focusRadius + lineLength) * Math.cos(midAngle);
+                const endY = this.center + (this.focusRadius + lineLength) * Math.sin(midAngle);
+
+                // フォーカスラインを描画
+                this.ctx.beginPath();
+                this.ctx.moveTo(startX, startY);
+                this.ctx.lineTo(endX, endY);
+                this.ctx.strokeStyle = '#fff';
+                this.ctx.lineWidth = 3;
+                this.ctx.stroke();
+                this.ctx.lineWidth = 1;
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                const outerPoints = this.getOctagonPoints(this.radius);
+                const innerPoints = this.getOctagonPoints(this.innerRadius);
+
+                // Draw LED segments between outer and inner octagons
+                for (let i = 0; i < 8; i++) {
+                    this.ctx.beginPath();
+                    // 外側の八角形の2点
+                    this.ctx.moveTo(outerPoints[i].x, outerPoints[i].y);
+                    this.ctx.lineTo(outerPoints[(i + 1) % 8].x, outerPoints[(i + 1) % 8].y);
+                    // 内側の八角形の2点
+                    this.ctx.lineTo(innerPoints[(i + 1) % 8].x, innerPoints[(i + 1) % 8].y);
+                    this.ctx.lineTo(innerPoints[i].x, innerPoints[i].y);
+                    this.ctx.closePath();
+
+                    this.ctx.fillStyle = this.ledStates[i] ? 
+                        'rgba(255, 255, 0, 0.5)' : 'rgba(128, 128, 128, 0.3)';
+                    this.ctx.fill();
+                    this.ctx.strokeStyle = '#fff';
+                    this.ctx.stroke();
+                }
+
+                // Draw inner octagon (center button)
+                this.ctx.beginPath();
+                innerPoints.forEach((point, i) => {
+                    if (i === 0) {
+                        this.ctx.moveTo(point.x, point.y);
+                    } else {
+                        this.ctx.lineTo(point.x, point.y);
+                    }
+                });
+                this.ctx.closePath();
+                this.ctx.fillStyle = this.centerPressed ? 
+                    'rgba(255, 255, 255, 0.5)' : 'rgba(255, 255, 255, 0.2)';
+                this.ctx.fill();
+                this.ctx.strokeStyle = '#fff';
+                this.ctx.stroke();
+
+                // Draw center text
+                this.ctx.fillStyle = '#fff';
+                this.ctx.font = `${this.radius * 0.15}px Arial`;
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                
+                let buttonText = '';
+                if (this.focusedSegment !== -1) {
+                    buttonText = this.ledStates[this.focusedSegment] ? 'OFF' : 'ON';
+                } else {
+                    buttonText = this.ledStates.some(state => state) ? 'ALL OFF' : 'ALL ON';
+                }
+                
+                this.ctx.fillText(buttonText, this.center, this.center);
+
+                // フォーカスされている面のフォーカスラインを描画
+                if (this.focusedSegment !== -1) {
+                    this.drawFocusLine(this.focusedSegment);
+                }
+            }
+        }
+    </script>
+    <script src="js/script.js"></script>
 </body>
 </html>
