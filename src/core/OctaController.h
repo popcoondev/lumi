@@ -16,6 +16,7 @@
 #include "../activities/DetectionActivity.h"
 #include "../activities/CalibrationActivity.h"
 #include "../activities/LEDControlActivity.h"
+#include "../activities/NetworkSettingsActivity.h"
 #include "../framework/ActivityManager.h"
 #include "../network/NetworkManager.h"
 #include "../network/WebServerManager.h"
@@ -42,6 +43,7 @@ private:
     DetectionActivity* detectionActivity;
     CalibrationActivity* calibrationActivity;
     LEDControlActivity* ledControlActivity;
+    NetworkSettingsActivity* networkSettingsActivity;
     MicManager* micManager;
     NetworkManager* networkManager;
     WebServerManager* webServerManager;
@@ -63,6 +65,7 @@ private:
     void processDetectionActivityState();
     void processCalibrationActivityState();
     void processLEDControlActivityState();
+    void processNetworkSettingsActivityState();
     void processDetectionState();
     void processCalibrationState();
     void processLEDControlState();

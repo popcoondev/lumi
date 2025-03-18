@@ -38,17 +38,23 @@ public:
         onHomeRequested = callback;
     }
     
+    void setNetworkSettingsTransitionCallback(std::function<void()> callback) {
+        onNetworkSettingsRequested = callback;
+    }
+    
 private:
     // UIコンポーネント
     ButtonFragment* m_detectionButton;
     ButtonFragment* m_calibrationButton;
     ButtonFragment* m_ledControlButton;
+    ButtonFragment* m_networkSettingsButton;
     ButtonFragment* m_homeButton;
     
     // コールバック関数
     std::function<void()> onDetectionRequested;
     std::function<void()> onCalibrationRequested;
     std::function<void()> onLEDControlRequested;
+    std::function<void()> onNetworkSettingsRequested;
     std::function<void()> onHomeRequested;
     
     // UIコンポーネント用のID定数
@@ -57,6 +63,7 @@ private:
         ID_BUTTON_DETECTION,
         ID_BUTTON_CALIBRATION,
         ID_BUTTON_LED_CONTROL,
+        ID_BUTTON_NETWORK_SETTINGS,
         ID_BUTTON_HOME
     };
 };

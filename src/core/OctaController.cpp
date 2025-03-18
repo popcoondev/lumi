@@ -15,6 +15,7 @@ OctaController::OctaController() {
     detectionActivity = new DetectionActivity();
     calibrationActivity = new CalibrationActivity();
     ledControlActivity = new LEDControlActivity();
+    networkSettingsActivity = new NetworkSettingsActivity();
     micManager = new MicManager();
     networkManager = new NetworkManager();
     webServerManager = new WebServerManager(ledManager);
@@ -82,6 +83,7 @@ OctaController::~OctaController() {
     delete detectionActivity;
     delete calibrationActivity;
     delete ledControlActivity;
+    delete networkSettingsActivity;
     delete micManager;
     delete networkManager;
     delete webServerManager;
@@ -111,6 +113,7 @@ void OctaController::setup() {
     activityManager->registerActivity("detection", detectionActivity);
     activityManager->registerActivity("calibration", calibrationActivity);
     activityManager->registerActivity("ledcontrol", ledControlActivity);
+    activityManager->registerActivity("networksettings", networkSettingsActivity);
     
     // 各Activityの初期化
     splashActivity->onCreate();
@@ -119,6 +122,7 @@ void OctaController::setup() {
     detectionActivity->onCreate();
     calibrationActivity->onCreate();
     ledControlActivity->onCreate();
+    networkSettingsActivity->onCreate();
     
     // SplashActivityに必要なマネージャーを設定
     splashActivity->setManagers(networkManager, webServerManager, ledManager);
@@ -147,6 +151,18 @@ void OctaController::setup() {
     
     settingsActivity->setHomeTransitionCallback([this]() {
         activityManager->startActivity("home");
+    });
+    
+    settingsActivity->setNetworkSettingsTransitionCallback([this]() {
+        activityManager->startActivity("networksettings");
+    });
+    
+    // NetworkSettingsActivityの初期化
+    networkSettingsActivity->initialize(networkManager);
+    
+    // NetworkSettingsActivityのホーム画面遷移コールバックを設定
+    networkSettingsActivity->setHomeTransitionCallback([this]() {
+        activityManager->startActivity("settings");
     });
     
     // LumiHomeActivityの初期化
@@ -236,6 +252,12 @@ void OctaController::loop() {
     // 現在のActivityがLEDControlActivityの場合
     if (activityManager->getCurrentActivity() == ledControlActivity) {
         processLEDControlActivityState();
+        return;
+    }
+    
+    // 現在のActivityがNetworkSettingsActivityの場合
+    if (activityManager->getCurrentActivity() == networkSettingsActivity) {
+        processNetworkSettingsActivityState();
         return;
     }
     
@@ -412,6 +434,35 @@ void OctaController::processLEDControlActivityState() {
         framework::TouchEvent touchEvent(action, touch.x, touch.y);
         ledControlActivity->handleEvent(touchEvent);
     }
+}
+
+void OctaController::processNetworkSettingsActivityState() {
+    // ネットワーク情報の定期更新
+    networkSettingsActivity->update();
+    
+    // M5.Touchの状態を取得
+    auto touch = M5.Touch.getDetail();
+    bool isPressed = touch.isPressed();
+    bool wasPressed = touch.wasPressed();
+    bool wasReleased = touch.wasReleased();
+    
+    if (wasPressed || isPressed || wasReleased) {
+        framework::TouchAction action;
+        if (wasPressed) action = framework::TouchAction::DOWN;
+        else if (wasReleased) action = framework::TouchAction::UP;
+        else action = framework::TouchAction::MOVE;
+        
+        framework::TouchEvent touchEvent(action, touch.x, touch.y);
+        networkSettingsActivity->handleEvent(touchEvent);
+    }
+    
+    // // 画面を定期的に更新
+    // static unsigned long lastDrawTime = 0;
+    // unsigned long currentTime = millis();
+    // if (currentTime - lastDrawTime >= 1000) { // 1秒ごとに更新
+    //     lastDrawTime = currentTime;
+    //     networkSettingsActivity->draw();
+    // }
 }
 
 void OctaController::processLumiHomeState() {
