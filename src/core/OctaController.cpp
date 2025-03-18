@@ -18,8 +18,6 @@ OctaController::OctaController() {
     micManager = new MicManager();
     networkManager = new NetworkManager();
     webServerManager = new WebServerManager(ledManager);
-    isInitializing = true;
-    initStartTime = 0;
     currentHue = 0;           // 初期色相を0（赤）に設定
     currentSaturation = 255;  // 初期彩度を最大に設定
     currentValueBrightness = 255; // 初期明度を最大に設定
@@ -94,6 +92,18 @@ void OctaController::setup() {
     M5.begin();
     Serial.begin(115200);
     
+    // 各マネージャの初期化（SplashActivityで使用するものを除く）
+    uiManager->begin();
+    ledManager->begin(LED_PIN, (8 * 2) + 1, 1); // PIN, LED数, オフセット
+    imuSensor->begin();
+    faceDetector->begin(imuSensor);
+    stateManager->begin();
+    lumiView->begin();
+    lumiView->setLedPatterns(ledManager->getPatternCount());
+    
+    // OctagonRingViewにFaceDetectorを設定
+    lumiView->octagon.setFaceDetector(faceDetector);
+    
     // Activityの登録
     activityManager->registerActivity("splash", splashActivity);
     activityManager->registerActivity("home", lumiHomeActivity);
@@ -109,6 +119,15 @@ void OctaController::setup() {
     detectionActivity->onCreate();
     calibrationActivity->onCreate();
     ledControlActivity->onCreate();
+    
+    // SplashActivityに必要なマネージャーを設定
+    splashActivity->setManagers(networkManager, webServerManager, ledManager);
+    
+    // SplashActivityの初期化完了時のコールバックを設定
+    splashActivity->setInitCompletedCallback([this]() {
+        // LumiHomeActivityに遷移
+        activityManager->startActivity("home");
+    });
     
     // SettingsActivityの初期化
     settingsActivity->initialize();
@@ -130,27 +149,7 @@ void OctaController::setup() {
         activityManager->startActivity("home");
     });
     
-    // スプラッシュ画面の表示
-    activityManager->startActivity("splash");
-    
-    // 初期化開始時間を記録
-    initStartTime = millis();
-    Serial.println("Splash screen displayed, init start time: " + String(initStartTime));
-    
-    // 各マネージャの初期化
-    uiManager->begin();
-    ledManager->begin(LED_PIN, (8 * 2) + 1, 1); // PIN, LED数, オフセット
-    imuSensor->begin();
-    faceDetector->begin(imuSensor);
-    stateManager->begin();
-    lumiView->begin();
-    lumiView->setLedPatterns(ledManager->getPatternCount());
-    
-    // OctagonRingViewにFaceDetectorを設定
-    lumiView->octagon.setFaceDetector(faceDetector);
-
     // LumiHomeActivityの初期化
-    lumiHomeActivity->onCreate();
     lumiHomeActivity->initialize(ledManager, faceDetector, micManager);
     
     // DetectionActivityの初期化
@@ -189,49 +188,19 @@ void OctaController::setup() {
     // 設定の読み込み
     faceDetector->loadFaces();
     
-    // ネットワークマネージャの初期化
-    if (networkManager->begin()) {
-        Serial.println("Network manager initialized successfully");
-        
-        // Webサーバーマネージャの初期化
-        if (webServerManager->begin()) {
-            Serial.println("Web server manager initialized successfully");
-            webServerManager->start();
-            Serial.println("Web server started");
-            
-            // IPアドレスの表示
-            Serial.print("Device IP address: ");
-            Serial.println(networkManager->getLocalIP());
-        } else {
-            Serial.println("Failed to initialize web server manager");
-        }
-    } else {
-        Serial.println("Failed to initialize network manager");
-    }
+    // スプラッシュ画面の表示（初期化処理はSplashActivity内で行われる）
+    activityManager->startActivity("splash");
+    Serial.println("Splash screen displayed, initialization started");
 }
 
 void OctaController::loop() {
     // 先にM5のボタン状態を更新
     M5.update();
     
-    // 初期化中はスプラッシュ画面を表示
-    if (isInitializing) {
-        // スプラッシュ画面のアニメーションを更新
+    // 現在のActivityがSplashActivityの場合
+    if (activityManager->getCurrentActivity() == splashActivity) {
+        // スプラッシュ画面のアニメーションと初期化処理を更新
         splashActivity->update();
-        
-        // 最低でも2秒間はスプラッシュ画面を表示
-        unsigned long currentTime = millis();
-        unsigned long elapsedTime = currentTime - initStartTime;
-        
-        if (elapsedTime >= 2000) {
-            // 初期化完了
-            isInitializing = false;
-            
-            Serial.println("Splash screen displayed for " + String(elapsedTime) + "ms, switching to LumiHomeActivity");
-            
-            // LumiHomeActivityに切り替え
-            activityManager->startActivity("home");
-        }
         
         // 初期化中は他の処理をスキップ
         return;

@@ -45,8 +45,6 @@ private:
     MicManager* micManager;
     NetworkManager* networkManager;
     WebServerManager* webServerManager;
-    bool isInitializing;
-    unsigned long initStartTime;
     std::function<void(const std::array<double, 8>&, double)> micCallback;
 
     
