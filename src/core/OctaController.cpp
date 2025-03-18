@@ -12,6 +12,9 @@ OctaController::OctaController() {
     lumiHomeActivity = new LumiHomeActivity();
     splashActivity = new SplashActivity();
     settingsActivity = new SettingsActivity();
+    detectionActivity = new DetectionActivity();
+    calibrationActivity = new CalibrationActivity();
+    ledControlActivity = new LEDControlActivity();
     micManager = new MicManager();
     networkManager = new NetworkManager();
     webServerManager = new WebServerManager(ledManager);
@@ -78,6 +81,9 @@ OctaController::~OctaController() {
     delete lumiHomeActivity;
     delete splashActivity;
     delete settingsActivity;
+    delete detectionActivity;
+    delete calibrationActivity;
+    delete ledControlActivity;
     delete micManager;
     delete networkManager;
     delete webServerManager;
@@ -92,26 +98,32 @@ void OctaController::setup() {
     activityManager->registerActivity("splash", splashActivity);
     activityManager->registerActivity("home", lumiHomeActivity);
     activityManager->registerActivity("settings", settingsActivity);
+    activityManager->registerActivity("detection", detectionActivity);
+    activityManager->registerActivity("calibration", calibrationActivity);
+    activityManager->registerActivity("ledcontrol", ledControlActivity);
     
     // 各Activityの初期化
     splashActivity->onCreate();
     lumiHomeActivity->onCreate();
     settingsActivity->onCreate();
+    detectionActivity->onCreate();
+    calibrationActivity->onCreate();
+    ledControlActivity->onCreate();
     
     // SettingsActivityの初期化
     settingsActivity->initialize();
     
     // SettingsActivityのコールバック設定
     settingsActivity->setDetectionTransitionCallback([this]() {
-        stateManager->changeState(STATE_DETECTION);
+        activityManager->startActivity("detection");
     });
     
     settingsActivity->setCalibrationTransitionCallback([this]() {
-        stateManager->changeState(STATE_CALIBRATION);
+        activityManager->startActivity("calibration");
     });
     
     settingsActivity->setLEDControlTransitionCallback([this]() {
-        stateManager->changeState(STATE_LED_CONTROL);
+        activityManager->startActivity("ledcontrol");
     });
     
     settingsActivity->setHomeTransitionCallback([this]() {
@@ -141,9 +153,31 @@ void OctaController::setup() {
     lumiHomeActivity->onCreate();
     lumiHomeActivity->initialize(ledManager, faceDetector, micManager);
     
+    // DetectionActivityの初期化
+    detectionActivity->initialize(ledManager, faceDetector, imuSensor, lumiView, uiManager);
+    
+    // CalibrationActivityの初期化
+    calibrationActivity->initialize(faceDetector, imuSensor, uiManager);
+    
+    // LEDControlActivityの初期化
+    ledControlActivity->initialize(ledManager);
+    
     // 設定画面遷移用のコールバックを設定
     lumiHomeActivity->setSettingsTransitionCallback([this]() {
         activityManager->startActivity("settings");
+    });
+    
+    // 各Activityのホーム画面遷移コールバックを設定
+    detectionActivity->setHomeTransitionCallback([this]() {
+        activityManager->startActivity("home");
+    });
+    
+    calibrationActivity->setHomeTransitionCallback([this]() {
+        activityManager->startActivity("home");
+    });
+    
+    ledControlActivity->setHomeTransitionCallback([this]() {
+        activityManager->startActivity("home");
     });
     
     // マイク入力処理用のコールバックを設定
@@ -211,6 +245,24 @@ void OctaController::loop() {
     
     // 現在のActivityがSettingsActivityの場合は何もしない（イベント処理はActivityが行う）
     if (activityManager->getCurrentActivity() == settingsActivity) {
+        return;
+    }
+    
+    // 現在のActivityがDetectionActivityの場合
+    if (activityManager->getCurrentActivity() == detectionActivity) {
+        detectionActivity->update();
+        return;
+    }
+    
+    // 現在のActivityがCalibrationActivityの場合
+    if (activityManager->getCurrentActivity() == calibrationActivity) {
+        calibrationActivity->update();
+        return;
+    }
+    
+    // 現在のActivityがLEDControlActivityの場合
+    if (activityManager->getCurrentActivity() == ledControlActivity) {
+        // LEDControlActivityは特別な更新処理が不要
         return;
     }
     

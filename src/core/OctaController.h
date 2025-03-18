@@ -13,6 +13,9 @@
 #include "../activities/LumiHomeActivity.h"
 #include "../activities/SplashActivity.h"
 #include "../activities/SettingsActivity.h"
+#include "../activities/DetectionActivity.h"
+#include "../activities/CalibrationActivity.h"
+#include "../activities/LEDControlActivity.h"
 #include "../framework/ActivityManager.h"
 #include "../network/NetworkManager.h"
 #include "../network/WebServerManager.h"
@@ -36,6 +39,9 @@ private:
     LumiHomeActivity* lumiHomeActivity;
     SplashActivity* splashActivity;
     SettingsActivity* settingsActivity;
+    DetectionActivity* detectionActivity;
+    CalibrationActivity* calibrationActivity;
+    LEDControlActivity* ledControlActivity;
     MicManager* micManager;
     NetworkManager* networkManager;
     WebServerManager* webServerManager;
