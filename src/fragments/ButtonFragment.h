@@ -79,10 +79,29 @@ public:
      */
     void draw();
     
+    /**
+     * @brief Set the fragment's display area
+     * @param x X-coordinate
+     * @param y Y-coordinate
+     * @param width Width
+     * @param height Height
+     */
+    void setDisplayArea(int x, int y, int width, int height);
+    
 private:
     Button m_button;                      // Internal button instance
     bool m_pressed;                       // Button pressed state
     std::function<void()> m_clickHandler; // Click handler
+    String m_label;                       // Button label
+    uint16_t m_normalColor;               // Normal color
+    uint16_t m_pressedColor;              // Pressed color
+    uint8_t m_fontSize;                   // Font size
+    uint8_t m_type;                       // Button type
+    
+    /**
+     * @brief Update the internal button's geometry based on fragment's position and size
+     */
+    void updateButtonGeometry();
 };
 
 #endif // BUTTON_FRAGMENT_H

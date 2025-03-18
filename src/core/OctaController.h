@@ -11,6 +11,15 @@
 #include "../ui/views/LumiView.h"
 #include "../mic/MicManager.h"
 #include "../activities/LumiHomeActivity.h"
+#include "../activities/SplashActivity.h"
+#include "../activities/SettingsActivity.h"
+#include "../activities/DetectionActivity.h"
+#include "../activities/CalibrationActivity.h"
+#include "../activities/LEDControlActivity.h"
+#include "../activities/NetworkSettingsActivity.h"
+#include "../framework/ActivityManager.h"
+#include "../network/NetworkManager.h"
+#include "../network/WebServerManager.h"
 
 // フレームレート制御のための定数
 #define TARGET_FPS 30
@@ -26,9 +35,18 @@ private:
     IMUSensor* imuSensor;
     FaceDetector* faceDetector;
     StateManager* stateManager;
+    framework::ActivityManager* activityManager;
     LumiView* lumiView;
     LumiHomeActivity* lumiHomeActivity;
+    SplashActivity* splashActivity;
+    SettingsActivity* settingsActivity;
+    DetectionActivity* detectionActivity;
+    CalibrationActivity* calibrationActivity;
+    LEDControlActivity* ledControlActivity;
+    NetworkSettingsActivity* networkSettingsActivity;
     MicManager* micManager;
+    NetworkManager* networkManager;
+    WebServerManager* webServerManager;
     std::function<void(const std::array<double, 8>&, double)> micCallback;
 
     
@@ -43,6 +61,11 @@ private:
     
     void handleButtonEvent(ButtonEvent event);
     void processLumiHomeState();
+    void processSettingsState();
+    void processDetectionActivityState();
+    void processCalibrationActivityState();
+    void processLEDControlActivityState();
+    void processNetworkSettingsActivityState();
     void processDetectionState();
     void processCalibrationState();
     void processLEDControlState();

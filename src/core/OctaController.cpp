@@ -7,9 +7,18 @@ OctaController::OctaController() {
     imuSensor = new IMUSensor();
     faceDetector = new FaceDetector(MAX_FACES); // 最大面数
     stateManager = new StateManager();
+    activityManager = new framework::ActivityManager();
     lumiView = new LumiView();
     lumiHomeActivity = new LumiHomeActivity();
+    splashActivity = new SplashActivity();
+    settingsActivity = new SettingsActivity();
+    detectionActivity = new DetectionActivity();
+    calibrationActivity = new CalibrationActivity();
+    ledControlActivity = new LEDControlActivity();
+    networkSettingsActivity = new NetworkSettingsActivity();
     micManager = new MicManager();
+    networkManager = new NetworkManager();
+    webServerManager = new WebServerManager(ledManager);
     currentHue = 0;           // 初期色相を0（赤）に設定
     currentSaturation = 255;  // 初期彩度を最大に設定
     currentValueBrightness = 255; // 初期明度を最大に設定
@@ -66,9 +75,18 @@ OctaController::~OctaController() {
     delete imuSensor;
     delete faceDetector;
     delete stateManager;
+    delete activityManager;
     delete lumiView;
     delete lumiHomeActivity;
+    delete splashActivity;
+    delete settingsActivity;
+    delete detectionActivity;
+    delete calibrationActivity;
+    delete ledControlActivity;
+    delete networkSettingsActivity;
     delete micManager;
+    delete networkManager;
+    delete webServerManager;
 }
 
 void OctaController::setup() {
@@ -76,7 +94,7 @@ void OctaController::setup() {
     M5.begin();
     Serial.begin(115200);
     
-    // 各マネージャの初期化
+    // 各マネージャの初期化（SplashActivityで使用するものを除く）
     uiManager->begin();
     ledManager->begin(LED_PIN, (8 * 2) + 1, 1); // PIN, LED数, オフセット
     imuSensor->begin();
@@ -87,14 +105,97 @@ void OctaController::setup() {
     
     // OctagonRingViewにFaceDetectorを設定
     lumiView->octagon.setFaceDetector(faceDetector);
-
-    // LumiHomeActivityの初期化
+    
+    // Activityの登録
+    activityManager->registerActivity("splash", splashActivity);
+    activityManager->registerActivity("home", lumiHomeActivity);
+    activityManager->registerActivity("settings", settingsActivity);
+    activityManager->registerActivity("detection", detectionActivity);
+    activityManager->registerActivity("calibration", calibrationActivity);
+    activityManager->registerActivity("ledcontrol", ledControlActivity);
+    activityManager->registerActivity("networksettings", networkSettingsActivity);
+    
+    // 各Activityの初期化
+    splashActivity->onCreate();
     lumiHomeActivity->onCreate();
+    settingsActivity->onCreate();
+    detectionActivity->onCreate();
+    calibrationActivity->onCreate();
+    ledControlActivity->onCreate();
+    networkSettingsActivity->onCreate();
+    
+    // SplashActivityに必要なマネージャーを設定
+    splashActivity->setManagers(networkManager, webServerManager, ledManager);
+    
+    // SplashActivityの初期化完了時のコールバックを設定
+    splashActivity->setInitCompletedCallback([this]() {
+        // LumiHomeActivityに遷移
+        activityManager->startActivity("home");
+    });
+    
+    // SettingsActivityの初期化
+    settingsActivity->initialize();
+    
+    // SettingsActivityのコールバック設定
+    settingsActivity->setDetectionTransitionCallback([this]() {
+        activityManager->startActivity("detection");
+    });
+    
+    settingsActivity->setCalibrationTransitionCallback([this]() {
+        activityManager->startActivity("calibration");
+    });
+    
+    settingsActivity->setLEDControlTransitionCallback([this]() {
+        activityManager->startActivity("ledcontrol");
+    });
+    
+    settingsActivity->setHomeTransitionCallback([this]() {
+        activityManager->startActivity("home");
+    });
+    
+    settingsActivity->setNetworkSettingsTransitionCallback([this]() {
+        activityManager->startActivity("networksettings");
+    });
+    
+    // NetworkSettingsActivityの初期化
+    networkSettingsActivity->initialize(networkManager);
+    
+    // NetworkSettingsActivityのホーム画面遷移コールバックを設定
+    networkSettingsActivity->setHomeTransitionCallback([this]() {
+        activityManager->startActivity("settings");
+    });
+    
+    // LumiHomeActivityの初期化
     lumiHomeActivity->initialize(ledManager, faceDetector, micManager);
+    
+    // DetectionActivityの初期化
+    detectionActivity->initialize(ledManager, faceDetector, imuSensor, lumiView, uiManager);
+    
+    // CalibrationActivityの初期化
+    calibrationActivity->initialize(faceDetector, imuSensor, uiManager);
+    
+    // LEDControlActivityの初期化
+    ledControlActivity->initialize(ledManager);
     
     // 設定画面遷移用のコールバックを設定
     lumiHomeActivity->setSettingsTransitionCallback([this]() {
-        stateManager->changeState(STATE_NONE);
+        activityManager->startActivity("settings");
+    });
+    
+    // 各Activityのホーム画面遷移コールバックを設定
+    detectionActivity->setHomeTransitionCallback([this]() {
+        Serial.println("OctaController: Detection -> Home callback triggered");
+        activityManager->startActivity("home");
+    });
+    
+    calibrationActivity->setHomeTransitionCallback([this]() {
+        Serial.println("OctaController: Calibration -> Home callback triggered");
+        activityManager->startActivity("home");
+    });
+    
+    ledControlActivity->setHomeTransitionCallback([this]() {
+        Serial.println("OctaController: LEDControl -> Home callback triggered");
+        activityManager->startActivity("home");
     });
     
     // マイク入力処理用のコールバックを設定
@@ -102,19 +203,77 @@ void OctaController::setup() {
 
     // 設定の読み込み
     faceDetector->loadFaces();
+    
+    // スプラッシュ画面の表示（初期化処理はSplashActivity内で行われる）
+    activityManager->startActivity("splash");
+    Serial.println("Splash screen displayed, initialization started");
 }
 
 void OctaController::loop() {
     // 先にM5のボタン状態を更新
     M5.update();
     
+    // 現在のActivityがSplashActivityの場合
+    if (activityManager->getCurrentActivity() == splashActivity) {
+        // スプラッシュ画面のアニメーションと初期化処理を更新
+        splashActivity->update();
+        
+        // 初期化中は他の処理をスキップ
+        return;
+    }
+    
+    // ネットワーク接続を維持
+    networkManager->update();
+    
+    // 現在のActivityがLumiHomeActivityの場合
+    if (activityManager->getCurrentActivity() == lumiHomeActivity) {
+        processLumiHomeState();
+        return;
+    }
+    
+    // 現在のActivityがSettingsActivityの場合
+    if (activityManager->getCurrentActivity() == settingsActivity) {
+        processSettingsState();
+        return;
+    }
+    
+    // 現在のActivityがDetectionActivityの場合
+    if (activityManager->getCurrentActivity() == detectionActivity) {
+        processDetectionActivityState();
+        return;
+    }
+    
+    // 現在のActivityがCalibrationActivityの場合
+    if (activityManager->getCurrentActivity() == calibrationActivity) {
+        processCalibrationActivityState();
+        return;
+    }
+    
+    // 現在のActivityがLEDControlActivityの場合
+    if (activityManager->getCurrentActivity() == ledControlActivity) {
+        processLEDControlActivityState();
+        return;
+    }
+    
+    // 現在のActivityがNetworkSettingsActivityの場合
+    if (activityManager->getCurrentActivity() == networkSettingsActivity) {
+        processNetworkSettingsActivityState();
+        return;
+    }
+    
     // 現在の状態取得
     StateInfo stateInfo = stateManager->getCurrentStateInfo();
     
     // LumiHome状態の場合は専用の処理を行い、他の処理をスキップ
     if (stateInfo.mainState == STATE_LUMI_HOME) {
-        processLumiHomeState();
-        // LumiHome状態ではUIManagerの操作をスキップして早期リターン
+        // LumiHomeActivityに切り替え
+        activityManager->startActivity("home");
+        return;
+    }
+    
+    // STATE_NONEの場合はSettingsActivityに切り替え
+    if (stateInfo.mainState == STATE_NONE) {
+        activityManager->startActivity("settings");
         return;
     }
     
@@ -197,6 +356,113 @@ void OctaController::handleButtonEvent(ButtonEvent event) {
 // CRGB色をM5Stack LCD用のuint16_t色に変換する関数
 uint16_t OctaController::crgbToRGB565(CRGB color) {
     return M5.Lcd.color565(color.r, color.g, color.b);
+}
+
+void OctaController::processSettingsState() {
+    // M5.Touchの状態を取得
+    auto touch = M5.Touch.getDetail();
+    bool isPressed = touch.isPressed();
+    bool wasPressed = touch.wasPressed();
+    bool wasReleased = touch.wasReleased();
+    
+    if (wasPressed || isPressed || wasReleased) {
+        framework::TouchAction action;
+        if (wasPressed) action = framework::TouchAction::DOWN;
+        else if (wasReleased) action = framework::TouchAction::UP;
+        else action = framework::TouchAction::MOVE;
+        
+        framework::TouchEvent touchEvent(action, touch.x, touch.y);
+        settingsActivity->handleEvent(touchEvent);
+    }
+}
+
+void OctaController::processDetectionActivityState() {
+    // 通常の更新処理
+    detectionActivity->update();
+    
+    // M5.Touchの状態を取得
+    auto touch = M5.Touch.getDetail();
+    bool isPressed = touch.isPressed();
+    bool wasPressed = touch.wasPressed();
+    bool wasReleased = touch.wasReleased();
+    
+    if (wasPressed || isPressed || wasReleased) {
+        framework::TouchAction action;
+        if (wasPressed) action = framework::TouchAction::DOWN;
+        else if (wasReleased) action = framework::TouchAction::UP;
+        else action = framework::TouchAction::MOVE;
+        
+        framework::TouchEvent touchEvent(action, touch.x, touch.y);
+        detectionActivity->handleEvent(touchEvent);
+    }
+}
+
+void OctaController::processCalibrationActivityState() {
+    // 通常の更新処理
+    calibrationActivity->update();
+    
+    // M5.Touchの状態を取得
+    auto touch = M5.Touch.getDetail();
+    bool isPressed = touch.isPressed();
+    bool wasPressed = touch.wasPressed();
+    bool wasReleased = touch.wasReleased();
+    
+    if (wasPressed || isPressed || wasReleased) {
+        framework::TouchAction action;
+        if (wasPressed) action = framework::TouchAction::DOWN;
+        else if (wasReleased) action = framework::TouchAction::UP;
+        else action = framework::TouchAction::MOVE;
+        
+        framework::TouchEvent touchEvent(action, touch.x, touch.y);
+        calibrationActivity->handleEvent(touchEvent);
+    }
+}
+
+void OctaController::processLEDControlActivityState() {
+    // M5.Touchの状態を取得
+    auto touch = M5.Touch.getDetail();
+    bool isPressed = touch.isPressed();
+    bool wasPressed = touch.wasPressed();
+    bool wasReleased = touch.wasReleased();
+    
+    if (wasPressed || isPressed || wasReleased) {
+        framework::TouchAction action;
+        if (wasPressed) action = framework::TouchAction::DOWN;
+        else if (wasReleased) action = framework::TouchAction::UP;
+        else action = framework::TouchAction::MOVE;
+        
+        framework::TouchEvent touchEvent(action, touch.x, touch.y);
+        ledControlActivity->handleEvent(touchEvent);
+    }
+}
+
+void OctaController::processNetworkSettingsActivityState() {
+    // ネットワーク情報の定期更新
+    networkSettingsActivity->update();
+    
+    // M5.Touchの状態を取得
+    auto touch = M5.Touch.getDetail();
+    bool isPressed = touch.isPressed();
+    bool wasPressed = touch.wasPressed();
+    bool wasReleased = touch.wasReleased();
+    
+    if (wasPressed || isPressed || wasReleased) {
+        framework::TouchAction action;
+        if (wasPressed) action = framework::TouchAction::DOWN;
+        else if (wasReleased) action = framework::TouchAction::UP;
+        else action = framework::TouchAction::MOVE;
+        
+        framework::TouchEvent touchEvent(action, touch.x, touch.y);
+        networkSettingsActivity->handleEvent(touchEvent);
+    }
+    
+    // // 画面を定期的に更新
+    // static unsigned long lastDrawTime = 0;
+    // unsigned long currentTime = millis();
+    // if (currentTime - lastDrawTime >= 1000) { // 1秒ごとに更新
+    //     lastDrawTime = currentTime;
+    //     networkSettingsActivity->draw();
+    // }
 }
 
 void OctaController::processLumiHomeState() {

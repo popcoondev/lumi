@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumi Controller</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Lumi Controller</h1>
+            <div id="status">
+                <span id="connection-status">接続中...</span>
+            </div>
+        </header>
+        
+        <main>
+            <section class="control-section">
+                <h2>LED制御</h2>
+                
+                <div class="control-group">
+                    <h3>面の選択</h3>
+                    <div class="face-selector">
+                        <button class="face-button" data-face="0">面 1</button>
+                        <button class="face-button" data-face="1">面 2</button>
+                        <button class="face-button" data-face="2">面 3</button>
+                        <button class="face-button" data-face="3">面 4</button>
+                        <button class="face-button" data-face="4">面 5</button>
+                        <button class="face-button" data-face="5">面 6</button>
+                        <button class="face-button" data-face="6">面 7</button>
+                        <button class="face-button" data-face="7">面 8</button>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h3>色の選択</h3>
+                    <div class="color-picker">
+                        <input type="color" id="color-picker" value="#ff0000">
+                        <div class="color-presets">
+                            <button class="color-preset" style="background-color: #ff0000;" data-color="#ff0000"></button>
+                            <button class="color-preset" style="background-color: #00ff00;" data-color="#00ff00"></button>
+                            <button class="color-preset" style="background-color: #0000ff;" data-color="#0000ff"></button>
+                            <button class="color-preset" style="background-color: #ffff00;" data-color="#ffff00"></button>
+                            <button class="color-preset" style="background-color: #ff00ff;" data-color="#ff00ff"></button>
+                            <button class="color-preset" style="background-color: #00ffff;" data-color="#00ffff"></button>
+                            <button class="color-preset" style="background-color: #ffffff;" data-color="#ffffff"></button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h3>アクション</h3>
+                    <div class="action-buttons">
+                        <button id="apply-color">選択した面に色を適用</button>
+                        <button id="reset-leds">全てのLEDをリセット</button>
+                    </div>
+                </div>
+            </section>
+            
+            <section class="control-section">
+                <h2>パターン制御</h2>
+                
+                <div class="control-group">
+                    <h3>パターンの選択</h3>
+                    <div class="pattern-selector">
+                        <select id="pattern-select">
+                            <option value="">読み込み中...</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h3>パターン制御</h3>
+                    <div class="pattern-controls">
+                        <button id="run-pattern">パターンを実行</button>
+                        <button id="stop-pattern">パターンを停止</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <footer>
+            <p>Lumi Controller &copy; 2025</p>
+        </footer>
+    </div>
+    
+    <script src="/js/script.js"></script>
+</body>
+</html>

@@ -4,7 +4,12 @@ ButtonFragment::ButtonFragment(uint32_t id)
     : Fragment(id), 
       m_button(0, 0, 0, 0, "Button"),
       m_pressed(false),
-      m_clickHandler(nullptr)
+      m_clickHandler(nullptr),
+      m_label("Button"),
+      m_normalColor(DARKGREY),
+      m_pressedColor(LIGHTGREY),
+      m_fontSize(2),
+      m_type(BUTTON_TYPE_OUTLINE)
 {
 }
 
@@ -14,7 +19,7 @@ bool ButtonFragment::onCreate() {
     }
     
     // Update button position and size
-    m_button = Button(getX(), getY(), getWidth(), getHeight(), "Button");
+    updateButtonGeometry();
     
     return true;
 }
@@ -25,14 +30,17 @@ void ButtonFragment::onDestroy() {
 
 bool ButtonFragment::handleEvent(const framework::Event& event) {    
     int eventID = (int)event.getType();
-    Serial.println("Event received, getType = " + String(eventID));
+    Serial.println("ButtonFragment::handleEvent - Event received, getType = " + String(eventID));
+    
     // Check if base class handles the event
     if (Fragment::handleEvent(event)) {
+        Serial.println("  Base class handled the event");
         return true;
     }
     
     // Only process events if the fragment is visible and enabled
     if (!isVisible() || !isEnabled()) {
+        Serial.println("  Fragment not visible or not enabled");
         return false;
     }
     
@@ -42,13 +50,22 @@ bool ButtonFragment::handleEvent(const framework::Event& event) {
         
         int touchX = touchEvent.getX();
         int touchY = touchEvent.getY();
+        int actionType = (int)touchEvent.getAction();
+        
+        Serial.println("  Touch event: x=" + String(touchX) + ", y=" + String(touchY) + 
+                      ", action=" + String(actionType));
+        Serial.println("  Button area: x=" + String(getX()) + ", y=" + String(getY()) + 
+                      ", width=" + String(getWidth()) + ", height=" + String(getHeight()));
         
         // Check if touch is within button area
         if (touchX >= getX() && touchX < getX() + getWidth() &&
             touchY >= getY() && touchY < getY() + getHeight()) {
             
+            Serial.println("  Touch is within button area");
+            
             if (touchEvent.getAction() == framework::TouchAction::DOWN) {
                 // Touch down - set pressed state
+                Serial.println("  Touch DOWN - setting pressed state");
                 m_pressed = true;
                 m_button.setPressed(true);
                 draw();
@@ -56,7 +73,9 @@ bool ButtonFragment::handleEvent(const framework::Event& event) {
             }
             else if (touchEvent.getAction() == framework::TouchAction::UP) {
                 // Touch up within button area - trigger click
+                Serial.println("  Touch UP within button area");
                 if (m_pressed) {
+                    Serial.println("  Button was pressed, triggering click");
                     m_pressed = false;
                     m_button.setPressed(false);
                     draw();
@@ -67,19 +86,27 @@ bool ButtonFragment::handleEvent(const framework::Event& event) {
                     
                     // Call click handler if set
                     if (m_clickHandler) {
+                        Serial.println("  Calling click handler");
                         m_clickHandler();
+                    } else {
+                        Serial.println("  No click handler set");
                     }
                     
                     return true;
+                } else {
+                    Serial.println("  Button was not pressed, ignoring UP event");
                 }
             }
-        }
-        else if (touchEvent.getAction() == framework::TouchAction::UP && m_pressed) {
-            // Touch up outside button area - reset state without triggering click
-            m_pressed = false;
-            m_button.setPressed(false);
-            draw();
-            return true;
+        } else {
+            Serial.println("  Touch is outside button area");
+            if (touchEvent.getAction() == framework::TouchAction::UP && m_pressed) {
+                // Touch up outside button area - reset state without triggering click
+                Serial.println("  Touch UP outside button area, resetting pressed state");
+                m_pressed = false;
+                m_button.setPressed(false);
+                draw();
+                return true;
+            }
         }
     }
     
@@ -87,21 +114,26 @@ bool ButtonFragment::handleEvent(const framework::Event& event) {
 }
 
 void ButtonFragment::setLabel(const char* label) {
+    m_label = label;
     m_button.setLabel(label);
     draw();
 }
 
 void ButtonFragment::setColor(uint16_t normalColor, uint16_t pressedColor) {
+    m_normalColor = normalColor;
+    m_pressedColor = pressedColor;
     m_button.setColor(normalColor, pressedColor);
     draw();
 }
 
 void ButtonFragment::setFontSize(uint8_t size) {
+    m_fontSize = size;
     m_button.setFontSize(size);
     draw();
 }
 
 void ButtonFragment::setType(uint8_t type) {
+    m_type = type;
     m_button.setType(type);
     draw();
 }
@@ -113,4 +145,23 @@ void ButtonFragment::setClickHandler(std::function<void()> handler) {
 void ButtonFragment::draw() {
     // Draw the button
     m_button.draw();
+}
+
+void ButtonFragment::setDisplayArea(int x, int y, int width, int height) {
+    // Call the base class implementation
+    Fragment::setDisplayArea(x, y, width, height);
+    
+    // Update the button's geometry
+    updateButtonGeometry();
+}
+
+void ButtonFragment::updateButtonGeometry() {
+    // Create a new button with the updated position and size
+    m_button = Button(getX(), getY(), getWidth(), getHeight(), m_label.c_str());
+    
+    // Restore custom settings
+    m_button.setColor(m_normalColor, m_pressedColor);
+    m_button.setFontSize(m_fontSize);
+    m_button.setType(m_type);
+    m_button.setPressed(m_pressed);
 }
