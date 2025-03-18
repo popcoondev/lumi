@@ -223,5 +223,5 @@ void NetworkSettingsActivity::update() {
         }
         
     }
-    Serial.println("Network settings updated");
+    // Serial.println("Network settings updated");
 }

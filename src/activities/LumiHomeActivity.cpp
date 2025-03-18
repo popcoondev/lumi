@@ -537,6 +537,9 @@ bool LumiHomeActivity::onResume() {
     if (!Activity::onResume()) {
         return false;
     }
+
+    draw();
+    
     return true;
 }
 
