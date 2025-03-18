@@ -7,9 +7,11 @@ OctaController::OctaController() {
     imuSensor = new IMUSensor();
     faceDetector = new FaceDetector(MAX_FACES); // 最大面数
     stateManager = new StateManager();
+    activityManager = new framework::ActivityManager();
     lumiView = new LumiView();
     lumiHomeActivity = new LumiHomeActivity();
     splashActivity = new SplashActivity();
+    settingsActivity = new SettingsActivity();
     micManager = new MicManager();
     networkManager = new NetworkManager();
     webServerManager = new WebServerManager(ledManager);
@@ -71,9 +73,11 @@ OctaController::~OctaController() {
     delete imuSensor;
     delete faceDetector;
     delete stateManager;
+    delete activityManager;
     delete lumiView;
     delete lumiHomeActivity;
     delete splashActivity;
+    delete settingsActivity;
     delete micManager;
     delete networkManager;
     delete webServerManager;
@@ -84,10 +88,38 @@ void OctaController::setup() {
     M5.begin();
     Serial.begin(115200);
     
-    // スプラッシュ画面の表示
+    // Activityの登録
+    activityManager->registerActivity("splash", splashActivity);
+    activityManager->registerActivity("home", lumiHomeActivity);
+    activityManager->registerActivity("settings", settingsActivity);
+    
+    // 各Activityの初期化
     splashActivity->onCreate();
-    splashActivity->onStart();
-    splashActivity->onResume();
+    lumiHomeActivity->onCreate();
+    settingsActivity->onCreate();
+    
+    // SettingsActivityの初期化
+    settingsActivity->initialize();
+    
+    // SettingsActivityのコールバック設定
+    settingsActivity->setDetectionTransitionCallback([this]() {
+        stateManager->changeState(STATE_DETECTION);
+    });
+    
+    settingsActivity->setCalibrationTransitionCallback([this]() {
+        stateManager->changeState(STATE_CALIBRATION);
+    });
+    
+    settingsActivity->setLEDControlTransitionCallback([this]() {
+        stateManager->changeState(STATE_LED_CONTROL);
+    });
+    
+    settingsActivity->setHomeTransitionCallback([this]() {
+        activityManager->startActivity("home");
+    });
+    
+    // スプラッシュ画面の表示
+    activityManager->startActivity("splash");
     
     // 初期化開始時間を記録
     initStartTime = millis();
@@ -111,7 +143,7 @@ void OctaController::setup() {
     
     // 設定画面遷移用のコールバックを設定
     lumiHomeActivity->setSettingsTransitionCallback([this]() {
-        stateManager->changeState(STATE_NONE);
+        activityManager->startActivity("settings");
     });
     
     // マイク入力処理用のコールバックを設定
@@ -160,13 +192,8 @@ void OctaController::loop() {
             
             Serial.println("Splash screen displayed for " + String(elapsedTime) + "ms, switching to LumiHomeActivity");
             
-            // スプラッシュ画面を閉じる
-            splashActivity->onPause();
-            splashActivity->onStop();
-            
-            // LumiHomeActivityを表示
-            stateManager->changeState(STATE_LUMI_HOME);
-            LumiHomeSetInitialDraw();
+            // LumiHomeActivityに切り替え
+            activityManager->startActivity("home");
         }
         
         // 初期化中は他の処理をスキップ
@@ -176,13 +203,30 @@ void OctaController::loop() {
     // ネットワーク接続を維持
     networkManager->update();
     
+    // 現在のActivityがLumiHomeActivityの場合
+    if (activityManager->getCurrentActivity() == lumiHomeActivity) {
+        processLumiHomeState();
+        return;
+    }
+    
+    // 現在のActivityがSettingsActivityの場合は何もしない（イベント処理はActivityが行う）
+    if (activityManager->getCurrentActivity() == settingsActivity) {
+        return;
+    }
+    
     // 現在の状態取得
     StateInfo stateInfo = stateManager->getCurrentStateInfo();
     
     // LumiHome状態の場合は専用の処理を行い、他の処理をスキップ
     if (stateInfo.mainState == STATE_LUMI_HOME) {
-        processLumiHomeState();
-        // LumiHome状態ではUIManagerの操作をスキップして早期リターン
+        // LumiHomeActivityに切り替え
+        activityManager->startActivity("home");
+        return;
+    }
+    
+    // STATE_NONEの場合はSettingsActivityに切り替え
+    if (stateInfo.mainState == STATE_NONE) {
+        activityManager->startActivity("settings");
         return;
     }
     

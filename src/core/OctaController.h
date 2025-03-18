@@ -12,6 +12,8 @@
 #include "../mic/MicManager.h"
 #include "../activities/LumiHomeActivity.h"
 #include "../activities/SplashActivity.h"
+#include "../activities/SettingsActivity.h"
+#include "../framework/ActivityManager.h"
 #include "../network/NetworkManager.h"
 #include "../network/WebServerManager.h"
 
@@ -29,9 +31,11 @@ private:
     IMUSensor* imuSensor;
     FaceDetector* faceDetector;
     StateManager* stateManager;
+    framework::ActivityManager* activityManager;
     LumiView* lumiView;
     LumiHomeActivity* lumiHomeActivity;
     SplashActivity* splashActivity;
+    SettingsActivity* settingsActivity;
     MicManager* micManager;
     NetworkManager* networkManager;
     WebServerManager* webServerManager;
