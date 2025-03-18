@@ -61,6 +61,10 @@ private:
     
     void handleButtonEvent(ButtonEvent event);
     void processLumiHomeState();
+    void processSettingsState();
+    void processDetectionActivityState();
+    void processCalibrationActivityState();
+    void processLEDControlActivityState();
     void processDetectionState();
     void processCalibrationState();
     void processLEDControlState();

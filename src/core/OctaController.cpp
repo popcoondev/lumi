@@ -243,26 +243,27 @@ void OctaController::loop() {
         return;
     }
     
-    // 現在のActivityがSettingsActivityの場合は何もしない（イベント処理はActivityが行う）
+    // 現在のActivityがSettingsActivityの場合
     if (activityManager->getCurrentActivity() == settingsActivity) {
+        processSettingsState();
         return;
     }
     
     // 現在のActivityがDetectionActivityの場合
     if (activityManager->getCurrentActivity() == detectionActivity) {
-        detectionActivity->update();
+        processDetectionActivityState();
         return;
     }
     
     // 現在のActivityがCalibrationActivityの場合
     if (activityManager->getCurrentActivity() == calibrationActivity) {
-        calibrationActivity->update();
+        processCalibrationActivityState();
         return;
     }
     
     // 現在のActivityがLEDControlActivityの場合
     if (activityManager->getCurrentActivity() == ledControlActivity) {
-        // LEDControlActivityは特別な更新処理が不要
+        processLEDControlActivityState();
         return;
     }
     
@@ -361,6 +362,84 @@ void OctaController::handleButtonEvent(ButtonEvent event) {
 // CRGB色をM5Stack LCD用のuint16_t色に変換する関数
 uint16_t OctaController::crgbToRGB565(CRGB color) {
     return M5.Lcd.color565(color.r, color.g, color.b);
+}
+
+void OctaController::processSettingsState() {
+    // M5.Touchの状態を取得
+    auto touch = M5.Touch.getDetail();
+    bool isPressed = touch.isPressed();
+    bool wasPressed = touch.wasPressed();
+    bool wasReleased = touch.wasReleased();
+    
+    if (wasPressed || isPressed || wasReleased) {
+        framework::TouchAction action;
+        if (wasPressed) action = framework::TouchAction::DOWN;
+        else if (wasReleased) action = framework::TouchAction::UP;
+        else action = framework::TouchAction::MOVE;
+        
+        framework::TouchEvent touchEvent(action, touch.x, touch.y);
+        settingsActivity->handleEvent(touchEvent);
+    }
+}
+
+void OctaController::processDetectionActivityState() {
+    // 通常の更新処理
+    detectionActivity->update();
+    
+    // M5.Touchの状態を取得
+    auto touch = M5.Touch.getDetail();
+    bool isPressed = touch.isPressed();
+    bool wasPressed = touch.wasPressed();
+    bool wasReleased = touch.wasReleased();
+    
+    if (wasPressed || isPressed || wasReleased) {
+        framework::TouchAction action;
+        if (wasPressed) action = framework::TouchAction::DOWN;
+        else if (wasReleased) action = framework::TouchAction::UP;
+        else action = framework::TouchAction::MOVE;
+        
+        framework::TouchEvent touchEvent(action, touch.x, touch.y);
+        detectionActivity->handleEvent(touchEvent);
+    }
+}
+
+void OctaController::processCalibrationActivityState() {
+    // 通常の更新処理
+    calibrationActivity->update();
+    
+    // M5.Touchの状態を取得
+    auto touch = M5.Touch.getDetail();
+    bool isPressed = touch.isPressed();
+    bool wasPressed = touch.wasPressed();
+    bool wasReleased = touch.wasReleased();
+    
+    if (wasPressed || isPressed || wasReleased) {
+        framework::TouchAction action;
+        if (wasPressed) action = framework::TouchAction::DOWN;
+        else if (wasReleased) action = framework::TouchAction::UP;
+        else action = framework::TouchAction::MOVE;
+        
+        framework::TouchEvent touchEvent(action, touch.x, touch.y);
+        calibrationActivity->handleEvent(touchEvent);
+    }
+}
+
+void OctaController::processLEDControlActivityState() {
+    // M5.Touchの状態を取得
+    auto touch = M5.Touch.getDetail();
+    bool isPressed = touch.isPressed();
+    bool wasPressed = touch.wasPressed();
+    bool wasReleased = touch.wasReleased();
+    
+    if (wasPressed || isPressed || wasReleased) {
+        framework::TouchAction action;
+        if (wasPressed) action = framework::TouchAction::DOWN;
+        else if (wasReleased) action = framework::TouchAction::UP;
+        else action = framework::TouchAction::MOVE;
+        
+        framework::TouchEvent touchEvent(action, touch.x, touch.y);
+        ledControlActivity->handleEvent(touchEvent);
+    }
 }
 
 void OctaController::processLumiHomeState() {
