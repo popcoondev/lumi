@@ -41,7 +41,7 @@ void WebServerManager::stop() {
 void WebServerManager::setupAPIEndpoints() {
     // ステータスAPI
     _server->on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request) {
-        Serial.println("Status API called");
+        Serial.println("[API] Status API called");
         StaticJsonDocument<256> doc;
         doc["status"] = "ok";
         doc["device"] = "Lumi";
@@ -55,27 +55,35 @@ void WebServerManager::setupAPIEndpoints() {
     
     // LED制御API - 特定の面のLEDを制御（正規表現を使わない方法）
     _server->on("/api/led/face/0", HTTP_POST, [this](AsyncWebServerRequest *request) {
+        Serial.println("[API] LED face 0 control requested");
         handleLedFaceControl(0, request);
     });
     _server->on("/api/led/face/1", HTTP_POST, [this](AsyncWebServerRequest *request) {
+        Serial.println("[API] LED face 1 control requested");
         handleLedFaceControl(1, request);
     });
     _server->on("/api/led/face/2", HTTP_POST, [this](AsyncWebServerRequest *request) {
+        Serial.println("[API] LED face 2 control requested");
         handleLedFaceControl(2, request);
     });
     _server->on("/api/led/face/3", HTTP_POST, [this](AsyncWebServerRequest *request) {
+        Serial.println("[API] LED face 3 control requested");
         handleLedFaceControl(3, request);
     });
     _server->on("/api/led/face/4", HTTP_POST, [this](AsyncWebServerRequest *request) {
+        Serial.println("[API] LED face 4 control requested");
         handleLedFaceControl(4, request);
     });
     _server->on("/api/led/face/5", HTTP_POST, [this](AsyncWebServerRequest *request) {
+        Serial.println("[API] LED face 5 control requested");
         handleLedFaceControl(5, request);
     });
     _server->on("/api/led/face/6", HTTP_POST, [this](AsyncWebServerRequest *request) {
+        Serial.println("[API] LED face 6 control requested");
         handleLedFaceControl(6, request);
     });
     _server->on("/api/led/face/7", HTTP_POST, [this](AsyncWebServerRequest *request) {
+        Serial.println("[API] LED face 7 control requested");
         handleLedFaceControl(7, request);
     });
     
@@ -89,7 +97,7 @@ void WebServerManager::setupAPIEndpoints() {
     
     // LED制御API - パターンを停止
     _server->on("/api/led/stop", HTTP_POST, [this](AsyncWebServerRequest *request) {
-        Serial.println("LED stop API called");
+        Serial.println("[API] LED stop API called");
         // パターンを停止
         _ledManager->stopPattern();
         
@@ -104,7 +112,7 @@ void WebServerManager::setupAPIEndpoints() {
     
     // LED制御API - 全てのLEDをリセット
     _server->on("/api/led/reset", HTTP_POST, [this](AsyncWebServerRequest *request) {
-        Serial.println("LED reset API called");
+        Serial.println("[API] LED reset API called");
         // 全てのLEDをリセット
         _ledManager->resetAllLeds();
         
@@ -119,7 +127,7 @@ void WebServerManager::setupAPIEndpoints() {
     
     // LED制御API - 利用可能なパターンのリストを取得
     _server->on("/api/led/patterns", HTTP_GET, [this](AsyncWebServerRequest *request) {
-        Serial.println("LED patterns API called");
+        Serial.println("[API] LED patterns API called");
         StaticJsonDocument<1024> doc;
         JsonArray patterns = doc.createNestedArray("patterns");
         
@@ -137,21 +145,31 @@ void WebServerManager::setupAPIEndpoints() {
 }
 
 void WebServerManager::handleLedFaceControl(int faceId, AsyncWebServerRequest *request) {
-    Serial.println("LED control API called for face: " + String(faceId));
+    Serial.println("[API] LED control API called for face: " + String(faceId));
     
     // クエリパラメータからRGB値を取得
     int r = 255, g = 0, b = 0; // デフォルト値
     
-    if (request->hasParam("r", true)) {
-        r = request->getParam("r", true)->value().toInt();
+    // URLクエリパラメータを取得するため、第2引数をfalseに変更
+    if (request->hasParam("r", false)) {
+        r = request->getParam("r", false)->value().toInt();
+        Serial.println("[API] Received r parameter: " + String(r));
+    } else {
+        Serial.println("[API] No r parameter found, using default: " + String(r));
     }
     
-    if (request->hasParam("g", true)) {
-        g = request->getParam("g", true)->value().toInt();
+    if (request->hasParam("g", false)) {
+        g = request->getParam("g", false)->value().toInt();
+        Serial.println("[API] Received g parameter: " + String(g));
+    } else {
+        Serial.println("[API] No g parameter found, using default: " + String(g));
     }
     
-    if (request->hasParam("b", true)) {
-        b = request->getParam("b", true)->value().toInt();
+    if (request->hasParam("b", false)) {
+        b = request->getParam("b", false)->value().toInt();
+        Serial.println("[API] Received b parameter: " + String(b));
+    } else {
+        Serial.println("[API] No b parameter found, using default: " + String(b));
     }
     
     // 値の範囲を制限
@@ -159,8 +177,12 @@ void WebServerManager::handleLedFaceControl(int faceId, AsyncWebServerRequest *r
     g = constrain(g, 0, 255);
     b = constrain(b, 0, 255);
     
+    Serial.println("[API] Setting face " + String(faceId) + " to RGB: " + String(r) + "," + String(g) + "," + String(b));
+    
     // LEDを点灯
     _ledManager->lightFace(faceId, CRGB(r, g, b));
+    
+    Serial.println("[API] LED face " + String(faceId) + " color set completed");
     
     StaticJsonDocument<256> doc;
     doc["status"] = "ok";
@@ -176,10 +198,12 @@ void WebServerManager::handleLedFaceControl(int faceId, AsyncWebServerRequest *r
 }
 
 void WebServerManager::handlePatternControl(int patternId, AsyncWebServerRequest *request) {
-    Serial.println("LED pattern API called for pattern: " + String(patternId));
+    Serial.println("[API] LED pattern API called for pattern: " + String(patternId));
     
     // パターンを実行
     _ledManager->runPattern(patternId);
+    
+    Serial.println("[API] Pattern " + String(patternId) + " (" + _ledManager->getPatternName(patternId) + ") started");
     
     StaticJsonDocument<256> doc;
     doc["status"] = "ok";
