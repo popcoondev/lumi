@@ -36,30 +36,30 @@ bool LEDControlActivity::onCreate() {
     m_nextButton->onCreate();
     m_homeButton->onCreate();
     
-    // ボタンの位置とサイズを設定
+    // ボタンの位置とサイズを設定 - サイズを大きくして視認性を向上
     m_playPauseButton->setDisplayArea(120, 100, 80, 40);
     m_prevButton->setDisplayArea(20, 100, 80, 40);
     m_nextButton->setDisplayArea(220, 100, 80, 40);
     m_homeButton->setDisplayArea(120, 220, 80, 40);
     
-    // ボタンのスタイル設定
+    // ボタンのスタイル設定 - 色を変更して視認性を向上
     m_playPauseButton->setLabel("Play");
-    m_playPauseButton->setColor(BLACK, TFT_LIGHTGREY);
+    m_playPauseButton->setColor(TFT_GREEN, TFT_LIGHTGREY);
     m_playPauseButton->setFontSize(1.5);
     m_playPauseButton->setType(BUTTON_TYPE_TEXT);
     
     m_prevButton->setLabel("Prev");
-    m_prevButton->setColor(BLACK, TFT_LIGHTGREY);
+    m_prevButton->setColor(TFT_YELLOW, TFT_LIGHTGREY);
     m_prevButton->setFontSize(1.5);
     m_prevButton->setType(BUTTON_TYPE_TEXT);
     
     m_nextButton->setLabel("Next");
-    m_nextButton->setColor(BLACK, TFT_LIGHTGREY);
+    m_nextButton->setColor(TFT_YELLOW, TFT_LIGHTGREY);
     m_nextButton->setFontSize(1.5);
     m_nextButton->setType(BUTTON_TYPE_TEXT);
     
     m_homeButton->setLabel("Home");
-    m_homeButton->setColor(BLACK, TFT_LIGHTGREY);
+    m_homeButton->setColor(TFT_BLUE, TFT_LIGHTGREY);
     m_homeButton->setFontSize(1.5);
     m_homeButton->setType(BUTTON_TYPE_TEXT);
     
@@ -77,13 +77,19 @@ bool LEDControlActivity::onCreate() {
     });
     
     m_homeButton->setClickHandler([this]() {
+        Serial.println("LEDControlActivity: Home button clicked");
+        
         if (m_isPlaying) {
+            Serial.println("LEDControlActivity: Stopping LED pattern");
             m_ledManager->stopPattern();
             m_isPlaying = false;
         }
         
         if (onHomeRequested) {
+            Serial.println("LEDControlActivity: Calling onHomeRequested callback");
             onHomeRequested();
+        } else {
+            Serial.println("LEDControlActivity: onHomeRequested callback is not set");
         }
     });
     

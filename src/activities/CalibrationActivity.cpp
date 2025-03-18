@@ -38,30 +38,30 @@ bool CalibrationActivity::onCreate() {
     m_loadButton->onCreate();
     m_homeButton->onCreate();
     
-    // ボタンの位置とサイズを設定
+    // ボタンの位置とサイズを設定 - サイズを大きくして視認性を向上
     m_resetButton->setDisplayArea(20, 60, 80, 40);
     m_saveButton->setDisplayArea(120, 60, 80, 40);
     m_loadButton->setDisplayArea(220, 60, 80, 40);
     m_homeButton->setDisplayArea(120, 220, 80, 40);
     
-    // ボタンのスタイル設定
+    // ボタンのスタイル設定 - 色を変更して視認性を向上
     m_resetButton->setLabel("Reset");
-    m_resetButton->setColor(BLACK, TFT_LIGHTGREY);
+    m_resetButton->setColor(TFT_RED, TFT_LIGHTGREY);
     m_resetButton->setFontSize(1.5);
     m_resetButton->setType(BUTTON_TYPE_TEXT);
     
     m_saveButton->setLabel("Save");
-    m_saveButton->setColor(BLACK, TFT_LIGHTGREY);
+    m_saveButton->setColor(TFT_GREEN, TFT_LIGHTGREY);
     m_saveButton->setFontSize(1.5);
     m_saveButton->setType(BUTTON_TYPE_TEXT);
     
     m_loadButton->setLabel("Load");
-    m_loadButton->setColor(BLACK, TFT_LIGHTGREY);
+    m_loadButton->setColor(TFT_YELLOW, TFT_LIGHTGREY);
     m_loadButton->setFontSize(1.5);
     m_loadButton->setType(BUTTON_TYPE_TEXT);
     
     m_homeButton->setLabel("Home");
-    m_homeButton->setColor(BLACK, TFT_LIGHTGREY);
+    m_homeButton->setColor(TFT_BLUE, TFT_LIGHTGREY);
     m_homeButton->setFontSize(1.5);
     m_homeButton->setType(BUTTON_TYPE_TEXT);
     
@@ -82,8 +82,12 @@ bool CalibrationActivity::onCreate() {
     });
     
     m_homeButton->setClickHandler([this]() {
+        Serial.println("CalibrationActivity: Home button clicked");
         if (onHomeRequested) {
+            Serial.println("CalibrationActivity: Calling onHomeRequested callback");
             onHomeRequested();
+        } else {
+            Serial.println("CalibrationActivity: onHomeRequested callback is not set");
         }
     });
     

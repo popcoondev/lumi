@@ -169,14 +169,17 @@ void OctaController::setup() {
     
     // 各Activityのホーム画面遷移コールバックを設定
     detectionActivity->setHomeTransitionCallback([this]() {
+        Serial.println("OctaController: Detection -> Home callback triggered");
         activityManager->startActivity("home");
     });
     
     calibrationActivity->setHomeTransitionCallback([this]() {
+        Serial.println("OctaController: Calibration -> Home callback triggered");
         activityManager->startActivity("home");
     });
     
     ledControlActivity->setHomeTransitionCallback([this]() {
+        Serial.println("OctaController: LEDControl -> Home callback triggered");
         activityManager->startActivity("home");
     });
     

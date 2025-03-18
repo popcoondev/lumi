@@ -30,14 +30,17 @@ void ButtonFragment::onDestroy() {
 
 bool ButtonFragment::handleEvent(const framework::Event& event) {    
     int eventID = (int)event.getType();
-    Serial.println("Event received, getType = " + String(eventID));
+    Serial.println("ButtonFragment::handleEvent - Event received, getType = " + String(eventID));
+    
     // Check if base class handles the event
     if (Fragment::handleEvent(event)) {
+        Serial.println("  Base class handled the event");
         return true;
     }
     
     // Only process events if the fragment is visible and enabled
     if (!isVisible() || !isEnabled()) {
+        Serial.println("  Fragment not visible or not enabled");
         return false;
     }
     
@@ -47,13 +50,22 @@ bool ButtonFragment::handleEvent(const framework::Event& event) {
         
         int touchX = touchEvent.getX();
         int touchY = touchEvent.getY();
+        int actionType = (int)touchEvent.getAction();
+        
+        Serial.println("  Touch event: x=" + String(touchX) + ", y=" + String(touchY) + 
+                      ", action=" + String(actionType));
+        Serial.println("  Button area: x=" + String(getX()) + ", y=" + String(getY()) + 
+                      ", width=" + String(getWidth()) + ", height=" + String(getHeight()));
         
         // Check if touch is within button area
         if (touchX >= getX() && touchX < getX() + getWidth() &&
             touchY >= getY() && touchY < getY() + getHeight()) {
             
+            Serial.println("  Touch is within button area");
+            
             if (touchEvent.getAction() == framework::TouchAction::DOWN) {
                 // Touch down - set pressed state
+                Serial.println("  Touch DOWN - setting pressed state");
                 m_pressed = true;
                 m_button.setPressed(true);
                 draw();
@@ -61,7 +73,9 @@ bool ButtonFragment::handleEvent(const framework::Event& event) {
             }
             else if (touchEvent.getAction() == framework::TouchAction::UP) {
                 // Touch up within button area - trigger click
+                Serial.println("  Touch UP within button area");
                 if (m_pressed) {
+                    Serial.println("  Button was pressed, triggering click");
                     m_pressed = false;
                     m_button.setPressed(false);
                     draw();
@@ -72,19 +86,27 @@ bool ButtonFragment::handleEvent(const framework::Event& event) {
                     
                     // Call click handler if set
                     if (m_clickHandler) {
+                        Serial.println("  Calling click handler");
                         m_clickHandler();
+                    } else {
+                        Serial.println("  No click handler set");
                     }
                     
                     return true;
+                } else {
+                    Serial.println("  Button was not pressed, ignoring UP event");
                 }
             }
-        }
-        else if (touchEvent.getAction() == framework::TouchAction::UP && m_pressed) {
-            // Touch up outside button area - reset state without triggering click
-            m_pressed = false;
-            m_button.setPressed(false);
-            draw();
-            return true;
+        } else {
+            Serial.println("  Touch is outside button area");
+            if (touchEvent.getAction() == framework::TouchAction::UP && m_pressed) {
+                // Touch up outside button area - reset state without triggering click
+                Serial.println("  Touch UP outside button area, resetting pressed state");
+                m_pressed = false;
+                m_button.setPressed(false);
+                draw();
+                return true;
+            }
         }
     }
     

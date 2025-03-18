@@ -23,19 +23,23 @@ bool DetectionActivity::onCreate() {
         return false;
     }
     
-    // ホームボタンの作成
+    // ホームボタンの作成 - サイズと色を変更して視認性を向上
     m_homeButton = new ButtonFragment(ID_BUTTON_HOME);
     m_homeButton->onCreate();
-    m_homeButton->setDisplayArea(10, 10, 60, 30);
+    m_homeButton->setDisplayArea(10, 10, 80, 40);
     m_homeButton->setLabel("Back");
-    m_homeButton->setColor(BLACK, TFT_DARKGREY);
-    m_homeButton->setFontSize(1);
+    m_homeButton->setColor(TFT_BLUE, TFT_LIGHTGREY);
+    m_homeButton->setFontSize(1.5);
     m_homeButton->setType(BUTTON_TYPE_TEXT);
     
     // ホームボタンのクリックハンドラ設定
     m_homeButton->setClickHandler([this]() {
+        Serial.println("DetectionActivity: Home button clicked");
         if (onHomeRequested) {
+            Serial.println("DetectionActivity: Calling onHomeRequested callback");
             onHomeRequested();
+        } else {
+            Serial.println("DetectionActivity: onHomeRequested callback is not set");
         }
     });
     
