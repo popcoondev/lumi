@@ -8,18 +8,370 @@ document.addEventListener('DOMContentLoaded', () => {
     // モーダル用のスタイルを追加
     addModalStyles();
     
+    // LEDControllerを初期化
+    window.ledController = new LEDController();
+    
     // APIステータスの確認
     checkApiStatus();
     
     // パターンリストの取得
     fetchPatterns();
-    
-    // 色選択ボタンを追加
-    addColorButton();
-    
-    // パターンボタンのイベント設定
-    setupPatternButton();
 });
+
+// LEDControllerクラス - オクタゴンUIの制御
+class LEDController {
+    constructor() {
+        this.canvas = document.getElementById('ledController');
+        this.ctx = this.canvas.getContext('2d');
+        this.ledStates = new Array(8).fill(false);
+        this.ledColors = new Array(8).fill(currentColorHex); // デフォルト色（黄色）
+        this.centerPressed = false;
+        this.isSliding = false;
+        this.touchedSegments = new Set();
+        this.currentTouchState = false;
+        this.focusedSegment = -1; // フォーカスされているセグメント（-1は未フォーカス）
+
+        this.setupCanvas();
+        this.setupButtons();
+        this.addEventListeners();
+        this.draw();
+    }
+
+    setupCanvas() {
+        const container = this.canvas.parentElement;
+        const size = Math.min(container.offsetWidth, container.offsetHeight);
+        this.canvas.width = size;
+        this.canvas.height = size;
+
+        this.center = size / 2;
+        this.radius = (size / 2) * 0.8; // 外側の八角形
+        this.innerRadius = this.radius * 0.6; // 内側の八角形
+        this.focusRadius = this.radius * 1.1; // フォーカスライン用の半径
+    }
+
+    setupButtons() {
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            this.setAllLEDs(false);
+            this.focusedSegment = -1;
+            this.draw();
+        });
+
+        document.getElementById('patternBtn').addEventListener('click', () => {
+            // パターンモーダルを表示
+            showPatternModal();
+        });
+        
+        // 色選択ボタンを追加
+        const colorBtn = document.createElement('button');
+        colorBtn.id = 'colorBtn';
+        colorBtn.className = 'btn btn-outline-success w-100';
+        colorBtn.textContent = 'Color';
+        
+        // ボタンを追加する場所を特定
+        const buttonRow = document.getElementById('resetBtn').parentElement.parentElement;
+        const newCol = document.createElement('div');
+        newCol.className = 'col';
+        newCol.appendChild(colorBtn);
+        buttonRow.appendChild(newCol);
+        
+        // 色選択ボタンのイベント
+        colorBtn.addEventListener('click', () => {
+            // カラーピッカーモーダルを表示
+            showColorPickerModal();
+        });
+    }
+
+    addEventListeners() {
+        this.canvas.addEventListener('pointerdown', this.handlePointerDown.bind(this));
+        this.canvas.addEventListener('pointermove', this.handlePointerMove.bind(this));
+        this.canvas.addEventListener('pointerup', this.handlePointerUp.bind(this));
+        this.canvas.addEventListener('pointerout', this.handlePointerUp.bind(this));
+        window.addEventListener('resize', () => {
+            this.setupCanvas();
+            this.draw();
+        });
+    }
+
+    getOctagonPoints(radius) {
+        const points = [];
+        for (let i = 0; i < 8; i++) {
+            // -π/8（-22.5度）回転させて、底辺をx軸と平行にする
+            const angle = (i * Math.PI / 4) - (Math.PI / 8);
+            points.push({
+                x: this.center + radius * Math.cos(angle),
+                y: this.center + radius * Math.sin(angle)
+            });
+        }
+        return points;
+    }
+
+    getLEDSegment(x, y) {
+        const distance = Math.sqrt(
+            Math.pow(x - this.center, 2) + Math.pow(y - this.center, 2)
+        );
+
+        // 内側の八角形の中にある場合は中央ボタン
+        if (distance <= this.innerRadius) {
+            return -1;
+        }
+
+        // 外側の八角形の外にある場合は無効
+        if (distance > this.radius) {
+            return -2;
+        }
+
+        // 角度を計算（-22.5度から時計回りに）
+        let angle = Math.atan2(y - this.center, x - this.center);
+        // 角度を[0, 2π]の範囲に正規化
+        if (angle < 0) angle += 2 * Math.PI;
+        // -22.5度（-π/8）の回転を考慮して角度を調整
+        angle = (angle + Math.PI / 8) % (2 * Math.PI);
+
+        // 8つのセグメントに分割（0から7）
+        return Math.floor(angle / (Math.PI / 4));
+    }
+
+    async handlePointerDown(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const segment = this.getLEDSegment(x, y);
+
+        if (segment === -1) {
+            // 内側の八角形内（中央ボタン）
+            this.centerPressed = true;
+            if (this.focusedSegment !== -1) {
+                // フォーカスされている面の状態を切り替え
+                await this.toggleLED(this.focusedSegment);
+            } else {
+                // フォーカスがない場合は従来通り全体を切り替え
+                const newState = !this.ledStates.every(state => state);
+                await this.setAllLEDs(newState);
+            }
+        } else if (segment >= 0) {
+            // LED セグメント
+            this.focusedSegment = segment; // タップした面をフォーカス
+            this.isSliding = true;
+            this.touchedSegments.clear();
+            this.currentTouchState = !this.ledStates[segment];
+            await this.toggleLED(segment);
+            this.touchedSegments.add(segment);
+        }
+
+        this.draw();
+    }
+
+    async handlePointerMove(e) {
+        if (!this.isSliding) return;
+
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const segment = this.getLEDSegment(x, y);
+
+        if (segment >= 0 && !this.touchedSegments.has(segment)) {
+            await this.setLED(segment, this.currentTouchState);
+            this.touchedSegments.add(segment);
+        }
+
+        this.draw();
+    }
+
+    handlePointerUp() {
+        this.centerPressed = false;
+        this.isSliding = false;
+        this.touchedSegments.clear();
+        this.draw();
+    }
+
+    async setAllLEDs(state) {
+        try {
+            // グローバル関数を呼び出し
+            if (state) {
+                // 点灯の場合は各面に対して個別に設定
+                const r = parseInt(currentColorHex.substring(1, 3), 16);
+                const g = parseInt(currentColorHex.substring(3, 5), 16);
+                const b = parseInt(currentColorHex.substring(5, 7), 16);
+                
+                const promises = [];
+                for (let i = 0; i < 8; i++) {
+                    promises.push(
+                        fetch(`/api/led/face/${i}?r=${r}&g=${g}&b=${b}`, {
+                            method: 'POST'
+                        })
+                    );
+                }
+                await Promise.all(promises);
+            } else {
+                // 消灯の場合はリセットAPIを使用
+                await fetch('/api/led/reset', {
+                    method: 'POST'
+                });
+            }
+            
+            // UIの更新
+            this.ledStates.fill(state);
+            if (state) {
+                // 点灯時は現在の色を設定
+                for (let i = 0; i < 8; i++) {
+                    this.ledColors[i] = currentColorHex;
+                }
+            }
+            this.showStatus('すべてのLEDを' + (state ? '点灯' : '消灯') + 'しました', 'success');
+        } catch (error) {
+            console.error('Error setting all LEDs:', error);
+            this.showStatus(error.message || 'LEDの設定に失敗しました', 'danger');
+            
+            // デモ用に状態を更新
+            this.ledStates.fill(state);
+            if (state) {
+                for (let i = 0; i < 8; i++) {
+                    this.ledColors[i] = currentColorHex;
+                }
+            }
+        }
+    }
+
+    async setLED(segment, state) {
+        try {
+            if (state) {
+                // 色を16進数から RGB に変換
+                const r = parseInt(currentColorHex.substring(1, 3), 16);
+                const g = parseInt(currentColorHex.substring(3, 5), 16);
+                const b = parseInt(currentColorHex.substring(5, 7), 16);
+                
+                await fetch(`/api/led/face/${segment}?r=${r}&g=${g}&b=${b}`, {
+                    method: 'POST'
+                });
+            } else {
+                // 個別の消灯APIがないため、点灯時のみAPIを呼び出す
+                // 消灯時はUIのみ更新
+            }
+            
+            // UIの更新
+            this.ledStates[segment] = state;
+            if (state) {
+                this.ledColors[segment] = currentColorHex;
+            }
+            this.showStatus(`LED ${segment + 1}を${state ? '点灯' : '消灯'}しました`, 'success');
+        } catch (error) {
+            console.error('Error setting LED:', error);
+            this.showStatus(error.message || '通信エラーが発生しました', 'danger');
+            
+            // デモ用に状態を更新
+            this.ledStates[segment] = state;
+            if (state) {
+                this.ledColors[segment] = currentColorHex;
+            }
+        }
+    }
+
+    async toggleLED(segment) {
+        const newState = !this.ledStates[segment];
+        await this.setLED(segment, newState);
+    }
+
+    showStatus(message, type) {
+        // グローバル関数を呼び出し
+        showStatus(message, type);
+    }
+
+    drawFocusLine(segment) {
+        const startAngle = (segment * Math.PI / 4) - (Math.PI / 8);
+        const endAngle = ((segment + 1) * Math.PI / 4) - (Math.PI / 8);
+        const midAngle = (startAngle + endAngle) / 2;
+
+        // フォーカスラインの長さ
+        const lineLength = this.radius * 0.2;
+
+        // フォーカスラインの始点と終点を計算
+        const startX = this.center + this.focusRadius * Math.cos(midAngle);
+        const startY = this.center + this.focusRadius * Math.sin(midAngle);
+        const endX = this.center + (this.focusRadius + lineLength) * Math.cos(midAngle);
+        const endY = this.center + (this.focusRadius + lineLength) * Math.sin(midAngle);
+
+        // フォーカスラインを描画
+        this.ctx.beginPath();
+        this.ctx.moveTo(startX, startY);
+        this.ctx.lineTo(endX, endY);
+        this.ctx.strokeStyle = '#fff';
+        this.ctx.lineWidth = 3;
+        this.ctx.stroke();
+        this.ctx.lineWidth = 1;
+    }
+
+    draw() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        const outerPoints = this.getOctagonPoints(this.radius);
+        const innerPoints = this.getOctagonPoints(this.innerRadius);
+
+        // Draw LED segments between outer and inner octagons
+        for (let i = 0; i < 8; i++) {
+            this.ctx.beginPath();
+            // 外側の八角形の2点
+            this.ctx.moveTo(outerPoints[i].x, outerPoints[i].y);
+            this.ctx.lineTo(outerPoints[(i + 1) % 8].x, outerPoints[(i + 1) % 8].y);
+            // 内側の八角形の2点
+            this.ctx.lineTo(innerPoints[(i + 1) % 8].x, innerPoints[(i + 1) % 8].y);
+            this.ctx.lineTo(innerPoints[i].x, innerPoints[i].y);
+            this.ctx.closePath();
+
+            // 点灯状態に応じた色を設定
+            if (this.ledStates[i]) {
+                // 16進数の色をRGBAに変換
+                const r = parseInt(this.ledColors[i].substring(1, 3), 16);
+                const g = parseInt(this.ledColors[i].substring(3, 5), 16);
+                const b = parseInt(this.ledColors[i].substring(5, 7), 16);
+                this.ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.5)`;
+            } else {
+                this.ctx.fillStyle = 'rgba(128, 128, 128, 0.3)';
+            }
+            
+            this.ctx.fill();
+            this.ctx.strokeStyle = '#fff';
+            this.ctx.stroke();
+        }
+
+        // Draw inner octagon (center button)
+        this.ctx.beginPath();
+        innerPoints.forEach((point, i) => {
+            if (i === 0) {
+                this.ctx.moveTo(point.x, point.y);
+            } else {
+                this.ctx.lineTo(point.x, point.y);
+            }
+        });
+        this.ctx.closePath();
+        this.ctx.fillStyle = this.centerPressed ? 
+            'rgba(255, 255, 255, 0.5)' : 'rgba(255, 255, 255, 0.2)';
+        this.ctx.fill();
+        this.ctx.strokeStyle = '#fff';
+        this.ctx.stroke();
+
+        // Draw center text
+        this.ctx.fillStyle = '#fff';
+        this.ctx.font = `${this.radius * 0.15}px Arial`;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        
+        let buttonText = '';
+        if (this.focusedSegment !== -1) {
+            buttonText = this.ledStates[this.focusedSegment] ? 'OFF' : 'ON';
+        } else {
+            buttonText = this.ledStates.some(state => state) ? 'ALL OFF' : 'ALL ON';
+        }
+        
+        this.ctx.fillText(buttonText, this.center, this.center);
+
+        // フォーカスされている面のフォーカスラインを描画
+        if (this.focusedSegment !== -1) {
+            this.drawFocusLine(this.focusedSegment);
+        }
+    }
+}
 
 // 接続ステータスの更新
 function updateConnectionStatus(status) {
@@ -84,30 +436,6 @@ function fetchPatterns() {
             console.error('Error fetching patterns:', error);
             showStatus('パターンの取得に失敗しました', 'danger');
         });
-}
-
-// パターンボタンのイベント設定
-function setupPatternButton() {
-    const patternBtn = document.getElementById('patternBtn');
-    patternBtn.addEventListener('click', showPatternModal);
-}
-
-// 色選択ボタンを追加
-function addColorButton() {
-    const colorBtn = document.createElement('button');
-    colorBtn.id = 'colorBtn';
-    colorBtn.className = 'btn btn-outline-success w-100';
-    colorBtn.textContent = 'Color';
-    
-    // ボタンを追加する場所を特定
-    const buttonRow = document.getElementById('resetBtn').parentElement.parentElement;
-    const newCol = document.createElement('div');
-    newCol.className = 'col';
-    newCol.appendChild(colorBtn);
-    buttonRow.appendChild(newCol);
-    
-    // 色選択ボタンのイベント
-    colorBtn.addEventListener('click', showColorPickerModal);
 }
 
 // パターンモーダルを表示
@@ -260,68 +588,6 @@ function stopPattern() {
     });
 }
 
-// 特定のLEDセグメントを設定
-function setLED(segment, state) {
-    // 色を16進数から RGB に変換
-    const r = parseInt(currentColorHex.substring(1, 3), 16);
-    const g = parseInt(currentColorHex.substring(3, 5), 16);
-    const b = parseInt(currentColorHex.substring(5, 7), 16);
-    
-    fetch(`/api/led/face/${segment}?r=${r}&g=${g}&b=${b}`, {
-        method: 'POST'
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('通信エラーが発生しました');
-        return response.json();
-    })
-    .then(data => {
-        console.log(`LED ${segment} set to ${state ? 'ON' : 'OFF'} with color ${currentColorHex}:`, data);
-    })
-    .catch(error => {
-        console.error('Error setting LED:', error);
-        showStatus(error.message, 'danger');
-    });
-}
-
-// すべてのLEDを設定
-function setAllLEDs(state) {
-    // 色を16進数から RGB に変換
-    const r = parseInt(currentColorHex.substring(1, 3), 16);
-    const g = parseInt(currentColorHex.substring(3, 5), 16);
-    const b = parseInt(currentColorHex.substring(5, 7), 16);
-    
-    // すべての面に対して同じ色を設定
-    const promises = [];
-    for (let i = 0; i < 8; i++) {
-        if (state) {
-            promises.push(
-                fetch(`/api/led/face/${i}?r=${r}&g=${g}&b=${b}`, {
-                    method: 'POST'
-                })
-            );
-        }
-    }
-    
-    // 消灯の場合はリセットAPIを使用
-    if (!state) {
-        promises.push(
-            fetch('/api/led/reset', {
-                method: 'POST'
-            })
-        );
-    }
-    
-    Promise.all(promises)
-        .then(() => {
-            console.log(`All LEDs set to ${state ? 'ON' : 'OFF'} with color ${currentColorHex}`);
-            showStatus(`すべてのLEDを${state ? '点灯' : '消灯'}しました`, 'success');
-        })
-        .catch(error => {
-            console.error('Error setting all LEDs:', error);
-            showStatus('LEDの設定に失敗しました', 'danger');
-        });
-}
-
 // ステータスメッセージを表示
 function showStatus(message, type) {
     const statusEl = document.getElementById('statusMessage');
@@ -422,15 +688,11 @@ function showColorPickerModal() {
     // 適用ボタンのイベント
     const applyColorBtn = document.getElementById('applyColorBtn');
     applyColorBtn.addEventListener('click', () => {
-        // LEDControllerのインスタンスを取得
+        // フォーカスされている面があれば、その面の色を変更
         const ledController = window.ledController;
-        if (ledController) {
-            // 現在フォーカスされている面があれば、その面の色を変更
-            if (ledController.focusedSegment !== -1) {
-                ledController.setLED(ledController.focusedSegment, true);
-            }
+        if (ledController && ledController.focusedSegment !== -1) {
+            ledController.setLED(ledController.focusedSegment, true);
         }
-        
         closeColorPickerModal();
     });
 }
@@ -536,85 +798,3 @@ function addModalStyles() {
     
     document.head.appendChild(style);
 }
-
-// LEDControllerクラスの拡張
-// index.htmlに既に定義されているLEDControllerクラスを拡張
-document.addEventListener('DOMContentLoaded', () => {
-    // LEDControllerのインスタンスが作成された後に実行
-    setTimeout(() => {
-        const ledController = window.ledController;
-        if (ledController) {
-            // LEDControllerのdrawメソッドをオーバーライド
-            const originalDraw = ledController.draw;
-            ledController.draw = function() {
-                originalDraw.call(this);
-                
-                // 色付きのLEDを描画
-                const outerPoints = this.getOctagonPoints(this.radius);
-                const innerPoints = this.getOctagonPoints(this.innerRadius);
-                
-                for (let i = 0; i < 8; i++) {
-                    if (this.ledStates[i]) {
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(outerPoints[i].x, outerPoints[i].y);
-                        this.ctx.lineTo(outerPoints[(i + 1) % 8].x, outerPoints[(i + 1) % 8].y);
-                        this.ctx.lineTo(innerPoints[(i + 1) % 8].x, innerPoints[(i + 1) % 8].y);
-                        this.ctx.lineTo(innerPoints[i].x, innerPoints[i].y);
-                        this.ctx.closePath();
-                        
-                        // 16進数の色をRGBAに変換
-                        const color = this.ledColors ? this.ledColors[i] : currentColorHex;
-                        const r = parseInt(color.substring(1, 3), 16);
-                        const g = parseInt(color.substring(3, 5), 16);
-                        const b = parseInt(color.substring(5, 7), 16);
-                        this.ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.5)`;
-                        this.ctx.fill();
-                    }
-                }
-            };
-            
-            // ledColorsプロパティがなければ追加
-            if (!ledController.ledColors) {
-                ledController.ledColors = new Array(8).fill(currentColorHex);
-            }
-            
-            // setLEDメソッドを拡張
-            const originalSetLED = ledController.setLED;
-            ledController.setLED = async function(segment, state) {
-                try {
-                    // APIを呼び出し
-                    setLED(segment, state);
-                    
-                    // UIの更新
-                    this.ledStates[segment] = state;
-                    if (state && this.ledColors) {
-                        this.ledColors[segment] = currentColorHex;
-                    }
-                    this.showStatus(`LED ${segment + 1}を${state ? '点灯' : '消灯'}しました`, 'success');
-                } catch (error) {
-                    this.showStatus(error.message, 'danger');
-                }
-            };
-            
-            // setAllLEDsメソッドを拡張
-            const originalSetAllLEDs = ledController.setAllLEDs;
-            ledController.setAllLEDs = async function(state) {
-                try {
-                    // APIを呼び出し
-                    setAllLEDs(state);
-                    
-                    // UIの更新
-                    this.ledStates.fill(state);
-                    if (state && this.ledColors) {
-                        for (let i = 0; i < 8; i++) {
-                            this.ledColors[i] = currentColorHex;
-                        }
-                    }
-                    this.showStatus('すべてのLEDを' + (state ? '点灯' : '消灯') + 'しました', 'success');
-                } catch (error) {
-                    this.showStatus(error.message, 'danger');
-                }
-            };
-        }
-    }, 500);
-});
