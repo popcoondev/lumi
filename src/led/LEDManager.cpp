@@ -7,6 +7,7 @@ LEDManager::LEDManager() {
     ledOffset = 0;
     numFaces = 0;
     ledTaskHandle = nullptr;
+    isTaskRunning = false;
     
     // パターンの初期化
     patternCount = 13; // 全パターン数
@@ -58,18 +59,9 @@ void LEDManager::begin(int pin, int numLeds, int ledOffset) {
     // すべてのLEDを消灯
     resetAllLeds();
     
-    // LED制御タスクの作成
-    xTaskCreatePinnedToCore(
-        ledTaskWrapper,
-        "LEDTask",
-        4096,
-        this,
-        1,
-        &ledTaskHandle,
-        1
-    );
-    // 初期状態では一時停止
-    vTaskSuspend(ledTaskHandle);
+    // 初期状態ではタスクは作成しない（必要時に作成）
+    ledTaskHandle = nullptr;
+    isTaskRunning = false;
 }
 
 void LEDManager::ledTaskWrapper(void* parameter) {
@@ -95,15 +87,33 @@ void LEDManager::ledTaskWrapper(void* parameter) {
 void LEDManager::runPattern(int patternIndex) {
     if (patternIndex >= 0 && patternIndex < patternCount) {
         currentPatternIndex = patternIndex;
+        
+        // 既存のタスクがあれば削除
         if (ledTaskHandle != nullptr) {
-            vTaskResume(ledTaskHandle);
+            vTaskDelete(ledTaskHandle);
+            ledTaskHandle = nullptr;
         }
+        
+        // 新しいタスクを作成
+        xTaskCreatePinnedToCore(
+            ledTaskWrapper,
+            "LEDTask",
+            4096,
+            this,
+            1,
+            &ledTaskHandle,
+            1
+        );
+        
+        isTaskRunning = true;
     }
 }
 
 void LEDManager::stopPattern() {
     if (ledTaskHandle != nullptr) {
-        vTaskSuspend(ledTaskHandle);
+        vTaskDelete(ledTaskHandle);
+        ledTaskHandle = nullptr;
+        isTaskRunning = false;
     }
     
     // パターン停止時にすべてのLEDを消灯
@@ -166,13 +176,6 @@ void LEDManager::setBrightness(uint8_t brightness) {
 }
 
 bool LEDManager::isPatternRunning() {
-    if (ledTaskHandle == nullptr) {
-        return false;
-    }
-    
-    // タスクの状態を確認
-    eTaskState taskState = eTaskGetState(ledTaskHandle);
-    
-    // タスクが実行中（RUNNING）または準備完了（READY）状態ならパターン実行中と判断
-    return (taskState == eRunning || taskState == eReady);
+    // isTaskRunningフラグを使用して実行状態を判断
+    return isTaskRunning && ledTaskHandle != nullptr;
 }

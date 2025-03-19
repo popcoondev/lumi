@@ -103,6 +103,7 @@ private:
     int currentPatternIndex;
     TaskHandle_t ledTaskHandle;
     uint8_t brightness;
+    bool isTaskRunning;  // タスクが実行中かどうかを追跡するフラグ
     
     static void ledTaskWrapper(void* parameter);
 
