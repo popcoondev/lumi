@@ -637,17 +637,7 @@ public:
             return false;
         }
         
-        // 単一のパターンの場合
-        if (doc.is<JsonObject>()) {
-            JsonObject patternObj = doc.as<JsonObject>();
-            JsonLedPattern* pattern = PatternFactory::getInstance().createPattern(patternObj);
-            if (pattern) {
-                m_patterns.push_back(pattern);
-                m_patternNameMap[pattern->getName()] = 0;
-            }
-        }
-        // パターンの配列の場合
-        else if (doc.containsKey("patterns") && doc["patterns"].is<JsonArray>()) {
+        if (doc.containsKey("patterns") && doc["patterns"].is<JsonArray>()) {
             JsonArray patternsArray = doc["patterns"];
             int index = 0;
             for (JsonObject patternObj : patternsArray) {
