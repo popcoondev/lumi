@@ -16,6 +16,7 @@ OctaController::OctaController() {
     calibrationActivity = new CalibrationActivity();
     ledControlActivity = new LEDControlActivity();
     networkSettingsActivity = new NetworkSettingsActivity();
+    screenSaverActivity = new ScreenSaverActivity();
     micManager = new MicManager();
     networkManager = new NetworkManager();
     webServerManager = new WebServerManager(ledManager);
@@ -84,6 +85,7 @@ OctaController::~OctaController() {
     delete calibrationActivity;
     delete ledControlActivity;
     delete networkSettingsActivity;
+    delete screenSaverActivity;
     delete micManager;
     delete networkManager;
     delete webServerManager;
@@ -114,6 +116,7 @@ void OctaController::setup() {
     activityManager->registerActivity("calibration", calibrationActivity);
     activityManager->registerActivity("ledcontrol", ledControlActivity);
     activityManager->registerActivity("networksettings", networkSettingsActivity);
+    activityManager->registerActivity("screensaver", screenSaverActivity);
     
     // 各Activityの初期化
     splashActivity->onCreate();
@@ -123,6 +126,7 @@ void OctaController::setup() {
     calibrationActivity->onCreate();
     ledControlActivity->onCreate();
     networkSettingsActivity->onCreate();
+    screenSaverActivity->onCreate();
     
     // SplashActivityに必要なマネージャーを設定
     splashActivity->setManagers(networkManager, webServerManager, ledManager);
@@ -130,7 +134,8 @@ void OctaController::setup() {
     // SplashActivityの初期化完了時のコールバックを設定
     splashActivity->setInitCompletedCallback([this]() {
         // LumiHomeActivityに遷移
-        activityManager->startActivity("home");
+        // activityManager->startActivity("home");
+        activityManager->startActivity("screensaver");
     });
     
     // SettingsActivityの初期化

@@ -17,6 +17,7 @@
 #include "../activities/CalibrationActivity.h"
 #include "../activities/LEDControlActivity.h"
 #include "../activities/NetworkSettingsActivity.h"
+#include "../activities/ScreenSaverActivity.h"
 #include "../framework/ActivityManager.h"
 #include "../network/NetworkManager.h"
 #include "../network/WebServerManager.h"
@@ -44,6 +45,7 @@ private:
     CalibrationActivity* calibrationActivity;
     LEDControlActivity* ledControlActivity;
     NetworkSettingsActivity* networkSettingsActivity;
+    ScreenSaverActivity* screenSaverActivity;
     MicManager* micManager;
     NetworkManager* networkManager;
     WebServerManager* webServerManager;
@@ -70,6 +72,7 @@ private:
     void processCalibrationState();
     void processLEDControlState();
     void processLedControlButtons(ButtonEvent event);
+    void processScreenSaverState();
 
 public:
     OctaController();
