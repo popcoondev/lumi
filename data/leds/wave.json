@@ -1,0 +1,31 @@
+{
+  "name": "Wave",
+  "type": "custom",
+  "parameters": {
+    "loop": true,
+    "stepDelay": 50,
+    "colorHSV": {
+      "h": 160,
+      "s": 255,
+      "v": { "min": 50, "max": 255 }
+    },
+    "effects": {
+      "fade": {
+        "enabled": false
+      },
+      "blur": {
+        "enabled": true,
+        "intensity": 3,
+        "duration": 50
+      }
+    }
+  },
+  "steps": [
+    {
+      "faceSelection": {
+        "mode": "sequential"
+      },
+      "duration": 5000
+    }
+  ]
+}

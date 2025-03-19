@@ -136,6 +136,7 @@ public:
     // JSONパターン関連のメソッド
     bool loadJsonPatternsFromFile(const String& filename);
     bool loadJsonPatternsFromString(const String& jsonString);
+    bool loadJsonPatternsFromDirectory(const String& dirPath);
     int getJsonPatternCount();
     String getJsonPatternName(int index);
     void runJsonPattern(const String& patternName);

@@ -1,0 +1,45 @@
+{
+  "name": "Strobe",
+  "type": "custom",
+  "parameters": {
+    "loop": true,
+    "stepDelay": 100,
+    "colorHSV": {
+      "h": 0,
+      "s": 0,
+      "v": 100
+    },
+    "effects": {
+      "fade": {
+        "enabled": false
+      },
+      "blur": {
+        "enabled": false
+      }
+    }
+  },
+  "steps": [
+    {
+      "faceSelection": {
+        "mode": "all"
+      },
+      "colorHSV": {
+        "h": 0,
+        "s": 0,
+        "v": 100
+      },
+      "duration": 100
+    },
+    {
+      "faceSelection": {
+        "mode": "all"
+      },
+      "colorHSV": {
+        "h": 0,
+        "s": 0,
+        "v": 0
+      },
+      "duration": 100
+    }
+  ]
+}

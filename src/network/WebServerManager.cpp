@@ -41,7 +41,7 @@ void WebServerManager::stop() {
 void WebServerManager::setupAPIEndpoints() {
     // ステータスAPI
     _server->on("/api/status", HTTP_GET, [](AsyncWebServerRequest *request) {
-        Serial.println("[API] Status API called");
+        // Serial.println("[API] Status API called");
         StaticJsonDocument<256> doc;
         doc["status"] = "ok";
         doc["device"] = "Lumi";

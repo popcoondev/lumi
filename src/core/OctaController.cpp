@@ -227,6 +227,15 @@ void OctaController::setup() {
     // 設定の読み込み
     faceDetector->loadFaces();
     
+    // JSONパターンの読み込み
+    if (ledManager->loadJsonPatternsFromDirectory("/leds")) {
+        Serial.println("JSON patterns loaded successfully");
+        Serial.print("Pattern count: ");
+        Serial.println(ledManager->getJsonPatternCount());
+    } else {
+        Serial.println("Failed to load JSON patterns");
+    }
+    
     // スプラッシュ画面の表示（初期化処理はSplashActivity内で行われる）
     activityManager->startActivity("splash");
     Serial.println("Splash screen displayed, initialization started");

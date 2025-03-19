@@ -1,0 +1,29 @@
+{
+  "name": "Rainbow",
+  "type": "custom",
+  "parameters": {
+    "loop": true,
+    "stepDelay": 50,
+    "effects": {
+      "fade": {
+        "enabled": false
+      },
+      "blur": {
+        "enabled": false
+      }
+    }
+  },
+  "steps": [
+    {
+      "faceSelection": {
+        "mode": "all"
+      },
+      "colorHSV": {
+        "h": { "min": 0, "max": 255 },
+        "s": 255,
+        "v": 255
+      },
+      "duration": 5000
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "name": "Individual Random",
+  "type": "custom",
+  "parameters": {
+    "loop": true,
+    "stepDelay": 100,
+    "colorHSV": {
+      "h": { "min": 0, "max": 255 },
+      "s": { "min": 200, "max": 255 },
+      "v": { "min": 200, "max": 255 }
+    },
+    "effects": {
+      "fade": {
+        "enabled": false
+      },
+      "blur": {
+        "enabled": false
+      }
+    }
+  },
+  "steps": [
+    {
+      "faceSelection": {
+        "mode": "random",
+        "range": { "min": 0, "max": 7 },
+        "count": 4
+      },
+      "duration": 100
+    }
+  ]
+}

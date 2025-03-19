@@ -1,5 +1,6 @@
 #include "LEDManager.h"
 #include "Constants.h"
+#include <SPIFFS.h>
 
 LEDManager::LEDManager() {
     leds = nullptr;
@@ -212,11 +213,128 @@ void LEDManager::jsonPatternTaskWrapper(void* parameter) {
 
 // JSONパターン関連のメソッド
 bool LEDManager::loadJsonPatternsFromFile(const String& filename) {
-    return m_jsonPatternManager.loadPatternsFromFile(filename);
+    if (!SPIFFS.begin(true)) {
+        Serial.println("An error occurred while mounting SPIFFS");
+        return false;
+    }
+    
+    File file = SPIFFS.open(filename, "r");
+    if (!file) {
+        Serial.println("Failed to open pattern index file");
+        return false;
+    }
+    
+    String jsonString = file.readString();
+    file.close();
+    
+    DynamicJsonDocument doc(4096);
+    DeserializationError error = deserializeJson(doc, jsonString);
+    
+    if (error) {
+        Serial.print("JSON parsing failed: ");
+        Serial.println(error.c_str());
+        return false;
+    }
+    
+    if (!doc.containsKey("patterns") || !doc["patterns"].is<JsonArray>()) {
+        Serial.println("Invalid pattern index format");
+        return false;
+    }
+    
+    JsonArray patterns = doc["patterns"].as<JsonArray>();
+    int count = 0;
+    
+    for (JsonObject pattern : patterns) {
+        if (pattern.containsKey("name") && pattern.containsKey("file")) {
+            String name = pattern["name"].as<String>();
+            String filePath = pattern["file"].as<String>();
+            
+            // Load the pattern file
+            File patternFile = SPIFFS.open(filePath, "r");
+            if (patternFile) {
+                String patternJson = patternFile.readString();
+                patternFile.close();
+                
+                if (loadJsonPatternsFromString(patternJson)) {
+                    count++;
+                    Serial.printf("Loaded pattern: %s from %s\n", name.c_str(), filePath.c_str());
+                } else {
+                    Serial.printf("Failed to parse pattern: %s\n", name.c_str());
+                }
+            } else {
+                Serial.printf("Failed to open pattern file: %s\n", filePath.c_str());
+            }
+        }
+    }
+    
+    Serial.printf("Loaded %d JSON patterns from index file\n", count);
+    return count > 0;
 }
 
 bool LEDManager::loadJsonPatternsFromString(const String& jsonString) {
     return m_jsonPatternManager.loadPatternsFromJson(jsonString);
+}
+
+bool LEDManager::loadJsonPatternsFromDirectory(const String& dirPath) {
+    if (!SPIFFS.begin(true)) {
+        Serial.println("An error occurred while mounting SPIFFS");
+        return false;
+    }
+    
+    File root = SPIFFS.open(dirPath);
+    if (!root) {
+        Serial.println("Failed to open directory");
+        return false;
+    }
+    
+    if (!root.isDirectory()) {
+        Serial.println("Not a directory");
+        return false;
+    }
+    
+    // Create a JSON array to hold all patterns
+    String combinedJson = "{\"patterns\":[";
+    bool firstPattern = true;
+    int count = 0;
+    
+    File file = root.openNextFile();
+    while (file) {
+        if (!file.isDirectory()) {
+            String path = file.name();
+            if (path.endsWith(".json")) {
+                String jsonString = file.readString();
+                
+                // Add comma if not the first pattern
+                if (!firstPattern) {
+                    combinedJson += ",";
+                } else {
+                    firstPattern = false;
+                }
+                
+                // Add the pattern JSON to the array
+                combinedJson += jsonString;
+                count++;
+            }
+        }
+        file = root.openNextFile();
+    }
+    
+    combinedJson += "]}";
+    
+    Serial.printf("Loaded %d JSON patterns from directory\n", count);
+    
+    if (count > 0) {
+        // Load all patterns at once
+        bool success = loadJsonPatternsFromString(combinedJson);
+        if (success) {
+            Serial.println("JSON patterns loaded successfully");
+        } else {
+            Serial.println("Failed to load JSON patterns");
+        }
+        return success;
+    }
+    
+    return false;
 }
 
 int LEDManager::getJsonPatternCount() {

@@ -1,0 +1,55 @@
+{
+  "name": "Chase",
+  "type": "custom",
+  "parameters": {
+    "loop": true,
+    "stepDelay": 300,
+    "colorHSV": {
+      "h": 0,
+      "s": 0,
+      "v": 100
+    },
+    "effects": {
+      "fade": {
+        "enabled": false
+      },
+      "blur": {
+        "enabled": false
+      }
+    }
+  },
+  "steps": [
+    {
+      "faces": [0],
+      "duration": 300
+    },
+    {
+      "faces": [1],
+      "duration": 300
+    },
+    {
+      "faces": [2],
+      "duration": 300
+    },
+    {
+      "faces": [3],
+      "duration": 300
+    },
+    {
+      "faces": [4],
+      "duration": 300
+    },
+    {
+      "faces": [5],
+      "duration": 300
+    },
+    {
+      "faces": [6],
+      "duration": 300
+    },
+    {
+      "faces": [7],
+      "duration": 300
+    }
+  ]
+}

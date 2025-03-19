@@ -34,8 +34,11 @@ private:
     ButtonFragment* m_prevButton;
     ButtonFragment* m_nextButton;
     ButtonFragment* m_homeButton;
+    ButtonFragment* m_modeButton; // パターンモード切替ボタン
     
     bool m_isPlaying;
+    bool m_isJsonPattern; // JSONパターンモードかどうか
+    int m_currentJsonPatternIndex; // 現在のJSONパターンインデックス
     
     // コールバック関数
     std::function<void()> onHomeRequested;
@@ -45,6 +48,7 @@ private:
     void togglePlayPause();
     void nextPattern();
     void prevPattern();
+    void togglePatternMode(); // パターンモード（通常/JSON）の切り替え
     
     // UIコンポーネント用のID定数
     enum {
@@ -52,7 +56,8 @@ private:
         ID_BUTTON_PLAY_PAUSE,
         ID_BUTTON_PREV,
         ID_BUTTON_NEXT,
-        ID_BUTTON_HOME
+        ID_BUTTON_HOME,
+        ID_BUTTON_MODE
     };
 };
 

@@ -1,139 +1,230 @@
-# JSON LED パターンシステム
+# JSON LED Pattern Format
 
-このシステムは、JSONファイルを使用してLEDパターンを定義し、動的に読み込んで実行することができます。これにより、コードを変更せずに新しいパターンを追加したり、既存のパターンをカスタマイズしたりすることが可能になります。
+This document describes the format of JSON LED patterns used in the Lumi project.
 
-## 機能
+## Overview
 
-- JSONファイルからLEDパターンを読み込み
-- HSV色空間での色指定（固定値またはランダム範囲）
-- 複数のステップからなるパターン定義
-- 面選択の柔軟な指定（固定、ランダム、全面）
-- エフェクト（フェード、ブラー）のサポート
-- パターンのループ再生
+LED patterns can be defined in JSON format and loaded from files. This allows for easy creation and modification of patterns without changing the code.
 
-## JSONフォーマット
+## Pattern Index File
+
+The pattern index file (`data/led_patterns.json`) contains a list of all available patterns and their file paths. The format is as follows:
 
 ```json
 {
-  "name": "パターン名",
+  "patterns": [
+    {
+      "name": "Pattern Name",
+      "file": "/led_patterns/pattern_file.json"
+    },
+    ...
+  ]
+}
+```
+
+## Pattern File Format
+
+Each pattern is defined in a separate JSON file with the following structure:
+
+```json
+{
+  "name": "Pattern Name",
   "type": "custom",
   "parameters": {
     "loop": true,
-    "stepDelay": {
-      "min": 500,
-      "max": 1500
-    },
+    "stepDelay": 300,
     "colorHSV": {
-      "h": { "min": 0, "max": 360 },
-      "s": { "min": 50, "max": 100 },
-      "v": { "min": 50, "max": 100 }
+      "h": 0,
+      "s": 0,
+      "v": 100
     },
     "effects": {
       "fade": {
-        "enabled": true,
-        "mode": "both",
-        "duration": { "min": 500, "max": 1000 }
+        "enabled": false
       },
       "blur": {
-        "enabled": true,
-        "intensity": { "min": 2, "max": 5 },
-        "duration": { "min": 200, "max": 600 }
+        "enabled": false
+      }
+    }
+  },
+  "steps": [
+    {
+      "faces": [0, 1, 2],
+      "duration": 300
+    },
+    ...
+  ]
+}
+```
+
+### Pattern Properties
+
+- `name`: The name of the pattern.
+- `type`: The type of pattern (currently only "custom" is supported).
+- `parameters`: Global parameters for the pattern.
+  - `loop`: Whether the pattern should loop.
+  - `stepDelay`: The delay between steps in milliseconds.
+  - `colorHSV`: The default color for the pattern in HSV format.
+    - `h`: Hue (0-255).
+    - `s`: Saturation (0-255).
+    - `v`: Value/Brightness (0-255).
+  - `effects`: Special effects to apply to the pattern.
+    - `fade`: Fade effect.
+      - `enabled`: Whether the fade effect is enabled.
+      - `mode`: The fade mode ("in", "out", or "both").
+      - `duration`: The duration of the fade effect in milliseconds.
+    - `blur`: Blur effect.
+      - `enabled`: Whether the blur effect is enabled.
+      - `intensity`: The intensity of the blur effect.
+      - `duration`: The duration of the blur effect in milliseconds.
+- `steps`: An array of steps that define the pattern.
+  - `faces`: An array of face indices to light up. Can be omitted if using `faceSelection`.
+  - `faceSelection`: An object that defines how to select faces.
+    - `mode`: The selection mode ("all", "random", "sequential").
+    - `range`: The range of faces to select from (for "random" mode).
+      - `min`: The minimum face index.
+      - `max`: The maximum face index.
+    - `count`: The number of faces to select (for "random" mode).
+  - `colorHSV`: The color for this step in HSV format. If omitted, the default color from `parameters` is used.
+  - `duration`: The duration of this step in milliseconds.
+
+## Random Values
+
+Some properties can be defined as random values within a range:
+
+```json
+"h": { "min": 0, "max": 255 }
+```
+
+This will generate a random value between `min` and `max` for each face or each time the pattern is run.
+
+## Examples
+
+### Sequential Pattern
+
+```json
+{
+  "name": "Sequential",
+  "type": "custom",
+  "parameters": {
+    "loop": true,
+    "stepDelay": 300,
+    "colorHSV": {
+      "h": 0,
+      "s": 0,
+      "v": 100
+    },
+    "effects": {
+      "fade": {
+        "enabled": false
+      },
+      "blur": {
+        "enabled": false
+      }
+    }
+  },
+  "steps": [
+    {
+      "faces": [0],
+      "duration": 300
+    },
+    {
+      "faces": [1],
+      "duration": 300
+    },
+    {
+      "faces": [2],
+      "duration": 300
+    },
+    {
+      "faces": [3],
+      "duration": 300
+    },
+    {
+      "faces": [4],
+      "duration": 300
+    },
+    {
+      "faces": [5],
+      "duration": 300
+    },
+    {
+      "faces": [6],
+      "duration": 300
+    },
+    {
+      "faces": [7],
+      "duration": 300
+    }
+  ]
+}
+```
+
+### Random Pattern
+
+```json
+{
+  "name": "Random",
+  "type": "custom",
+  "parameters": {
+    "loop": true,
+    "stepDelay": 500,
+    "effects": {
+      "fade": {
+        "enabled": false
+      },
+      "blur": {
+        "enabled": false
       }
     }
   },
   "steps": [
     {
       "faceSelection": {
-        "mode": "random",
-        "range": { "min": 0, "max": 7 },
-        "count": 3
+        "mode": "all"
       },
       "colorHSV": {
-        "h": { "min": 200, "max": 240 },
-        "s": 80,
-        "v": 100
+        "h": { "min": 0, "max": 255 },
+        "s": { "min": 200, "max": 255 },
+        "v": { "min": 200, "max": 255 }
       },
-      "duration": { "min": 800, "max": 1200 }
-    },
-    {
-      "faces": [4, 5, 6],
-      "colorHSV": {
-        "h": 50,
-        "s": 90,
-        "v": 100
-      },
-      "duration": 1200
+      "duration": 500
     }
   ]
 }
 ```
 
-### パラメータの説明
+### Pulse Pattern
 
-#### グローバルパラメータ（parameters）
-
-- `loop`: パターン全体をループさせるかどうか（true/false）
-- `stepDelay`: 各ステップ間の遅延時間（ミリ秒）
-  - 固定値または範囲指定（min/max）が可能
-- `colorHSV`: グローバルな色のデフォルト値
-  - `h`: 色相（0-360）
-  - `s`: 彩度（0-255）
-  - `v`: 明度（0-255）
-- `effects`: エフェクト設定
-  - `fade`: フェードエフェクト
-    - `enabled`: 有効/無効
-    - `mode`: "in"（フェードイン）, "out"（フェードアウト）, "both"（両方）
-    - `duration`: エフェクトの持続時間
-  - `blur`: ブラーエフェクト
-    - `enabled`: 有効/無効
-    - `intensity`: ブラーの強度
-    - `duration`: エフェクトの持続時間
-
-#### ステップパラメータ（steps）
-
-- `faceSelection`: 面選択の設定
-  - `mode`: 選択モード（"random", "all", "sequential"）
-  - `range`: ランダム選択時の範囲
-  - `count`: ランダム選択時の選択数
-- `faces`: 直接面を指定する場合の配列
-- `colorHSV`: ステップごとの色設定（グローバル設定を上書き）
-- `duration`: ステップの持続時間（ミリ秒）
-
-## 使用方法
-
-### JSONパターンの読み込み
-
-```cpp
-// ファイルからの読み込み
-ledManager.loadJsonPatternsFromFile("/led_patterns.json");
-
-// 文字列からの読み込み
-String jsonString = "..."; // JSONパターン文字列
-ledManager.loadJsonPatternsFromString(jsonString);
-```
-
-### パターンの実行
-
-```cpp
-// 名前でパターンを実行
-ledManager.runJsonPattern("パターン名");
-
-// インデックスでパターンを実行
-ledManager.runJsonPatternByIndex(0);
-```
-
-### パターンの停止
-
-```cpp
-ledManager.stopPattern();
-```
-
-## サンプルコード
-
-`src/JsonLEDPatternTest.cpp` にサンプルコードがあります。このサンプルでは、SPIFFSからJSONパターンを読み込み、実行する方法を示しています。
-
-## 注意事項
-
-- JSONパターンを使用する前に、LEDManagerの初期化（begin）を呼び出す必要があります。
-- パターンの実行中に別のパターンを実行すると、現在のパターンは停止し、新しいパターンが開始されます。
-- エフェクトの使用はCPUに負荷をかける可能性があります。複雑なエフェクトを使用する場合は、パフォーマンスに注意してください。
+```json
+{
+  "name": "Pulse",
+  "type": "custom",
+  "parameters": {
+    "loop": true,
+    "stepDelay": 30,
+    "colorHSV": {
+      "h": 0,
+      "s": 0,
+      "v": 100
+    },
+    "effects": {
+      "fade": {
+        "enabled": true,
+        "mode": "both",
+        "duration": 1500
+      },
+      "blur": {
+        "enabled": false
+      }
+    }
+  },
+  "steps": [
+    {
+      "faceSelection": {
+        "mode": "all"
+      },
+      "duration": 3000
+    }
+  ]
+}

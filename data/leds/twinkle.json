@@ -1,0 +1,55 @@
+{
+  "name": "Twinkle",
+  "type": "custom",
+  "parameters": {
+    "loop": true,
+    "stepDelay": 100,
+    "colorHSV": {
+      "h": 0,
+      "s": 0,
+      "v": { "min": 50, "max": 255 }
+    },
+    "effects": {
+      "fade": {
+        "enabled": false
+      },
+      "blur": {
+        "enabled": false
+      }
+    }
+  },
+  "steps": [
+    {
+      "faceSelection": {
+        "mode": "random",
+        "range": { "min": 0, "max": 7 },
+        "count": 4
+      },
+      "duration": 100
+    },
+    {
+      "faceSelection": {
+        "mode": "random",
+        "range": { "min": 0, "max": 7 },
+        "count": 4
+      },
+      "duration": 100
+    },
+    {
+      "faceSelection": {
+        "mode": "random",
+        "range": { "min": 0, "max": 7 },
+        "count": 4
+      },
+      "duration": 100
+    },
+    {
+      "faceSelection": {
+        "mode": "random",
+        "range": { "min": 0, "max": 7 },
+        "count": 4
+      },
+      "duration": 100
+    }
+  ]
+}

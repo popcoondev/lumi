@@ -1,0 +1,49 @@
+{
+  "name": "FireFlicker",
+  "type": "custom",
+  "parameters": {
+    "loop": true,
+    "stepDelay": 50,
+    "colorHSV": {
+      "h": { "min": 0, "max": 20 },
+      "s": { "min": 200, "max": 255 },
+      "v": { "min": 100, "max": 255 }
+    },
+    "effects": {
+      "fade": {
+        "enabled": false
+      },
+      "blur": {
+        "enabled": true,
+        "intensity": 2,
+        "duration": 50
+      }
+    }
+  },
+  "steps": [
+    {
+      "faceSelection": {
+        "mode": "all"
+      },
+      "duration": 50
+    },
+    {
+      "faceSelection": {
+        "mode": "all"
+      },
+      "duration": 50
+    },
+    {
+      "faceSelection": {
+        "mode": "all"
+      },
+      "duration": 50
+    },
+    {
+      "faceSelection": {
+        "mode": "all"
+      },
+      "duration": 50
+    }
+  ]
+}
