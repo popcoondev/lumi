@@ -134,8 +134,7 @@ void OctaController::setup() {
     // SplashActivityの初期化完了時のコールバックを設定
     splashActivity->setInitCompletedCallback([this]() {
         // LumiHomeActivityに遷移
-        // activityManager->startActivity("home");
-        activityManager->startActivity("screensaver");
+        activityManager->startActivity("home");
     });
     
     // SettingsActivityの初期化
