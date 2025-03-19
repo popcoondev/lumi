@@ -26,6 +26,9 @@ private:
     
     // パターン制御のヘルパーメソッド
     void handlePatternControl(int patternId, AsyncWebServerRequest *request);
+    
+    // JSONパターン制御のヘルパーメソッド
+    void handleJsonPatternControl(AsyncWebServerRequest *request, uint8_t *data, size_t len);
 
 public:
     WebServerManager(LEDManager* ledManager);

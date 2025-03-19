@@ -3,6 +3,53 @@ let connectionStatus = 'connecting'; // 'connecting', 'connected', 'disconnected
 let patterns = [];
 let currentColorHex = '#ffff00'; // デフォルト色（黄色）
 
+// JSONパターンのテンプレート
+const jsonPatternTemplate = `{
+  "name": "カスタムパターン",
+  "type": "custom",
+  "parameters": {
+    "loop": true,
+    "stepDelay": 100,
+    "colorHSV": {
+      "h": 0,
+      "s": 255,
+      "v": 255
+    },
+    "effects": {
+      "fade": {
+        "enabled": false
+      },
+      "blur": {
+        "enabled": false
+      }
+    }
+  },
+  "steps": [
+    {
+      "faceSelection": {
+        "mode": "all"
+      },
+      "colorHSV": {
+        "h": 0,
+        "s": 255,
+        "v": 255
+      },
+      "duration": 1000
+    },
+    {
+      "faceSelection": {
+        "mode": "all"
+      },
+      "colorHSV": {
+        "h": 120,
+        "s": 255,
+        "v": 255
+      },
+      "duration": 1000
+    }
+  ]
+}`;
+
 // DOMが読み込まれたら実行
 document.addEventListener('DOMContentLoaded', () => {
     // モーダル用のスタイルを追加
@@ -16,6 +63,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // パターンリストの取得
     fetchPatterns();
+    
+    // JSONパターンボタンのイベントリスナーを追加
+    document.getElementById('jsonPatternBtn').addEventListener('click', showJsonPatternModal);
 });
 
 // LEDControllerクラス - オクタゴンUIの制御
@@ -667,33 +717,32 @@ function showColorPickerModal() {
     const closeBtn = modal.querySelector('.btn-close');
     closeBtn.addEventListener('click', closeColorPickerModal);
     
-    const cancelBtn = modal.querySelector('[data-bs-dismiss="modal"]');
-    cancelBtn.addEventListener('click', closeColorPickerModal);
+    const closeModalBtn = modal.querySelector('[data-bs-dismiss="modal"]');
+    closeModalBtn.addEventListener('click', closeColorPickerModal);
     
     // カラーピッカーのイベント
     const colorPicker = document.getElementById('colorPicker');
     colorPicker.addEventListener('input', (e) => {
+        // 選択された色を保存
         currentColorHex = e.target.value;
     });
     
-    // プリセットカラーのイベント
+    // 色プリセットボタンのイベント
     const colorPresets = modal.querySelectorAll('.color-preset');
     colorPresets.forEach(preset => {
         preset.addEventListener('click', () => {
-            currentColorHex = preset.dataset.color;
-            colorPicker.value = currentColorHex;
+            const color = preset.dataset.color;
+            currentColorHex = color;
+            colorPicker.value = color;
         });
     });
     
     // 適用ボタンのイベント
-    const applyColorBtn = document.getElementById('applyColorBtn');
-    applyColorBtn.addEventListener('click', () => {
-        // フォーカスされている面があれば、その面の色を変更
-        const ledController = window.ledController;
-        if (ledController && ledController.focusedSegment !== -1) {
-            ledController.setLED(ledController.focusedSegment, true);
-        }
+    const applyBtn = document.getElementById('applyColorBtn');
+    applyBtn.addEventListener('click', () => {
+        // 選択された色を適用して閉じる
         closeColorPickerModal();
+        showStatus('色を変更しました: ' + currentColorHex, 'success');
     });
 }
 
@@ -707,94 +756,160 @@ function closeColorPickerModal() {
 
 // モーダル用のスタイルを追加
 function addModalStyles() {
+    // 既存のスタイルがあれば削除
+    let existingStyle = document.getElementById('modalStyles');
+    if (existingStyle) {
+        existingStyle.remove();
+    }
+    
+    // スタイルを作成
     const style = document.createElement('style');
+    style.id = 'modalStyles';
     style.textContent = `
         .modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 1050;
-            overflow: auto;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         }
-        
-        .modal-dialog {
-            position: relative;
-            width: auto;
-            margin: 1.75rem auto;
-            max-width: 500px;
-        }
-        
-        .modal-content {
-            position: relative;
-            background-color: var(--bs-dark);
-            border: 1px solid rgba(0, 0, 0, 0.2);
-            border-radius: 0.3rem;
-            outline: 0;
-        }
-        
-        .modal-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 1rem;
-            border-bottom: 1px solid #dee2e6;
-        }
-        
-        .modal-body {
-            position: relative;
-            padding: 1rem;
-        }
-        
-        .modal-footer {
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            padding: 1rem;
-            border-top: 1px solid #dee2e6;
-            gap: 0.5rem;
-        }
-        
-        .btn-close {
-            background: transparent;
-            border: 0;
-            font-size: 1.5rem;
+        .modal-title {
             color: white;
-            cursor: pointer;
+            margin: 0;
         }
-        
-        .list-group {
-            display: flex;
-            flex-direction: column;
-            padding-left: 0;
-            margin-bottom: 0;
+        .form-label {
+            color: white;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+        .form-control-color {
+            height: 40px;
+            padding: 0.375rem;
+            background-color: #343a40;
+            border: 1px solid #6c757d;
             border-radius: 0.25rem;
         }
-        
-        .list-group-item {
-            position: relative;
-            display: block;
-            padding: 0.75rem 1.25rem;
-            background-color: var(--bs-dark);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            cursor: pointer;
-        }
-        
-        .list-group-item:hover {
-            background-color: var(--bs-primary);
-        }
-        
         .color-preset {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            border: 2px solid #fff;
-            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .color-preset:hover {
+            transform: scale(1.1);
+        }
+        .list-group-item-action:hover {
+            background-color: rgba(255, 255, 255, 0.1) !important;
         }
     `;
     
     document.head.appendChild(style);
+}
+
+// JSONパターンモーダルを表示
+function showJsonPatternModal() {
+    // 既存のモーダルがあれば削除
+    let existingModal = document.getElementById('jsonPatternModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // モーダルを作成
+    const modal = document.createElement('div');
+    modal.id = 'jsonPatternModal';
+    modal.className = 'modal fade show';
+    modal.style.display = 'block';
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    modal.style.zIndex = '1050';
+    modal.style.overflow = 'auto';
+    
+    // モーダルの内容を作成
+    modal.innerHTML = `
+        <div class="modal-dialog modal-dialog-centered modal-lg" style="position: relative; width: auto; margin: 1.75rem auto; max-width: 800px;">
+            <div class="modal-content" style="position: relative; background-color: var(--bs-dark); border: 1px solid rgba(0, 0, 0, 0.2); border-radius: 0.3rem; outline: 0;">
+                <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; border-bottom: 1px solid #dee2e6;">
+                    <h5 class="modal-title">JSONパターン設定</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="background: transparent; border: 0; font-size: 1.5rem; color: white; cursor: pointer;">×</button>
+                </div>
+                <div class="modal-body" style="position: relative; padding: 1rem;">
+                    <div class="mb-3">
+                        <label for="jsonPatternEditor" class="form-label">JSONパターン</label>
+                        <textarea id="jsonPatternEditor" class="form-control" style="height: 400px; background-color: #343a40; color: white; font-family: monospace;">${jsonPatternTemplate}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer" style="display: flex; align-items: center; justify-content: flex-end; padding: 1rem; border-top: 1px solid #dee2e6; gap: 0.5rem;">
+                    <button type="button" class="btn btn-primary" id="applyJsonBtn">適用</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // 背景をクリックしたらモーダルを閉じる
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeJsonPatternModal();
+        }
+    });
+    
+    // 閉じるボタンのイベント
+    const closeBtn = modal.querySelector('.btn-close');
+    closeBtn.addEventListener('click', closeJsonPatternModal);
+    
+    const closeModalBtn = modal.querySelector('[data-bs-dismiss="modal"]');
+    closeModalBtn.addEventListener('click', closeJsonPatternModal);
+    
+    // 適用ボタンのイベント
+    const applyBtn = document.getElementById('applyJsonBtn');
+    applyBtn.addEventListener('click', () => {
+        // JSONパターンを適用
+        applyJsonPattern();
+    });
+}
+
+// JSONパターンモーダルを閉じる
+function closeJsonPatternModal() {
+    const modal = document.getElementById('jsonPatternModal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// JSONパターンを適用
+function applyJsonPattern() {
+    const jsonEditor = document.getElementById('jsonPatternEditor');
+    const jsonText = jsonEditor.value;
+    
+    try {
+        // JSONの検証
+        const patternObj = JSON.parse(jsonText);
+
+        // APIにJSONパターンを送信
+        fetch('/api/led/pattern/json', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: jsonText // 直接送信
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            } else {
+                throw new Error('Failed to apply JSON pattern');
+            }
+        })
+        .then(data => {
+            console.log('JSON pattern applied:', data);
+            showStatus('JSONパターンを適用しました', 'success');
+            closeJsonPatternModal();
+        })
+        .catch(error => {
+            console.error('Error applying JSON pattern:', error);
+            showStatus('JSONパターンの適用に失敗しました', 'danger');
+        });
+    } catch (error) {
+        console.error('Invalid JSON:', error);
+        showStatus('無効なJSONフォーマットです', 'danger');
+    }
 }

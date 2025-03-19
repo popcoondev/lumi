@@ -142,7 +142,27 @@ void WebServerManager::setupAPIEndpoints() {
         
         request->send(200, "application/json", response);
     });
+    
+    // LED制御API - JSONパターンを受け取って実行
+    _server->on("/api/led/pattern/json", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+        if (index == 0) {
+            // 最初のフレーム
+            Serial.println("[API] JSON LED pattern API called");
+        }
+        
+        if (index + len == total) {
+            // 最後のフレーム
+            Serial.println("[API] JSON LED pattern API received all data");
+            Serial.println("[API] JSON data: " + String((char*)data));
+            Serial.println("[API] JSON data length: " + String(len));
+            Serial.println("[API] JSON data total length: " + String(total));
+            Serial.println("[API] JSON data index: " + String(index));
+
+            handleJsonPatternControl(request, data, total);
+        }
+    });
 }
+
 
 void WebServerManager::handleLedFaceControl(int faceId, AsyncWebServerRequest *request) {
     Serial.println("[API] LED control API called for face: " + String(faceId));
@@ -239,6 +259,11 @@ void WebServerManager::setupStaticFiles() {
         String path = request->url();
         request->send(SPIFFS, path, "image/jpeg");
     });
+    
+    // Markdownファイル
+    _server->on("/README_JSON_LED_PATTERNS.md", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(SPIFFS, "/README_JSON_LED_PATTERNS.md", "text/markdown");
+    });
 }
 
 void WebServerManager::setupNotFoundHandler() {
@@ -246,4 +271,65 @@ void WebServerManager::setupNotFoundHandler() {
     _server->onNotFound([](AsyncWebServerRequest *request) {
         request->send(404, "text/plain", "Not found");
     });
+}
+
+void WebServerManager::handleJsonPatternControl(AsyncWebServerRequest *request, uint8_t *data, size_t len) {
+    Serial.println("handleJsonPatternControl");
+    
+    // JSONデータを文字列に変換
+    String jsonString = "";
+    for (size_t i = 0; i < len; i++) {
+        jsonString += (char)data[i];
+    }
+    
+    // JSONの検証
+    DynamicJsonDocument doc(4096);
+    DeserializationError error = deserializeJson(doc, jsonString);
+    
+    if (error) {
+        Serial.print(F("JSON parsing failed: "));
+        Serial.println(error.c_str());
+        
+        StaticJsonDocument<256> response;
+        response["status"] = "error";
+        response["message"] = String("JSON parsing failed: ") + error.c_str();
+        
+        String responseStr;
+        serializeJson(response, responseStr);
+        
+        request->send(400, "application/json", responseStr);
+        return;
+    }
+    
+    // LEDManagerにJSONパターンを読み込ませて実行
+    bool success = _ledManager->loadJsonPatternsFromString(jsonString);
+    
+    if (success) {
+        // パターン名を取得（あれば）
+        String patternName = "Custom Pattern";
+        if (doc.containsKey("name")) {
+            patternName = doc["name"].as<String>();
+        }
+        
+        // パターンを実行
+        _ledManager->runJsonPattern(patternName);
+        
+        StaticJsonDocument<256> response;
+        response["status"] = "ok";
+        response["pattern"] = patternName;
+        
+        String responseStr;
+        serializeJson(response, responseStr);
+        
+        request->send(200, "application/json", responseStr);
+    } else {
+        StaticJsonDocument<256> response;
+        response["status"] = "error";
+        response["message"] = "Failed to load JSON pattern";
+        
+        String responseStr;
+        serializeJson(response, responseStr);
+        
+        request->send(400, "application/json", responseStr);
+    }
 }
