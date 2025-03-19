@@ -133,7 +133,7 @@ void LumiHomeActivity::initialize(LEDManager* ledManager, FaceDetector* faceDete
     m_resetButton->setFontSize(1.4);
     m_resetButton->setType(BUTTON_TYPE_TEXT);
     
-    m_bottomLeftButton->setLabel("");
+    m_bottomLeftButton->setLabel("Screen");
     m_bottomLeftButton->setColor(BLACK, TFT_LIGHTGREY);
     m_bottomLeftButton->setFontSize(1.4);
     m_bottomLeftButton->setType(BUTTON_TYPE_TEXT);
@@ -275,10 +275,14 @@ void LumiHomeActivity::initialize(LEDManager* ledManager, FaceDetector* faceDete
         Serial.println("All LEDs reset, focus cleared, and sliders reset");
     };
     
-    // 左下ボタン - 機能なし
+    // 左下ボタン - スクリーンセーバー起動
     onBottomLeftButtonTapped = [this]() {
-        // 何も処理を行わない
-        Serial.println("====== BOTTOM LEFT BUTTON PRESSED - NO ACTION ======");
+        Serial.println("====== STARTING SCREEN SAVER ======");
+        
+        // ActivityManagerを使用してScreenSaverActivityを起動
+        if (onRequestScreenSaverTransition) {
+            onRequestScreenSaverTransition();
+        }
     };
 
     // 面タップでフォーカスをトグル

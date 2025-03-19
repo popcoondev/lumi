@@ -128,6 +128,9 @@ void OctaController::setup() {
     networkSettingsActivity->onCreate();
     screenSaverActivity->onCreate();
     
+    // ScreenSaverActivityにActivityManagerを設定
+    screenSaverActivity->setActivityManager(activityManager);
+    
     // SplashActivityに必要なマネージャーを設定
     splashActivity->setManagers(networkManager, webServerManager, ledManager);
     
@@ -203,6 +206,11 @@ void OctaController::setup() {
     // 設定画面遷移用のコールバックを設定
     lumiHomeActivity->setSettingsTransitionCallback([this]() {
         activityManager->startActivity("settings");
+    });
+    
+    // スクリーンセーバー画面遷移用のコールバックを設定
+    lumiHomeActivity->setScreenSaverTransitionCallback([this]() {
+        activityManager->startActivity("screensaver");
     });
     
     // 各Activityのホーム画面遷移コールバックを設定
@@ -290,6 +298,12 @@ void OctaController::loop() {
     // 現在のActivityがNetworkSettingsActivityの場合
     if (activityManager->getCurrentActivity() == networkSettingsActivity) {
         processNetworkSettingsActivityState();
+        return;
+    }
+    
+    // 現在のActivityがScreenSaverActivityの場合
+    if (activityManager->getCurrentActivity() == screenSaverActivity) {
+        processScreenSaverActivityState();
         return;
     }
     
@@ -465,6 +479,32 @@ void OctaController::processLEDControlActivityState() {
         
         framework::TouchEvent touchEvent(action, touch.x, touch.y);
         ledControlActivity->handleEvent(touchEvent);
+    }
+}
+
+void OctaController::processScreenSaverActivityState() {
+    Serial.println("Processing ScreenSaverActivity state");
+    
+    // スクリーンセーバーの更新処理を追加
+    if (screenSaverActivity->isPlaying()) {
+        screenSaverActivity->update();
+    }
+    
+    // M5.Touchの状態を取得
+    auto touch = M5.Touch.getDetail();
+    bool isPressed = touch.isPressed();
+    bool wasPressed = touch.wasPressed();
+    bool wasReleased = touch.wasReleased();
+    
+    if (wasPressed || isPressed || wasReleased) {
+        Serial.println("Touch detected in OctaController::processScreenSaverActivityState");
+        framework::TouchAction action;
+        if (wasPressed) action = framework::TouchAction::DOWN;
+        else if (wasReleased) action = framework::TouchAction::UP;
+        else action = framework::TouchAction::MOVE;
+        
+        framework::TouchEvent touchEvent(action, touch.x, touch.y);
+        screenSaverActivity->handleEvent(touchEvent);
     }
 }
 

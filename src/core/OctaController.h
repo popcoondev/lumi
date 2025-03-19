@@ -68,11 +68,11 @@ private:
     void processCalibrationActivityState();
     void processLEDControlActivityState();
     void processNetworkSettingsActivityState();
+    void processScreenSaverActivityState();
     void processDetectionState();
     void processCalibrationState();
     void processLEDControlState();
     void processLedControlButtons(ButtonEvent event);
-    void processScreenSaverState();
 
 public:
     OctaController();

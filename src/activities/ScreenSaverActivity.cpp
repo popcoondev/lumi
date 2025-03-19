@@ -2,10 +2,13 @@
 #include <M5Unified.h>
 #include <math.h>
 #include <stdlib.h>
+#include "../framework/EventBus.h"
+#include "../framework/ActivityManager.h"
 
 // ===== コンストラクタ／ライフサイクル =====
 ScreenSaverActivity::ScreenSaverActivity()
     : Activity(0, "ScreenSaverActivity"),
+      m_activityManager(nullptr),
       m_startTime(0),
       m_lastUpdateTime(0),
       m_animationProgress(0.0f),
@@ -48,6 +51,9 @@ bool ScreenSaverActivity::onResume() {
         m_lineLength[i] = 0;
     }
     
+    // イベントバスへの登録
+    framework::EventBus::getInstance().subscribe(this);
+    
     startScreenSaver();
     return true;
 }
@@ -62,7 +68,42 @@ void ScreenSaverActivity::onStop() {
 }
 
 void ScreenSaverActivity::onDestroy() {
+    // イベントバスからの登録解除
+    framework::EventBus::getInstance().unsubscribe(this);
+    
     Activity::onDestroy();
+}
+
+// イベント処理
+bool ScreenSaverActivity::handleEvent(const framework::Event& event) {
+    Serial.println("Event received");
+    // 基底クラスのイベント処理
+    if (Activity::handleEvent(event)) {
+        return true;
+    }
+    
+    // タッチイベントの処理
+    if (event.getType() == framework::EventType::TOUCH) {
+        Serial.println("Touch event received in ScreenSaver");
+        const framework::TouchEvent& touchEvent = static_cast<const framework::TouchEvent&>(event);
+        
+        // タッチダウンイベントの場合
+        if (touchEvent.getAction() == framework::TouchAction::DOWN) {
+            Serial.println("Touch detected in ScreenSaver - returning to home");
+            
+            // スクリーンセーバーを停止
+            stopScreenSaver();
+            
+            // LumiHomeActivityに戻る
+            if (m_activityManager) {
+                m_activityManager->startActivity("home");
+            }
+            
+            return true;
+        }
+    }
+    
+    return false;
 }
 
 // ===== 再生状態管理 =====
@@ -147,12 +188,11 @@ void ScreenSaverActivity::update() {
     }
 }
 
-// スクリーンセーバー開始：isPlayingがtrueの間、update()を呼び出す
+// スクリーンセーバー開始
 void ScreenSaverActivity::startScreenSaver() {
+    Serial.println("ScreenSaverActivity::startScreenSaver - Starting screen saver");
     setPlaying(true);
-    while (isPlaying()) {
-        update();
-    }
+    // ブロッキングループを削除
 }
 
 // 停止

@@ -2,6 +2,7 @@
 #define SCREENSAVER_ACTIVITY_H
 
 #include "../framework/Activity.h"
+#include "../framework/ActivityManager.h"
 #include <functional>
 
 class ScreenSaverActivity : public framework::Activity {
@@ -15,6 +16,9 @@ public:
     virtual void onPause() override;
     virtual void onStop() override;
     virtual void onDestroy() override;
+    
+    // イベント処理
+    virtual bool handleEvent(const framework::Event& event) override;
 
     // 描画・更新処理
     void draw();
@@ -27,8 +31,14 @@ public:
     // 再生状態管理
     bool isPlaying() const;
     void setPlaying(bool playing);
+    
+    // ActivityManagerの設定
+    void setActivityManager(framework::ActivityManager* activityManager) {
+        this->m_activityManager = activityManager;
+    }
 
 private:
+    framework::ActivityManager* m_activityManager;
     unsigned long m_startTime;
     unsigned long m_lastUpdateTime;
     // アニメーション進行用（各パターン共通パラメータ）

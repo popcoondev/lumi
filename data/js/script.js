@@ -856,8 +856,11 @@ function showJsonPatternModal() {
     const closeBtn = modal.querySelector('.btn-close');
     closeBtn.addEventListener('click', closeJsonPatternModal);
     
-    const closeModalBtn = modal.querySelector('[data-bs-dismiss="modal"]');
-    closeModalBtn.addEventListener('click', closeJsonPatternModal);
+    // キャンセルボタンのイベント
+    const cancelBtn = modal.querySelector('[data-bs-dismiss="modal"]');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeJsonPatternModal);
+    }
     
     // 適用ボタンのイベント
     const applyBtn = document.getElementById('applyJsonBtn');

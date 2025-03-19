@@ -57,6 +57,11 @@ public:
         onRequestSettingsTransition = callback;
     }
     
+    // スクリーンセーバー画面遷移用のコールバック設定
+    void setScreenSaverTransitionCallback(std::function<void()> callback) {
+        onRequestScreenSaverTransition = callback;
+    }
+    
     // マイク入力処理用コールバック設定
     void setMicCallback(FFTCallback callback) {
         micCallback = callback;
@@ -148,6 +153,7 @@ private:
     std::function<void(int)> onSaturationChanged;
     std::function<void(int)> onValueBrightnessChanged;
     std::function<void()> onRequestSettingsTransition;
+    std::function<void()> onRequestScreenSaverTransition;
     FFTCallback micCallback;  // マイク入力処理用コールバック
 };
 
