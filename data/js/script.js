@@ -1,41 +1,394 @@
 // グローバル変数
-let selectedFace = null;
-let selectedColor = '#ff0000';
-let patterns = [];
 let connectionStatus = 'connecting'; // 'connecting', 'connected', 'disconnected'
+let patterns = [];
+let currentColorHex = '#ffff00'; // デフォルト色（黄色）
 
 // DOMが読み込まれたら実行
 document.addEventListener('DOMContentLoaded', () => {
-    // 接続ステータスの初期化
-    updateConnectionStatus('connecting');
+    // モーダル用のスタイルを追加
+    addModalStyles();
+    
+    // LEDControllerを初期化
+    window.ledController = new LEDController();
     
     // APIステータスの確認
     checkApiStatus();
     
     // パターンリストの取得
     fetchPatterns();
-    
-    // イベントリスナーの設定
-    setupEventListeners();
 });
+
+// LEDControllerクラス - オクタゴンUIの制御
+class LEDController {
+    constructor() {
+        this.canvas = document.getElementById('ledController');
+        this.ctx = this.canvas.getContext('2d');
+        this.ledStates = new Array(8).fill(false);
+        this.ledColors = new Array(8).fill(currentColorHex); // デフォルト色（黄色）
+        this.centerPressed = false;
+        this.isSliding = false;
+        this.touchedSegments = new Set();
+        this.currentTouchState = false;
+        this.focusedSegment = -1; // フォーカスされているセグメント（-1は未フォーカス）
+
+        this.setupCanvas();
+        this.setupButtons();
+        this.addEventListeners();
+        this.draw();
+    }
+
+    setupCanvas() {
+        const container = this.canvas.parentElement;
+        const size = Math.min(container.offsetWidth, container.offsetHeight);
+        this.canvas.width = size;
+        this.canvas.height = size;
+
+        this.center = size / 2;
+        this.radius = (size / 2) * 0.8; // 外側の八角形
+        this.innerRadius = this.radius * 0.6; // 内側の八角形
+        this.focusRadius = this.radius * 1.1; // フォーカスライン用の半径
+    }
+
+    setupButtons() {
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            this.setAllLEDs(false);
+            this.focusedSegment = -1;
+            this.draw();
+        });
+
+        document.getElementById('patternBtn').addEventListener('click', () => {
+            // パターンモーダルを表示
+            showPatternModal();
+        });
+        
+        // 色選択ボタンを追加
+        const colorBtn = document.createElement('button');
+        colorBtn.id = 'colorBtn';
+        colorBtn.className = 'btn btn-outline-success w-100';
+        colorBtn.textContent = 'Color';
+        
+        // ボタンを追加する場所を特定
+        const buttonRow = document.getElementById('resetBtn').parentElement.parentElement;
+        const newCol = document.createElement('div');
+        newCol.className = 'col';
+        newCol.appendChild(colorBtn);
+        buttonRow.appendChild(newCol);
+        
+        // 色選択ボタンのイベント
+        colorBtn.addEventListener('click', () => {
+            // カラーピッカーモーダルを表示
+            showColorPickerModal();
+        });
+    }
+
+    addEventListeners() {
+        this.canvas.addEventListener('pointerdown', this.handlePointerDown.bind(this));
+        this.canvas.addEventListener('pointermove', this.handlePointerMove.bind(this));
+        this.canvas.addEventListener('pointerup', this.handlePointerUp.bind(this));
+        this.canvas.addEventListener('pointerout', this.handlePointerUp.bind(this));
+        window.addEventListener('resize', () => {
+            this.setupCanvas();
+            this.draw();
+        });
+    }
+
+    getOctagonPoints(radius) {
+        const points = [];
+        for (let i = 0; i < 8; i++) {
+            // -π/8（-22.5度）回転させて、底辺をx軸と平行にする
+            const angle = (i * Math.PI / 4) - (Math.PI / 8);
+            points.push({
+                x: this.center + radius * Math.cos(angle),
+                y: this.center + radius * Math.sin(angle)
+            });
+        }
+        return points;
+    }
+
+    getLEDSegment(x, y) {
+        const distance = Math.sqrt(
+            Math.pow(x - this.center, 2) + Math.pow(y - this.center, 2)
+        );
+
+        // 内側の八角形の中にある場合は中央ボタン
+        if (distance <= this.innerRadius) {
+            return -1;
+        }
+
+        // 外側の八角形の外にある場合は無効
+        if (distance > this.radius) {
+            return -2;
+        }
+
+        // 角度を計算（-22.5度から時計回りに）
+        let angle = Math.atan2(y - this.center, x - this.center);
+        // 角度を[0, 2π]の範囲に正規化
+        if (angle < 0) angle += 2 * Math.PI;
+        // -22.5度（-π/8）の回転を考慮して角度を調整
+        angle = (angle + Math.PI / 8) % (2 * Math.PI);
+
+        // 8つのセグメントに分割（0から7）
+        return Math.floor(angle / (Math.PI / 4));
+    }
+
+    async handlePointerDown(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const segment = this.getLEDSegment(x, y);
+
+        if (segment === -1) {
+            // 内側の八角形内（中央ボタン）
+            this.centerPressed = true;
+            if (this.focusedSegment !== -1) {
+                // フォーカスされている面の状態を切り替え
+                await this.toggleLED(this.focusedSegment);
+            } else {
+                // フォーカスがない場合は従来通り全体を切り替え
+                const newState = !this.ledStates.every(state => state);
+                await this.setAllLEDs(newState);
+            }
+        } else if (segment >= 0) {
+            // LED セグメント
+            this.focusedSegment = segment; // タップした面をフォーカス
+            this.isSliding = true;
+            this.touchedSegments.clear();
+            this.currentTouchState = !this.ledStates[segment];
+            await this.toggleLED(segment);
+            this.touchedSegments.add(segment);
+        }
+
+        this.draw();
+    }
+
+    async handlePointerMove(e) {
+        if (!this.isSliding) return;
+
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        const segment = this.getLEDSegment(x, y);
+
+        if (segment >= 0 && !this.touchedSegments.has(segment)) {
+            await this.setLED(segment, this.currentTouchState);
+            this.touchedSegments.add(segment);
+        }
+
+        this.draw();
+    }
+
+    handlePointerUp() {
+        this.centerPressed = false;
+        this.isSliding = false;
+        this.touchedSegments.clear();
+        this.draw();
+    }
+
+    async setAllLEDs(state) {
+        try {
+            // グローバル関数を呼び出し
+            if (state) {
+                // 点灯の場合は各面に対して個別に設定
+                const r = parseInt(currentColorHex.substring(1, 3), 16);
+                const g = parseInt(currentColorHex.substring(3, 5), 16);
+                const b = parseInt(currentColorHex.substring(5, 7), 16);
+                
+                const promises = [];
+                for (let i = 0; i < 8; i++) {
+                    promises.push(
+                        fetch(`/api/led/face/${i}?r=${r}&g=${g}&b=${b}`, {
+                            method: 'POST'
+                        })
+                    );
+                }
+                await Promise.all(promises);
+            } else {
+                // 消灯の場合はリセットAPIを使用
+                await fetch('/api/led/reset', {
+                    method: 'POST'
+                });
+            }
+            
+            // UIの更新
+            this.ledStates.fill(state);
+            if (state) {
+                // 点灯時は現在の色を設定
+                for (let i = 0; i < 8; i++) {
+                    this.ledColors[i] = currentColorHex;
+                }
+            }
+            this.showStatus('すべてのLEDを' + (state ? '点灯' : '消灯') + 'しました', 'success');
+        } catch (error) {
+            console.error('Error setting all LEDs:', error);
+            this.showStatus(error.message || 'LEDの設定に失敗しました', 'danger');
+            
+            // デモ用に状態を更新
+            this.ledStates.fill(state);
+            if (state) {
+                for (let i = 0; i < 8; i++) {
+                    this.ledColors[i] = currentColorHex;
+                }
+            }
+        }
+    }
+
+    async setLED(segment, state) {
+        try {
+            if (state) {
+                // 色を16進数から RGB に変換
+                const r = parseInt(currentColorHex.substring(1, 3), 16);
+                const g = parseInt(currentColorHex.substring(3, 5), 16);
+                const b = parseInt(currentColorHex.substring(5, 7), 16);
+                
+                await fetch(`/api/led/face/${segment}?r=${r}&g=${g}&b=${b}`, {
+                    method: 'POST'
+                });
+            } else {
+                // 個別の消灯APIがないため、点灯時のみAPIを呼び出す
+                // 消灯時はUIのみ更新
+            }
+            
+            // UIの更新
+            this.ledStates[segment] = state;
+            if (state) {
+                this.ledColors[segment] = currentColorHex;
+            }
+            this.showStatus(`LED ${segment + 1}を${state ? '点灯' : '消灯'}しました`, 'success');
+        } catch (error) {
+            console.error('Error setting LED:', error);
+            this.showStatus(error.message || '通信エラーが発生しました', 'danger');
+            
+            // デモ用に状態を更新
+            this.ledStates[segment] = state;
+            if (state) {
+                this.ledColors[segment] = currentColorHex;
+            }
+        }
+    }
+
+    async toggleLED(segment) {
+        const newState = !this.ledStates[segment];
+        await this.setLED(segment, newState);
+    }
+
+    showStatus(message, type) {
+        // グローバル関数を呼び出し
+        showStatus(message, type);
+    }
+
+    drawFocusLine(segment) {
+        const startAngle = (segment * Math.PI / 4) - (Math.PI / 8);
+        const endAngle = ((segment + 1) * Math.PI / 4) - (Math.PI / 8);
+        const midAngle = (startAngle + endAngle) / 2;
+
+        // フォーカスラインの長さ
+        const lineLength = this.radius * 0.2;
+
+        // フォーカスラインの始点と終点を計算
+        const startX = this.center + this.focusRadius * Math.cos(midAngle);
+        const startY = this.center + this.focusRadius * Math.sin(midAngle);
+        const endX = this.center + (this.focusRadius + lineLength) * Math.cos(midAngle);
+        const endY = this.center + (this.focusRadius + lineLength) * Math.sin(midAngle);
+
+        // フォーカスラインを描画
+        this.ctx.beginPath();
+        this.ctx.moveTo(startX, startY);
+        this.ctx.lineTo(endX, endY);
+        this.ctx.strokeStyle = '#fff';
+        this.ctx.lineWidth = 3;
+        this.ctx.stroke();
+        this.ctx.lineWidth = 1;
+    }
+
+    draw() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        const outerPoints = this.getOctagonPoints(this.radius);
+        const innerPoints = this.getOctagonPoints(this.innerRadius);
+
+        // Draw LED segments between outer and inner octagons
+        for (let i = 0; i < 8; i++) {
+            this.ctx.beginPath();
+            // 外側の八角形の2点
+            this.ctx.moveTo(outerPoints[i].x, outerPoints[i].y);
+            this.ctx.lineTo(outerPoints[(i + 1) % 8].x, outerPoints[(i + 1) % 8].y);
+            // 内側の八角形の2点
+            this.ctx.lineTo(innerPoints[(i + 1) % 8].x, innerPoints[(i + 1) % 8].y);
+            this.ctx.lineTo(innerPoints[i].x, innerPoints[i].y);
+            this.ctx.closePath();
+
+            // 点灯状態に応じた色を設定
+            if (this.ledStates[i]) {
+                // 16進数の色をRGBAに変換
+                const r = parseInt(this.ledColors[i].substring(1, 3), 16);
+                const g = parseInt(this.ledColors[i].substring(3, 5), 16);
+                const b = parseInt(this.ledColors[i].substring(5, 7), 16);
+                this.ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.5)`;
+            } else {
+                this.ctx.fillStyle = 'rgba(128, 128, 128, 0.3)';
+            }
+            
+            this.ctx.fill();
+            this.ctx.strokeStyle = '#fff';
+            this.ctx.stroke();
+        }
+
+        // Draw inner octagon (center button)
+        this.ctx.beginPath();
+        innerPoints.forEach((point, i) => {
+            if (i === 0) {
+                this.ctx.moveTo(point.x, point.y);
+            } else {
+                this.ctx.lineTo(point.x, point.y);
+            }
+        });
+        this.ctx.closePath();
+        this.ctx.fillStyle = this.centerPressed ? 
+            'rgba(255, 255, 255, 0.5)' : 'rgba(255, 255, 255, 0.2)';
+        this.ctx.fill();
+        this.ctx.strokeStyle = '#fff';
+        this.ctx.stroke();
+
+        // Draw center text
+        this.ctx.fillStyle = '#fff';
+        this.ctx.font = `${this.radius * 0.15}px Arial`;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        
+        let buttonText = '';
+        if (this.focusedSegment !== -1) {
+            buttonText = this.ledStates[this.focusedSegment] ? 'OFF' : 'ON';
+        } else {
+            buttonText = this.ledStates.some(state => state) ? 'ALL OFF' : 'ALL ON';
+        }
+        
+        this.ctx.fillText(buttonText, this.center, this.center);
+
+        // フォーカスされている面のフォーカスラインを描画
+        if (this.focusedSegment !== -1) {
+            this.drawFocusLine(this.focusedSegment);
+        }
+    }
+}
 
 // 接続ステータスの更新
 function updateConnectionStatus(status) {
-    const statusElement = document.getElementById('connection-status');
+    const statusIndicator = document.querySelector('.status-indicator');
+    const statusText = document.querySelector('.status-text');
+    
     connectionStatus = status;
     
-    statusElement.className = '';
-    statusElement.classList.add(status);
-    
-    switch (status) {
-        case 'connected':
-            statusElement.textContent = '接続済み';
-            break;
-        case 'disconnected':
-            statusElement.textContent = '切断';
-            break;
-        default:
-            statusElement.textContent = '接続中...';
+    if (status === 'connected') {
+        statusIndicator.classList.add('connected');
+        statusText.textContent = '接続済み';
+    } else if (status === 'disconnected') {
+        statusIndicator.classList.remove('connected');
+        statusText.textContent = '切断';
+    } else {
+        statusIndicator.classList.remove('connected');
+        statusText.textContent = '接続中...';
     }
 }
 
@@ -77,145 +430,118 @@ function fetchPatterns() {
         })
         .then(data => {
             patterns = data.patterns || [];
-            updatePatternSelect();
+            console.log('Patterns loaded:', patterns);
         })
         .catch(error => {
             console.error('Error fetching patterns:', error);
+            showStatus('パターンの取得に失敗しました', 'danger');
         });
 }
 
-// パターン選択の更新
-function updatePatternSelect() {
-    const select = document.getElementById('pattern-select');
-    select.innerHTML = '';
-    
-    if (patterns.length === 0) {
-        const option = document.createElement('option');
-        option.value = '';
-        option.textContent = 'パターンがありません';
-        select.appendChild(option);
-        return;
+// パターンモーダルを表示
+function showPatternModal() {
+    // 既存のモーダルがあれば削除
+    let existingModal = document.getElementById('patternModal');
+    if (existingModal) {
+        existingModal.remove();
     }
     
-    patterns.forEach(pattern => {
-        const option = document.createElement('option');
-        option.value = pattern.id;
-        option.textContent = pattern.name;
-        select.appendChild(option);
-    });
-}
-
-// イベントリスナーの設定
-function setupEventListeners() {
-    // 面ボタンのイベント
-    const faceButtons = document.querySelectorAll('.face-button');
-    faceButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            // 以前の選択を解除
-            document.querySelectorAll('.face-button.selected').forEach(btn => {
-                btn.classList.remove('selected');
-            });
-            
-            // 新しい選択を設定
-            button.classList.add('selected');
-            selectedFace = button.dataset.face;
+    // モーダルを作成
+    const modal = document.createElement('div');
+    modal.id = 'patternModal';
+    modal.className = 'modal fade show';
+    modal.style.display = 'block';
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    modal.style.zIndex = '1050';
+    modal.style.overflow = 'auto';
+    
+    // モーダルの内容を作成
+    let modalContent = `
+        <div class="modal-dialog modal-dialog-centered" style="position: relative; width: auto; margin: 1.75rem auto; max-width: 500px;">
+            <div class="modal-content" style="position: relative; background-color: var(--bs-dark); border: 1px solid rgba(0, 0, 0, 0.2); border-radius: 0.3rem; outline: 0;">
+                <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; border-bottom: 1px solid #dee2e6;">
+                    <h5 class="modal-title">LEDパターン選択</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="background: transparent; border: 0; font-size: 1.5rem; color: white; cursor: pointer;">×</button>
+                </div>
+                <div class="modal-body" style="position: relative; padding: 1rem;">
+                    <div class="list-group">
+    `;
+    
+    // パターンリストを追加
+    if (patterns.length > 0) {
+        patterns.forEach(pattern => {
+            modalContent += `
+                <button type="button" class="list-group-item list-group-item-action pattern-item" data-pattern-id="${pattern.id}" style="position: relative; display: block; padding: 0.75rem 1.25rem; background-color: var(--bs-dark); color: white; border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer;">
+                    ${pattern.name}
+                </button>
+            `;
         });
+    } else {
+        modalContent += `
+            <div class="alert alert-info">
+                パターンがありません
+            </div>
+        `;
+    }
+    
+    // モーダルのフッターを追加
+    modalContent += `
+                    </div>
+                </div>
+                <div class="modal-footer" style="display: flex; align-items: center; justify-content: flex-end; padding: 1rem; border-top: 1px solid #dee2e6; gap: 0.5rem;">
+                    <button type="button" class="btn btn-danger" id="stopPatternBtn">停止</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">閉じる</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    modal.innerHTML = modalContent;
+    document.body.appendChild(modal);
+    
+    // 背景をクリックしたらモーダルを閉じる
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closePatternModal();
+        }
     });
     
-    // カラーピッカーのイベント
-    const colorPicker = document.getElementById('color-picker');
-    colorPicker.addEventListener('input', () => {
-        selectedColor = colorPicker.value;
-    });
+    // 閉じるボタンのイベント
+    const closeBtn = modal.querySelector('.btn-close');
+    closeBtn.addEventListener('click', closePatternModal);
     
-    // カラープリセットのイベント
-    const colorPresets = document.querySelectorAll('.color-preset');
-    colorPresets.forEach(preset => {
-        preset.addEventListener('click', () => {
-            selectedColor = preset.dataset.color;
-            colorPicker.value = selectedColor;
+    const closeModalBtn = modal.querySelector('[data-bs-dismiss="modal"]');
+    closeModalBtn.addEventListener('click', closePatternModal);
+    
+    // パターン項目のクリックイベント
+    const patternItems = modal.querySelectorAll('.pattern-item');
+    patternItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const patternId = item.dataset.patternId;
+            runPattern(patternId);
+            closePatternModal();
         });
-    });
-    
-    // 色適用ボタンのイベント
-    const applyColorButton = document.getElementById('apply-color');
-    applyColorButton.addEventListener('click', () => {
-        if (selectedFace === null) {
-            alert('面を選択してください');
-            return;
-        }
-        
-        applyColorToFace(selectedFace, selectedColor);
-    });
-    
-    // LEDリセットボタンのイベント
-    const resetLedsButton = document.getElementById('reset-leds');
-    resetLedsButton.addEventListener('click', resetAllLeds);
-    
-    // パターン実行ボタンのイベント
-    const runPatternButton = document.getElementById('run-pattern');
-    runPatternButton.addEventListener('click', () => {
-        const patternSelect = document.getElementById('pattern-select');
-        const patternId = patternSelect.value;
-        
-        if (!patternId) {
-            alert('パターンを選択してください');
-            return;
-        }
-        
-        runPattern(patternId);
     });
     
     // パターン停止ボタンのイベント
-    const stopPatternButton = document.getElementById('stop-pattern');
-    stopPatternButton.addEventListener('click', stopPattern);
-}
-
-// 面に色を適用
-function applyColorToFace(faceId, color) {
-    // #rrggbb 形式の色をRGB成分に分解
-    const r = parseInt(color.substring(1, 3), 16);
-    const g = parseInt(color.substring(3, 5), 16);
-    const b = parseInt(color.substring(5, 7), 16);
-    
-    fetch(`/api/led/face/${faceId}?r=${r}&g=${g}&b=${b}`, {
-        method: 'POST'
-    })
-    .then(response => {
-        if (response.ok) {
-            return response.json();
-        } else {
-            throw new Error('Failed to apply color');
-        }
-    })
-    .then(data => {
-        console.log('Color applied:', data);
-    })
-    .catch(error => {
-        console.error('Error applying color:', error);
-        alert('色の適用に失敗しました');
+    const stopPatternBtn = document.getElementById('stopPatternBtn');
+    stopPatternBtn.addEventListener('click', () => {
+        stopPattern();
+        closePatternModal();
     });
 }
 
-// 全てのLEDをリセット
-function resetAllLeds() {
-    fetch('/api/led/reset', {
-        method: 'POST'
-    })
-    .then(response => {
-        if (response.ok) {
-            return response.json();
-        } else {
-            throw new Error('Failed to reset LEDs');
-        }
-    })
-    .then(data => {
-        console.log('LEDs reset:', data);
-    })
-    .catch(error => {
-        console.error('Error resetting LEDs:', error);
-        alert('LEDのリセットに失敗しました');
-    });
+// パターンモーダルを閉じる
+function closePatternModal() {
+    const modal = document.getElementById('patternModal');
+    if (modal) {
+        modal.remove();
+    }
 }
 
 // パターンを実行
@@ -232,10 +558,11 @@ function runPattern(patternId) {
     })
     .then(data => {
         console.log('Pattern running:', data);
+        showStatus(`パターン「${patterns.find(p => p.id == patternId)?.name || patternId}」を実行中`, 'success');
     })
     .catch(error => {
         console.error('Error running pattern:', error);
-        alert('パターンの実行に失敗しました');
+        showStatus('パターンの実行に失敗しました', 'danger');
     });
 }
 
@@ -253,9 +580,221 @@ function stopPattern() {
     })
     .then(data => {
         console.log('Pattern stopped:', data);
+        showStatus('パターンを停止しました', 'success');
     })
     .catch(error => {
         console.error('Error stopping pattern:', error);
-        alert('パターンの停止に失敗しました');
+        showStatus('パターンの停止に失敗しました', 'danger');
     });
+}
+
+// ステータスメッセージを表示
+function showStatus(message, type) {
+    const statusEl = document.getElementById('statusMessage');
+    statusEl.textContent = message;
+    statusEl.className = `alert alert-${type}`;
+    statusEl.classList.remove('d-none');
+
+    setTimeout(() => {
+        statusEl.classList.add('d-none');
+    }, 3000);
+}
+
+// カラーピッカーモーダルを表示
+function showColorPickerModal() {
+    // 既存のモーダルがあれば削除
+    let existingModal = document.getElementById('colorPickerModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // モーダルを作成
+    const modal = document.createElement('div');
+    modal.id = 'colorPickerModal';
+    modal.className = 'modal fade show';
+    modal.style.display = 'block';
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    modal.style.zIndex = '1050';
+    modal.style.overflow = 'auto';
+    
+    // モーダルの内容を作成
+    modal.innerHTML = `
+        <div class="modal-dialog modal-dialog-centered" style="position: relative; width: auto; margin: 1.75rem auto; max-width: 500px;">
+            <div class="modal-content" style="position: relative; background-color: var(--bs-dark); border: 1px solid rgba(0, 0, 0, 0.2); border-radius: 0.3rem; outline: 0;">
+                <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between; padding: 1rem; border-bottom: 1px solid #dee2e6;">
+                    <h5 class="modal-title">色を選択</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="background: transparent; border: 0; font-size: 1.5rem; color: white; cursor: pointer;">×</button>
+                </div>
+                <div class="modal-body" style="position: relative; padding: 1rem;">
+                    <div class="mb-3">
+                        <label for="colorPicker" class="form-label">カラーピッカー</label>
+                        <input type="color" class="form-control form-control-color w-100" id="colorPicker" value="${currentColorHex}">
+                    </div>
+                    <div class="color-presets d-flex flex-wrap gap-2 mb-3">
+                        <button class="color-preset" style="background-color: #ff0000; width: 40px; height: 40px; border-radius: 50%; border: 2px solid #fff; cursor: pointer;" data-color="#ff0000"></button>
+                        <button class="color-preset" style="background-color: #00ff00; width: 40px; height: 40px; border-radius: 50%; border: 2px solid #fff; cursor: pointer;" data-color="#00ff00"></button>
+                        <button class="color-preset" style="background-color: #0000ff; width: 40px; height: 40px; border-radius: 50%; border: 2px solid #fff; cursor: pointer;" data-color="#0000ff"></button>
+                        <button class="color-preset" style="background-color: #ffff00; width: 40px; height: 40px; border-radius: 50%; border: 2px solid #fff; cursor: pointer;" data-color="#ffff00"></button>
+                        <button class="color-preset" style="background-color: #00ffff; width: 40px; height: 40px; border-radius: 50%; border: 2px solid #fff; cursor: pointer;" data-color="#00ffff"></button>
+                        <button class="color-preset" style="background-color: #ff00ff; width: 40px; height: 40px; border-radius: 50%; border: 2px solid #fff; cursor: pointer;" data-color="#ff00ff"></button>
+                        <button class="color-preset" style="background-color: #ffffff; width: 40px; height: 40px; border-radius: 50%; border: 2px solid #fff; cursor: pointer;" data-color="#ffffff"></button>
+                        <button class="color-preset" style="background-color: #ff8000; width: 40px; height: 40px; border-radius: 50%; border: 2px solid #fff; cursor: pointer;" data-color="#ff8000"></button>
+                    </div>
+                </div>
+                <div class="modal-footer" style="display: flex; align-items: center; justify-content: flex-end; padding: 1rem; border-top: 1px solid #dee2e6; gap: 0.5rem;">
+                    <button type="button" class="btn btn-primary" id="applyColorBtn">適用</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // 背景をクリックしたらモーダルを閉じる
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeColorPickerModal();
+        }
+    });
+    
+    // 閉じるボタンのイベント
+    const closeBtn = modal.querySelector('.btn-close');
+    closeBtn.addEventListener('click', closeColorPickerModal);
+    
+    const cancelBtn = modal.querySelector('[data-bs-dismiss="modal"]');
+    cancelBtn.addEventListener('click', closeColorPickerModal);
+    
+    // カラーピッカーのイベント
+    const colorPicker = document.getElementById('colorPicker');
+    colorPicker.addEventListener('input', (e) => {
+        currentColorHex = e.target.value;
+    });
+    
+    // プリセットカラーのイベント
+    const colorPresets = modal.querySelectorAll('.color-preset');
+    colorPresets.forEach(preset => {
+        preset.addEventListener('click', () => {
+            currentColorHex = preset.dataset.color;
+            colorPicker.value = currentColorHex;
+        });
+    });
+    
+    // 適用ボタンのイベント
+    const applyColorBtn = document.getElementById('applyColorBtn');
+    applyColorBtn.addEventListener('click', () => {
+        // フォーカスされている面があれば、その面の色を変更
+        const ledController = window.ledController;
+        if (ledController && ledController.focusedSegment !== -1) {
+            ledController.setLED(ledController.focusedSegment, true);
+        }
+        closeColorPickerModal();
+    });
+}
+
+// カラーピッカーモーダルを閉じる
+function closeColorPickerModal() {
+    const modal = document.getElementById('colorPickerModal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// モーダル用のスタイルを追加
+function addModalStyles() {
+    const style = document.createElement('style');
+    style.textContent = `
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1050;
+            overflow: auto;
+        }
+        
+        .modal-dialog {
+            position: relative;
+            width: auto;
+            margin: 1.75rem auto;
+            max-width: 500px;
+        }
+        
+        .modal-content {
+            position: relative;
+            background-color: var(--bs-dark);
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            border-radius: 0.3rem;
+            outline: 0;
+        }
+        
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .modal-body {
+            position: relative;
+            padding: 1rem;
+        }
+        
+        .modal-footer {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 1rem;
+            border-top: 1px solid #dee2e6;
+            gap: 0.5rem;
+        }
+        
+        .btn-close {
+            background: transparent;
+            border: 0;
+            font-size: 1.5rem;
+            color: white;
+            cursor: pointer;
+        }
+        
+        .list-group {
+            display: flex;
+            flex-direction: column;
+            padding-left: 0;
+            margin-bottom: 0;
+            border-radius: 0.25rem;
+        }
+        
+        .list-group-item {
+            position: relative;
+            display: block;
+            padding: 0.75rem 1.25rem;
+            background-color: var(--bs-dark);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+        }
+        
+        .list-group-item:hover {
+            background-color: var(--bs-primary);
+        }
+        
+        .color-preset {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            cursor: pointer;
+        }
+    `;
+    
+    document.head.appendChild(style);
 }

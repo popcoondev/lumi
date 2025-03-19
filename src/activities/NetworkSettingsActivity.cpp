@@ -46,7 +46,12 @@ bool NetworkSettingsActivity::onCreate() {
 }
 
 void NetworkSettingsActivity::initialize(NetworkManager* networkManager) {
+    Serial.println("NetworkSettingsActivity::initialize called");
     m_networkManager = networkManager;
+    
+    if (!m_networkManager) {
+        Serial.println("ERROR: NetworkManager is null in NetworkSettingsActivity::initialize");
+    }
     
     // ボタンの位置とサイズを設定
     int buttonWidth = 200;
@@ -113,11 +118,19 @@ bool NetworkSettingsActivity::onResume() {
         return false;
     }
     
+    // NetworkManagerが設定されていることを確認
+    if (!m_networkManager) {
+        Serial.println("ERROR: NetworkManager is null in NetworkSettingsActivity::onResume");
+    }
+    
     // 画面を描画
     draw();
     
     // 最終更新時間をリセット
     m_lastUpdateTime = 0;
+    
+    // 強制的に情報を更新
+    update();
     
     return true;
 }
@@ -135,9 +148,32 @@ void NetworkSettingsActivity::onDestroy() {
 }
 
 bool NetworkSettingsActivity::handleEvent(const framework::Event& event) {
+    // イベントタイプを確認
+    if (event.getType() == framework::EventType::TOUCH) {
+        const framework::TouchEvent& touchEvent = static_cast<const framework::TouchEvent&>(event);
+        
+        // タッチイベントの詳細をログ出力
+        Serial.print("NetworkSettingsActivity: Touch event received - ");
+        Serial.print("x=");
+        Serial.print(touchEvent.getX());
+        Serial.print(", y=");
+        Serial.print(touchEvent.getY());
+        Serial.print(", action=");
+        Serial.println(static_cast<int>(touchEvent.getAction()));
+    }
+    
     // 基底クラスのイベント処理
     if (Activity::handleEvent(event)) {
         return true;
+    }
+    
+    // ボタンのイベント処理を明示的に呼び出す
+    if (m_homeButton && event.getType() == framework::EventType::TOUCH) {
+        const framework::TouchEvent& touchEvent = static_cast<const framework::TouchEvent&>(event);
+        if (m_homeButton->handleEvent(touchEvent)) {
+            Serial.println("NetworkSettingsActivity: Home button handled the event");
+            return true;
+        }
     }
     
     return false;
@@ -223,5 +259,5 @@ void NetworkSettingsActivity::update() {
         }
         
     }
-    Serial.println("Network settings updated");
+    // Serial.println("Network settings updated");
 }

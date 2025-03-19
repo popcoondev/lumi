@@ -1,90 +1,97 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lumi Controller</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <title>M5Stack Octagon LED Controller</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <style>
+        .canvas-container {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            aspect-ratio: 1;
+            position: relative;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+
+        .connection-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--bs-dark);
+            border-radius: 20px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: var(--bs-danger);
+        }
+
+        .status-indicator.connected {
+            background-color: var(--bs-success);
+        }
+
+        .status-text {
+            font-size: 14px;
+            color: var(--bs-light);
+        }
+
+        #statusMessage {
+            transition: opacity 0.3s ease;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>Lumi Controller</h1>
-            <div id="status">
-                <span id="connection-status">接続中...</span>
+        <div class="row justify-content-center mt-4">
+            <div class="col-12 text-center">
+                <h1 class="mb-4">M5Stack Octagon LED Controller</h1>
+                <div class="connection-status mb-3">
+                    <span class="status-indicator"></span>
+                    <span class="status-text">接続状態</span>
+                </div>
             </div>
-        </header>
-        
-        <main>
-            <section class="control-section">
-                <h2>LED制御</h2>
-                
-                <div class="control-group">
-                    <h3>面の選択</h3>
-                    <div class="face-selector">
-                        <button class="face-button" data-face="0">面 1</button>
-                        <button class="face-button" data-face="1">面 2</button>
-                        <button class="face-button" data-face="2">面 3</button>
-                        <button class="face-button" data-face="3">面 4</button>
-                        <button class="face-button" data-face="4">面 5</button>
-                        <button class="face-button" data-face="5">面 6</button>
-                        <button class="face-button" data-face="6">面 7</button>
-                        <button class="face-button" data-face="7">面 8</button>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-8 col-lg-6">
+                <div class="canvas-container">
+                    <canvas id="ledController"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="row justify-content-center mt-4">
+            <div class="col-12 col-md-8 col-lg-6">
+                <div class="row">
+                    <div class="col">
+                        <button id="resetBtn" class="btn btn-outline-secondary w-100">Reset</button>
+                    </div>
+                    <div class="col">
+                        <button id="patternBtn" class="btn btn-outline-primary w-100">Pattern</button>
                     </div>
                 </div>
-                
-                <div class="control-group">
-                    <h3>色の選択</h3>
-                    <div class="color-picker">
-                        <input type="color" id="color-picker" value="#ff0000">
-                        <div class="color-presets">
-                            <button class="color-preset" style="background-color: #ff0000;" data-color="#ff0000"></button>
-                            <button class="color-preset" style="background-color: #00ff00;" data-color="#00ff00"></button>
-                            <button class="color-preset" style="background-color: #0000ff;" data-color="#0000ff"></button>
-                            <button class="color-preset" style="background-color: #ffff00;" data-color="#ffff00"></button>
-                            <button class="color-preset" style="background-color: #ff00ff;" data-color="#ff00ff"></button>
-                            <button class="color-preset" style="background-color: #00ffff;" data-color="#00ffff"></button>
-                            <button class="color-preset" style="background-color: #ffffff;" data-color="#ffffff"></button>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="control-group">
-                    <h3>アクション</h3>
-                    <div class="action-buttons">
-                        <button id="apply-color">選択した面に色を適用</button>
-                        <button id="reset-leds">全てのLEDをリセット</button>
-                    </div>
-                </div>
-            </section>
-            
-            <section class="control-section">
-                <h2>パターン制御</h2>
-                
-                <div class="control-group">
-                    <h3>パターンの選択</h3>
-                    <div class="pattern-selector">
-                        <select id="pattern-select">
-                            <option value="">読み込み中...</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="control-group">
-                    <h3>パターン制御</h3>
-                    <div class="pattern-controls">
-                        <button id="run-pattern">パターンを実行</button>
-                        <button id="stop-pattern">パターンを停止</button>
-                    </div>
-                </div>
-            </section>
-        </main>
-        
-        <footer>
-            <p>Lumi Controller &copy; 2025</p>
-        </footer>
+            </div>
+        </div>
+
+        <div class="row justify-content-center mt-3">
+            <div class="col-12 text-center">
+                <div id="statusMessage" class="alert d-none" role="alert"></div>
+            </div>
+        </div>
     </div>
-    
-    <script src="/js/script.js"></script>
+
+    <!-- 外部スクリプトを先に読み込む -->
+    <script src="js/script.js"></script>
 </body>
 </html>

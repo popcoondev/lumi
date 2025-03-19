@@ -1,4 +1,5 @@
 #include "ActivityManager.h"
+#include <M5Unified.h>
 
 namespace framework {
 
@@ -27,13 +28,20 @@ Activity* ActivityManager::getCurrentActivity() {
 }
 
 bool ActivityManager::startActivity(const std::string& name) {
+    Serial.print("ActivityManager::startActivity - Starting activity: ");
+    Serial.println(name.c_str());
+    
     Activity* newActivity = getActivity(name);
     if (!newActivity) {
+        Serial.print("ActivityManager::startActivity - Activity not found: ");
+        Serial.println(name.c_str());
         return false;
     }
     
     // 現在のActivityがある場合は一時停止
     if (m_currentActivity) {
+        Serial.print("ActivityManager::startActivity - Pausing current activity: ");
+        Serial.println(m_currentActivity->getName().c_str());
         m_currentActivity->onPause();
         m_currentActivity->onStop();
     }
@@ -42,10 +50,18 @@ bool ActivityManager::startActivity(const std::string& name) {
     m_currentActivity = newActivity;
     
     // Activityの状態に応じてライフサイクルメソッドを呼び出す
-    if (m_currentActivity->getState() == ActivityState::CREATED) {
+    ActivityState state = m_currentActivity->getState();
+    Serial.print("ActivityManager::startActivity - New activity state: ");
+    Serial.println(static_cast<int>(state));
+    
+    if (state == ActivityState::CREATED || state == ActivityState::STOPPED) {
+        Serial.print("ActivityManager::startActivity - Starting activity: ");
+        Serial.println(name.c_str());
         m_currentActivity->onStart();
     }
     
+    Serial.print("ActivityManager::startActivity - Resuming activity: ");
+    Serial.println(name.c_str());
     m_currentActivity->onResume();
     
     return true;

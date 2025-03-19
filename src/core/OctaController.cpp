@@ -154,14 +154,33 @@ void OctaController::setup() {
     });
     
     settingsActivity->setNetworkSettingsTransitionCallback([this]() {
+        Serial.println("SettingsActivity: Network button pressed");
+        
+        // LumiHomeActivityのListenモードが誤って起動されないようにする対策
+        if (lumiHomeActivity->getOperationMode() == LumiHomeActivity::MODE_LISTEN) {
+            Serial.println("Stopping Listen mode before transition");
+            lumiHomeActivity->setOperationMode(LumiHomeActivity::MODE_TAP);
+            micManager->stopTask();
+        }
+        
         activityManager->startActivity("networksettings");
     });
     
     // NetworkSettingsActivityの初期化
-    networkSettingsActivity->initialize(networkManager);
+    // 毎回アクティビティ遷移時に再初期化するため、ここでは初期化しない
+    // networkSettingsActivity->initialize(networkManager);
     
     // NetworkSettingsActivityのホーム画面遷移コールバックを設定
     networkSettingsActivity->setHomeTransitionCallback([this]() {
+        Serial.println("NetworkSettingsActivity: Back to Settings button pressed");
+        
+        // LumiHomeActivityのListenモードが誤って起動されないようにする対策
+        if (lumiHomeActivity->getOperationMode() == LumiHomeActivity::MODE_LISTEN) {
+            Serial.println("Stopping Listen mode before transition");
+            lumiHomeActivity->setOperationMode(LumiHomeActivity::MODE_TAP);
+            micManager->stopTask();
+        }
+        
         activityManager->startActivity("settings");
     });
     
@@ -437,6 +456,14 @@ void OctaController::processLEDControlActivityState() {
 }
 
 void OctaController::processNetworkSettingsActivityState() {
+    // NetworkSettingsActivityが初期化されていない場合は初期化する
+    static bool initialized = false;
+    if (!initialized) {
+        Serial.println("Initializing NetworkSettingsActivity in processNetworkSettingsActivityState");
+        networkSettingsActivity->initialize(networkManager);
+        initialized = true;
+    }
+    
     // ネットワーク情報の定期更新
     networkSettingsActivity->update();
     
