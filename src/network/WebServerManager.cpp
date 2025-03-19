@@ -282,13 +282,20 @@ void WebServerManager::handleJsonPatternControl(AsyncWebServerRequest *request, 
         jsonString += (char)data[i];
     }
     
-    // JSONの検証
-    DynamicJsonDocument doc(4096);
+    // 受信したJSONデータをログに出力（デバッグ用）
+    Serial.println("Received JSON data:");
+    Serial.println(jsonString);
+    
+    // JSONの検証と修正
+    DynamicJsonDocument doc(8192); // サイズを増やして大きなJSONにも対応
     DeserializationError error = deserializeJson(doc, jsonString);
     
     if (error) {
         Serial.print(F("JSON parsing failed: "));
         Serial.println(error.c_str());
+        
+        // エラーの詳細情報を出力
+        Serial.println("Error details: " + String(error.c_str()));
         
         StaticJsonDocument<256> response;
         response["status"] = "error";
@@ -301,8 +308,70 @@ void WebServerManager::handleJsonPatternControl(AsyncWebServerRequest *request, 
         return;
     }
     
+    // JSONの構造を検証
+    bool isValid = true;
+    String errorMessage = "";
+    
+    // 必須フィールドの検証
+    if (!doc.containsKey("type")) {
+        isValid = false;
+        errorMessage = "Missing required field: type";
+    } else if (!doc.containsKey("parameters")) {
+        isValid = false;
+        errorMessage = "Missing required field: parameters";
+    } else if (!doc.containsKey("steps") || !doc["steps"].is<JsonArray>()) {
+        isValid = false;
+        errorMessage = "Missing or invalid field: steps (must be an array)";
+    } else {
+        // stepsの検証
+        JsonArray steps = doc["steps"].as<JsonArray>();
+        if (steps.size() == 0) {
+            isValid = false;
+            errorMessage = "Steps array is empty";
+        } else {
+            // 各ステップの検証
+            for (size_t i = 0; i < steps.size(); i++) {
+                JsonObject step = steps[i];
+                if (!step.containsKey("faceSelection") && !step.containsKey("faces")) {
+                    isValid = false;
+                    errorMessage = "Step " + String(i) + " is missing faceSelection or faces";
+                    break;
+                }
+                // facesを使用する場合はcolorHSVが不要な場合がある
+                if (!step.containsKey("colorHSV") && !step.containsKey("faces")) {
+                    isValid = false;
+                    errorMessage = "Step " + String(i) + " is missing colorHSV";
+                    break;
+                }
+                if (!step.containsKey("duration")) {
+                    isValid = false;
+                    errorMessage = "Step " + String(i) + " is missing duration";
+                    break;
+                }
+            }
+        }
+    }
+    
+    if (!isValid) {
+        Serial.println("JSON validation failed: " + errorMessage);
+        
+        StaticJsonDocument<256> response;
+        response["status"] = "error";
+        response["message"] = "JSON validation failed: " + errorMessage;
+        
+        String responseStr;
+        serializeJson(response, responseStr);
+        
+        request->send(400, "application/json", responseStr);
+        return;
+    }
+    
+    // 検証済みのJSONを再シリアライズして整形
+    String formattedJson;
+    serializeJson(doc, formattedJson);
+    
     // 受信したJSONをファイルに保存
-    const String jsonFilePath = "/temp.json";
+    const String jsonFilePath = "/received_json_pattern.json";
     
     if (!SPIFFS.begin(true)) {
         Serial.println("An error occurred while mounting SPIFFS");
@@ -334,8 +403,8 @@ void WebServerManager::handleJsonPatternControl(AsyncWebServerRequest *request, 
         return;
     }
     
-    // JSONデータをファイルに書き込む
-    size_t bytesWritten = file.print(jsonString);
+    // 整形されたJSONデータをファイルに書き込む
+    size_t bytesWritten = file.print(formattedJson);
     file.close();
     
     Serial.println("JSON pattern saved to file: " + jsonFilePath);

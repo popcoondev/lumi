@@ -432,32 +432,88 @@ bool LEDManager::runJsonPatternFromFile(const String& filename) {
     
     Serial.println("LEDManager: JSON pattern loaded from file, length: " + String(jsonString.length()));
     
-    // JSONパターンを読み込む
-    bool success = loadJsonPatternsFromString(jsonString);
-    if (!success) {
-        Serial.println("LEDManager: Failed to parse JSON pattern");
+    // JSONの検証（デバッグ用）
+    DynamicJsonDocument docCheck(8192);
+    DeserializationError errorCheck = deserializeJson(docCheck, jsonString);
+    
+    if (errorCheck) {
+        Serial.println("LEDManager: JSON validation failed: " + String(errorCheck.c_str()));
+        Serial.println("LEDManager: First 100 chars of JSON: " + jsonString.substring(0, 100) + "...");
         return false;
     }
     
-    Serial.println("LEDManager: JSON pattern parsed successfully");
+    // JSONの構造を検証
+    if (!docCheck.containsKey("type")) {
+        Serial.println("LEDManager: Missing required field: type");
+        return false;
+    }
+    
+    if (!docCheck.containsKey("parameters")) {
+        Serial.println("LEDManager: Missing required field: parameters");
+        return false;
+    }
+    
+    if (!docCheck.containsKey("steps") || !docCheck["steps"].is<JsonArray>()) {
+        Serial.println("LEDManager: Missing or invalid field: steps (must be an array)");
+        return false;
+    }
+    
+    JsonArray steps = docCheck["steps"].as<JsonArray>();
+    if (steps.size() == 0) {
+        Serial.println("LEDManager: Steps array is empty");
+        return false;
+    }
     
     // パターン名を取得（あれば）
-    DynamicJsonDocument doc(4096);
-    DeserializationError error = deserializeJson(doc, jsonString);
+    String patternName = "Custom Pattern";
+    if (docCheck.containsKey("name")) {
+        patternName = docCheck["name"].as<String>();
+    }
     
-    if (error) {
-        Serial.println("LEDManager: JSON parsing failed: " + String(error.c_str()));
+    // JSONパターンを読み込む
+    Serial.println("LEDManager: Loading pattern into JsonPatternManager...");
+    
+    // 単一のパターンをラップして配列形式にする
+    String wrappedJson = "{\"patterns\":[" + jsonString + "]}";
+    
+    bool success = m_jsonPatternManager.loadPatternsFromJson(wrappedJson);
+    if (!success) {
+        Serial.println("LEDManager: Failed to load JSON pattern");
         return false;
     }
     
-    String patternName = "Custom Pattern";
-    if (doc.containsKey("name")) {
-        patternName = doc["name"].as<String>();
-    }
+    Serial.println("LEDManager: JSON pattern loaded successfully");
     
     // パターンを実行
-    runJsonPattern(patternName);
-    
-    Serial.println("LEDManager: Running JSON pattern: " + patternName);
-    return true;
+    if (m_jsonPatternManager.getPatternCount() > 0) {
+        m_currentJsonPatternIndex = 0; // 最初のパターンを使用
+        
+        // 既存のタスクがあれば削除
+        if (ledTaskHandle != nullptr) {
+            vTaskDelete(ledTaskHandle);
+            ledTaskHandle = nullptr;
+        }
+        
+        // JSONパターンフラグを設定
+        m_isJsonPattern = true;
+        
+        // 新しいタスクを作成
+        xTaskCreatePinnedToCore(
+            jsonPatternTaskWrapper,
+            "JSONPatternTask",
+            4096,
+            this,
+            1,
+            &ledTaskHandle,
+            1
+        );
+        
+        isTaskRunning = true;
+        
+        Serial.println("LEDManager: Running JSON pattern: " + patternName);
+        return true;
+    } else {
+        Serial.println("LEDManager: No patterns were loaded");
+        return false;
+    }
 }

@@ -407,8 +407,15 @@ private:
             selectedFaces = step.faceSelection.selectFaces(numFaces);
         }
         
-        // 色の取得
-        CHSV color = step.colorHSV.getColor();
+        // 色の取得（colorHSVが指定されていない場合はグローバルパラメータのデフォルト色を使用）
+        CHSV color;
+        if (step.colorHSV.h.getMin() != 0 || step.colorHSV.s.getMin() != 0 || step.colorHSV.v.getMin() != 0) {
+            // ステップに色が指定されている場合
+            color = step.colorHSV.getColor();
+        } else {
+            // グローバルパラメータのデフォルト色を使用
+            color = m_params.defaultColor.getColor();
+        }
         
         // 選択された面にLEDを設定
         for (int i = 0; i < numFaces; i++) {
@@ -621,7 +628,10 @@ public:
     
     bool loadPatternsFromJson(const String& jsonString) {
         Serial.println("Loading JSON patterns from string");
-        Serial.println(jsonString);
+        
+        // デバッグ用に最初の100文字を出力
+        Serial.println("JSON data (first 100 chars): " + jsonString.substring(0, 100) + "...");
+        
         // 既存のパターンをクリア
         for (auto pattern : m_patterns) {
             delete pattern;
@@ -639,18 +649,78 @@ public:
             return false;
         }
         
+        // パターン配列の処理
         if (doc.containsKey("patterns") && doc["patterns"].is<JsonArray>()) {
             JsonArray patternsArray = doc["patterns"];
             int index = 0;
+            int patternCount = patternsArray.size();
+            
+            Serial.println("Found " + String(patternCount) + " patterns in JSON");
+            
             for (JsonObject patternObj : patternsArray) {
-                JsonLedPattern* pattern = PatternFactory::getInstance().createPattern(patternObj);
-                if (pattern) {
-                    m_patterns.push_back(pattern);
-                    m_patternNameMap[pattern->getName()] = index++;
+                // パターンの基本情報をログに出力
+                if (patternObj.containsKey("name")) {
+                    Serial.println("Processing pattern: " + patternObj["name"].as<String>());
+                } else {
+                    Serial.println("Processing unnamed pattern #" + String(index + 1));
+                }
+                
+                // パターンの必須フィールドを検証
+                if (!patternObj.containsKey("type")) {
+                    Serial.println("Pattern is missing required field: type");
+                    continue;
+                }
+                
+                if (!patternObj.containsKey("parameters")) {
+                    Serial.println("Pattern is missing required field: parameters");
+                    continue;
+                }
+                
+                if (!patternObj.containsKey("steps") || !patternObj["steps"].is<JsonArray>()) {
+                    Serial.println("Pattern is missing or has invalid field: steps");
+                    continue;
+                }
+                
+                // パターンを作成
+                try {
+                    JsonLedPattern* pattern = PatternFactory::getInstance().createPattern(patternObj);
+                    if (pattern) {
+                        m_patterns.push_back(pattern);
+                        m_patternNameMap[pattern->getName()] = index++;
+                        Serial.println("Pattern added successfully: " + pattern->getName());
+                    } else {
+                        Serial.println("Failed to create pattern");
+                    }
+                } catch (const std::exception& e) {
+                    Serial.println("Exception while creating pattern: " + String(e.what()));
+                } catch (...) {
+                    Serial.println("Unknown exception while creating pattern");
                 }
             }
+        } else if (doc.containsKey("name") && doc.containsKey("type")) {
+            // 単一のパターンとして処理（配列でない場合）
+            Serial.println("Processing single pattern JSON");
+            
+            try {
+                JsonLedPattern* pattern = PatternFactory::getInstance().createPattern(doc.as<JsonObject>());
+                if (pattern) {
+                    m_patterns.push_back(pattern);
+                    m_patternNameMap[pattern->getName()] = 0;
+                    Serial.println("Single pattern added successfully: " + pattern->getName());
+                } else {
+                    Serial.println("Failed to create single pattern");
+                }
+            } catch (const std::exception& e) {
+                Serial.println("Exception while creating single pattern: " + String(e.what()));
+            } catch (...) {
+                Serial.println("Unknown exception while creating single pattern");
+            }
+        } else {
+            Serial.println("JSON does not contain valid pattern data");
+            return false;
         }
         
+        Serial.println("Loaded " + String(m_patterns.size()) + " patterns");
         return !m_patterns.empty();
     }
     
