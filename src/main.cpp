@@ -1,3 +1,4 @@
+#if 0
 #include <Arduino.h>
 #include <M5Unified.h>
 #include "OctaController.h"
@@ -21,3 +22,4 @@ void loop() {
   // コントローラのメインループを実行
   controller->loop();
 }
+#endif

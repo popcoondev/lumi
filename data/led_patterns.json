@@ -1,0 +1,65 @@
+{
+  "name": "Dynamic LED Pattern",
+  "type": "custom",
+  "parameters": {
+    "loop": true,
+    "stepDelay": {
+      "min": 500,
+      "max": 1500
+    },
+    "colorHSV": {
+      "h": { "min": 0, "max": 360 },
+      "s": { "min": 50, "max": 100 },
+      "v": { "min": 50, "max": 100 }
+    },
+    "effects": {
+      "fade": {
+        "enabled": true,
+        "mode": "both",
+        "duration": { "min": 500, "max": 1000 }
+      },
+      "blur": {
+        "enabled": true,
+        "intensity": { "min": 2, "max": 5 },
+        "duration": { "min": 200, "max": 600 }
+      }
+    }
+  },
+  "steps": [
+    {
+      "faceSelection": {
+        "mode": "random",
+        "range": { "min": 0, "max": 7 },
+        "count": 3
+      },
+      "colorHSV": {
+        "h": { "min": 200, "max": 240 },
+        "s": 80,
+        "v": 100
+      },
+      "duration": { "min": 800, "max": 1200 }
+    },
+    {
+      "faceSelection": {
+        "mode": "random",
+        "range": { "min": 0, "max": 7 },
+        "count": 2
+      },
+      "colorHSV": {
+        "h": { "min": 180, "max": 220 },
+        "s": { "min": 70, "max": 90 },
+        "v": { "min": 80, "max": 100 }
+      },
+      "duration": 1000
+    },
+    {
+      "faces": [4, 5, 6],
+      "colorHSV": {
+        "h": 50,
+        "s": 90,
+        "v": 100
+      },
+      "duration": 1200
+    }
+  ]
+}

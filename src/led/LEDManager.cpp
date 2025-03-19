@@ -9,6 +9,10 @@ LEDManager::LEDManager() {
     ledTaskHandle = nullptr;
     isTaskRunning = false;
     
+    // JSONパターン関連の初期化
+    m_isJsonPattern = false;
+    m_currentJsonPatternIndex = 0;
+    
     // パターンの初期化
     patternCount = 13; // 全パターン数
     patterns = new LedPattern*[patternCount];
@@ -111,9 +115,13 @@ void LEDManager::runPattern(int patternIndex) {
 
 void LEDManager::stopPattern() {
     if (ledTaskHandle != nullptr) {
+        // タスクを削除（一時停止ではなく完全停止）
         vTaskDelete(ledTaskHandle);
         ledTaskHandle = nullptr;
         isTaskRunning = false;
+        
+        // JSONパターンフラグをリセット
+        m_isJsonPattern = false;
     }
     
     // パターン停止時にすべてのLEDを消灯
@@ -178,4 +186,102 @@ void LEDManager::setBrightness(uint8_t brightness) {
 bool LEDManager::isPatternRunning() {
     // isTaskRunningフラグを使用して実行状態を判断
     return isTaskRunning && ledTaskHandle != nullptr;
+}
+
+// JSONパターンタスクラッパー
+void LEDManager::jsonPatternTaskWrapper(void* parameter) {
+    LEDManager* manager = static_cast<LEDManager*>(parameter);
+    
+    // JSONパターンを実行
+    JsonLedPattern* pattern = manager->m_jsonPatternManager.getPatternByIndex(manager->m_currentJsonPatternIndex);
+    if (pattern) {
+        pattern->run(
+            manager->leds,
+            manager->numLeds,
+            manager->ledOffset,
+            manager->numFaces,
+            0  // 無限実行（停止要求があるまで）
+        );
+    }
+    
+    // タスク終了時にフラグをリセット
+    manager->isTaskRunning = false;
+    manager->m_isJsonPattern = false;
+    vTaskDelete(NULL);
+}
+
+// JSONパターン関連のメソッド
+bool LEDManager::loadJsonPatternsFromFile(const String& filename) {
+    return m_jsonPatternManager.loadPatternsFromFile(filename);
+}
+
+bool LEDManager::loadJsonPatternsFromString(const String& jsonString) {
+    return m_jsonPatternManager.loadPatternsFromJson(jsonString);
+}
+
+int LEDManager::getJsonPatternCount() {
+    return m_jsonPatternManager.getPatternCount();
+}
+
+String LEDManager::getJsonPatternName(int index) {
+    JsonLedPattern* pattern = m_jsonPatternManager.getPatternByIndex(index);
+    if (pattern) {
+        return pattern->getName();
+    }
+    return "Unknown";
+}
+
+void LEDManager::runJsonPattern(const String& patternName) {
+    JsonLedPattern* pattern = m_jsonPatternManager.getPatternByName(patternName);
+    if (pattern) {
+        // 既存のタスクがあれば削除
+        if (ledTaskHandle != nullptr) {
+            vTaskDelete(ledTaskHandle);
+            ledTaskHandle = nullptr;
+        }
+        
+        // JSONパターンフラグを設定
+        m_isJsonPattern = true;
+        
+        // 新しいタスクを作成
+        xTaskCreatePinnedToCore(
+            jsonPatternTaskWrapper,
+            "JSONPatternTask",
+            4096,
+            this,
+            1,
+            &ledTaskHandle,
+            1
+        );
+        
+        isTaskRunning = true;
+    }
+}
+
+void LEDManager::runJsonPatternByIndex(int index) {
+    if (index >= 0 && index < m_jsonPatternManager.getPatternCount()) {
+        m_currentJsonPatternIndex = index;
+        
+        // 既存のタスクがあれば削除
+        if (ledTaskHandle != nullptr) {
+            vTaskDelete(ledTaskHandle);
+            ledTaskHandle = nullptr;
+        }
+        
+        // JSONパターンフラグを設定
+        m_isJsonPattern = true;
+        
+        // 新しいタスクを作成
+        xTaskCreatePinnedToCore(
+            jsonPatternTaskWrapper,
+            "JSONPatternTask",
+            4096,
+            this,
+            1,
+            &ledTaskHandle,
+            1
+        );
+        
+        isTaskRunning = true;
+    }
 }
