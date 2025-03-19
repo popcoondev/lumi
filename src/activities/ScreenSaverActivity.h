@@ -59,22 +59,14 @@ private:
     // 共通のダイナミック色生成（スプラッシュと同様）
     uint16_t getDynamicColor(float offset);
 
-    // --- Pattern1: スプラッシュアニメーション風（外側・内側の八角形＋中央テキスト） ---
-    // （特別なメンバは不要）
+    // --- Pattern2: オクタゴン展開用（特別なメンバは不要） ---
 
-    // --- Pattern2: 回転するオクタゴン ---
-    // （単一のワイヤーフレームとして描画）
-
-    // --- Pattern3: 3D螺旋（再生ごとにランダムオフセットあり） ---
-    float m_spiralRandomOffsets[50];  // numPoints = 50
-
-    // --- Pattern1用：3Dパーティクルフィールドは削除（今回の要求ではPattern1はスプラッシュ風） ---
-
-    // --- Pattern4: パースペクティブグリッド ---
-    // （特に追加のメンバは不要）
-
-    // --- Pattern5: 画面全体を使ったウェーブパターン ---
-    // （特に追加のメンバは不要）
+    // --- Pattern3: ランダムライン成長用 ---
+    static const int NUM_LINES = 50;
+    float m_lineStartX[NUM_LINES];
+    float m_lineStartY[NUM_LINES];
+    float m_lineAngle[NUM_LINES];
+    float m_lineLength[NUM_LINES];
 };
 
 #endif // SCREENSAVER_ACTIVITY_H
