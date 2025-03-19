@@ -143,6 +143,9 @@ public:
     void runJsonPatternByIndex(int index);
     bool isJsonPatternRunning() { return m_isJsonPattern && isPatternRunning(); }
     
+    // 受信したJSONパターンを実行するメソッド
+    bool runJsonPatternFromFile(const String& filename);
+    
     // ゲッターメソッド
     CRGB* getLeds() { return leds; }
     int getNumLeds() { return numLeds; }

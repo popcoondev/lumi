@@ -301,8 +301,48 @@ void WebServerManager::handleJsonPatternControl(AsyncWebServerRequest *request, 
         return;
     }
     
+    // 受信したJSONをファイルに保存
+    const String jsonFilePath = "/temp.json";
+    
+    if (!SPIFFS.begin(true)) {
+        Serial.println("An error occurred while mounting SPIFFS");
+        
+        StaticJsonDocument<256> response;
+        response["status"] = "error";
+        response["message"] = "Failed to mount SPIFFS";
+        
+        String responseStr;
+        serializeJson(response, responseStr);
+        
+        request->send(500, "application/json", responseStr);
+        return;
+    }
+    
+    // ファイルを書き込みモードで開く
+    File file = SPIFFS.open(jsonFilePath, "w");
+    if (!file) {
+        Serial.println("Failed to open file for writing");
+        
+        StaticJsonDocument<256> response;
+        response["status"] = "error";
+        response["message"] = "Failed to open file for writing";
+        
+        String responseStr;
+        serializeJson(response, responseStr);
+        
+        request->send(500, "application/json", responseStr);
+        return;
+    }
+    
+    // JSONデータをファイルに書き込む
+    size_t bytesWritten = file.print(jsonString);
+    file.close();
+    
+    Serial.println("JSON pattern saved to file: " + jsonFilePath);
+    Serial.println("Bytes written: " + String(bytesWritten));
+    
     // LEDManagerにJSONパターンを読み込ませて実行
-    bool success = _ledManager->loadJsonPatternsFromString(jsonString);
+    bool success = _ledManager->runJsonPatternFromFile(jsonFilePath);
     
     if (success) {
         // パターン名を取得（あれば）
@@ -310,9 +350,6 @@ void WebServerManager::handleJsonPatternControl(AsyncWebServerRequest *request, 
         if (doc.containsKey("name")) {
             patternName = doc["name"].as<String>();
         }
-        
-        // パターンを実行
-        _ledManager->runJsonPattern(patternName);
         
         StaticJsonDocument<256> response;
         response["status"] = "ok";
@@ -325,7 +362,7 @@ void WebServerManager::handleJsonPatternControl(AsyncWebServerRequest *request, 
     } else {
         StaticJsonDocument<256> response;
         response["status"] = "error";
-        response["message"] = "Failed to load JSON pattern";
+        response["message"] = "Failed to load and run JSON pattern";
         
         String responseStr;
         serializeJson(response, responseStr);

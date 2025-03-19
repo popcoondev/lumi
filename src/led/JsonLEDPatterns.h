@@ -620,6 +620,8 @@ public:
     }
     
     bool loadPatternsFromJson(const String& jsonString) {
+        Serial.println("Loading JSON patterns from string");
+        Serial.println(jsonString);
         // 既存のパターンをクリア
         for (auto pattern : m_patterns) {
             delete pattern;

@@ -403,3 +403,61 @@ void LEDManager::runJsonPatternByIndex(int index) {
         isTaskRunning = true;
     }
 }
+
+// 受信したJSONパターンをファイルから読み込んで実行する
+bool LEDManager::runJsonPatternFromFile(const String& filename) {
+    Serial.println("LEDManager: Loading JSON pattern from file: " + filename);
+    
+    if (!SPIFFS.begin(true)) {
+        Serial.println("LEDManager: An error occurred while mounting SPIFFS");
+        return false;
+    }
+    
+    // ファイルが存在するか確認
+    if (!SPIFFS.exists(filename)) {
+        Serial.println("LEDManager: File not found: " + filename);
+        return false;
+    }
+    
+    // ファイルを開く
+    File file = SPIFFS.open(filename, "r");
+    if (!file) {
+        Serial.println("LEDManager: Failed to open file: " + filename);
+        return false;
+    }
+    
+    // ファイルの内容を読み込む
+    String jsonString = file.readString();
+    file.close();
+    
+    Serial.println("LEDManager: JSON pattern loaded from file, length: " + String(jsonString.length()));
+    
+    // JSONパターンを読み込む
+    bool success = loadJsonPatternsFromString(jsonString);
+    if (!success) {
+        Serial.println("LEDManager: Failed to parse JSON pattern");
+        return false;
+    }
+    
+    Serial.println("LEDManager: JSON pattern parsed successfully");
+    
+    // パターン名を取得（あれば）
+    DynamicJsonDocument doc(4096);
+    DeserializationError error = deserializeJson(doc, jsonString);
+    
+    if (error) {
+        Serial.println("LEDManager: JSON parsing failed: " + String(error.c_str()));
+        return false;
+    }
+    
+    String patternName = "Custom Pattern";
+    if (doc.containsKey("name")) {
+        patternName = doc["name"].as<String>();
+    }
+    
+    // パターンを実行
+    runJsonPattern(patternName);
+    
+    Serial.println("LEDManager: Running JSON pattern: " + patternName);
+    return true;
+}
