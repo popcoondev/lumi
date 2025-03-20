@@ -3,11 +3,23 @@
 NetworkManager::NetworkManager() {
     _isConnected = false;
     _lastReconnectAttempt = 0;
+    
+    // APモード用の変数を初期化
+    _apSSID = "Lumi_" + WiFi.macAddress().substring(9);
+    _apPassword = "lumipassword";
+    _apChannel = 1;
+    _apHidden = false;
+    _apMaxConnections = 4;
+    _currentMode = (WiFiMode_t)1; // WIFI_STA = 1
 }
 
 NetworkManager::~NetworkManager() {
-    // WiFiを切断
-    WiFi.disconnect(true);
+    // 現在のモードに応じて適切に切断
+    if (_currentMode == (WiFiMode_t)1) { // WIFI_STA = 1
+        WiFi.disconnect(true);
+    } else if (_currentMode == (WiFiMode_t)2) { // WIFI_AP = 2
+        WiFi.softAPdisconnect(true);
+    }
 }
 
 bool NetworkManager::begin() {
@@ -23,11 +35,24 @@ bool NetworkManager::begin() {
         return false;
     }
     
-    // WiFiモードをSTAに設定
-    WiFi.mode(WIFI_STA);
-    
-    // WiFiに接続
+    // コンパイル時の設定に基づいてモードを強制的に設定
+#ifdef WIFI_MODE_AP
+    Serial.println("Compiled for AP mode");
+    _currentMode = (WiFiMode_t)2; // WIFI_AP = 2
+    return startAP();
+#elif defined(WIFI_MODE_STA)
+    Serial.println("Compiled for STA mode");
+    _currentMode = (WiFiMode_t)1; // WIFI_STA = 1
     return connect();
+#else
+    // 設定ファイルに基づいてモードを選択
+    Serial.println("Using mode from config file");
+    if (_currentMode == (WiFiMode_t)2) { // WIFI_AP = 2
+        return startAP();
+    } else {
+        return connect();
+    }
+#endif
 }
 
 bool NetworkManager::connect() {
@@ -73,11 +98,17 @@ bool NetworkManager::isConnected() {
 }
 
 void NetworkManager::update() {
-    // 接続が切れた場合、一定間隔で再接続を試みる
-    if (!isConnected() && millis() - _lastReconnectAttempt > _reconnectInterval) {
-        _lastReconnectAttempt = millis();
-        Serial.println("Attempting to reconnect to WiFi...");
-        connect();
+    // STAモードの場合のみ接続状態を確認
+    if (_currentMode == (WiFiMode_t)1) { // WIFI_STA = 1
+        // 接続が切れた場合、一定間隔で再接続を試みる
+        if (!isConnected() && millis() - _lastReconnectAttempt > _reconnectInterval) {
+            _lastReconnectAttempt = millis();
+            Serial.println("Attempting to reconnect to WiFi...");
+            connect();
+        }
+        
+        // 接続状態の更新
+        _isConnected = (WiFi.status() == WL_CONNECTED);
     }
 }
 
@@ -130,7 +161,7 @@ bool NetworkManager::loadWiFiConfig() {
     }
     
     // JSONをパース
-    StaticJsonDocument<512> doc;
+    StaticJsonDocument<1024> doc;
     DeserializationError error = deserializeJson(doc, configFile);
     configFile.close();
     
@@ -140,9 +171,32 @@ bool NetworkManager::loadWiFiConfig() {
         return false;
     }
     
-    // 設定を読み込む
-    _ssid = doc["ssid"].as<String>();
-    _password = doc["password"].as<String>();
+    // 拡張された設定ファイルの読み込み
+    if (doc.containsKey("sta")) {
+        _ssid = doc["sta"]["ssid"].as<String>();
+        _password = doc["sta"]["password"].as<String>();
+    } else {
+        // 後方互換性のため
+        _ssid = doc["ssid"].as<String>();
+        _password = doc["password"].as<String>();
+    }
+    
+    // APモード設定の読み込み
+    if (doc.containsKey("ap")) {
+        _apSSID = doc["ap"]["ssid"].as<String>();
+        _apPassword = doc["ap"]["password"].as<String>();
+        _apChannel = doc["ap"]["channel"] | 1;
+        _apHidden = doc["ap"]["hidden"] | false;
+        _apMaxConnections = doc["ap"]["max_connections"] | 4;
+    }
+    
+    // モード設定の読み込み
+    String modeStr = doc["mode"] | "sta";
+    if (modeStr == "ap") {
+        _currentMode = (WiFiMode_t)2; // WIFI_AP = 2
+    } else {
+        _currentMode = (WiFiMode_t)1; // WIFI_STA = 1
+    }
     
     Serial.println("WiFi configuration loaded successfully!");
     return true;
@@ -150,9 +204,27 @@ bool NetworkManager::loadWiFiConfig() {
 
 bool NetworkManager::saveWiFiConfig() {
     // JSONを作成
-    StaticJsonDocument<512> doc;
-    doc["ssid"] = _ssid;
-    doc["password"] = _password;
+    StaticJsonDocument<1024> doc;
+    
+    // STA設定
+    JsonObject sta = doc.createNestedObject("sta");
+    sta["ssid"] = _ssid;
+    sta["password"] = _password;
+    
+    // AP設定
+    JsonObject ap = doc.createNestedObject("ap");
+    ap["ssid"] = _apSSID;
+    ap["password"] = _apPassword;
+    ap["channel"] = _apChannel;
+    ap["hidden"] = _apHidden;
+    ap["max_connections"] = _apMaxConnections;
+    
+    // モード設定
+    if (_currentMode == (WiFiMode_t)2) { // WIFI_AP = 2
+        doc["mode"] = "ap";
+    } else {
+        doc["mode"] = "sta";
+    }
     
     // ファイルを開く
     File configFile = SPIFFS.open(_configPath, "w");
@@ -170,5 +242,87 @@ bool NetworkManager::saveWiFiConfig() {
     
     configFile.close();
     Serial.println("WiFi configuration saved successfully!");
+    return true;
+}
+
+// APモード関連のメソッド実装
+bool NetworkManager::startAP() {
+    // APモードを設定
+    WiFi.mode(WIFI_AP);
+    _currentMode = (WiFiMode_t)2; // WIFI_AP = 2
+    
+    // APを開始
+    bool result = WiFi.softAP(_apSSID.c_str(), _apPassword.c_str(), _apChannel, _apHidden, _apMaxConnections);
+    
+    if (result) {
+        Serial.println("AP started!");
+        Serial.print("AP SSID: ");
+        Serial.println(_apSSID);
+        Serial.print("AP IP address: ");
+        Serial.println(WiFi.softAPIP());
+        return true;
+    } else {
+        Serial.println("Failed to start AP!");
+        return false;
+    }
+}
+
+bool NetworkManager::stopAP() {
+    if (_currentMode == (WiFiMode_t)2) { // WIFI_AP = 2
+        // APモードからSTAモードに切り替え
+        WiFi.softAPdisconnect(true);
+        WiFi.mode(WIFI_STA);
+        _currentMode = (WiFiMode_t)1; // WIFI_STA = 1
+        return connect();
+    }
+    return true;
+}
+
+bool NetworkManager::isAPActive() {
+    return (_currentMode == (WiFiMode_t)2); // WIFI_AP = 2
+}
+
+IPAddress NetworkManager::getAPIP() {
+    return WiFi.softAPIP();
+}
+
+WiFiMode_t NetworkManager::getCurrentMode() {
+    return _currentMode;
+}
+
+bool NetworkManager::setMode(WiFiMode_t mode) {
+    if (mode == _currentMode) {
+        return true; // 既に設定されているモードと同じ
+    }
+    
+    // モードに応じて処理を分岐
+    switch (mode) {
+        case WIFI_AP:
+            return startAP();
+        case WIFI_STA:
+        default:
+            return connect();
+    }
+}
+
+bool NetworkManager::updateAPConfig(const String& ssid, const String& password, int channel, bool hidden, int maxConnections) {
+    _apSSID = ssid;
+    _apPassword = password;
+    _apChannel = channel;
+    _apHidden = hidden;
+    _apMaxConnections = maxConnections;
+    
+    // 設定を保存
+    if (!saveWiFiConfig()) {
+        Serial.println("Failed to save WiFi AP configuration!");
+        return false;
+    }
+    
+    // 現在APモードの場合は再起動
+    if (_currentMode == (WiFiMode_t)2) { // WIFI_AP = 2
+        WiFi.softAPdisconnect(true);
+        return startAP();
+    }
+    
     return true;
 }

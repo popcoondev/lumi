@@ -1,4 +1,14 @@
 {
-  "ssid": "your_wifi_ssid",
-  "password": "your_wifi_password"
+  "sta": {
+    "ssid": "your_wifi_ssid",
+    "password": "your_wifi_password"
+  },
+  "ap": {
+    "ssid": "Lumi_AP",
+    "password": "lumipassword",
+    "channel": 1,
+    "hidden": false,
+    "max_connections": 4
+  },
+  "mode": "sta"
 }

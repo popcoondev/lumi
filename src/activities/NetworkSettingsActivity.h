@@ -33,12 +33,20 @@ private:
     // ネットワークマネージャー
     NetworkManager* m_networkManager;
     
-    // UIコンポーネント
+    // UIコンポーネント - 共通
     ButtonFragment* m_homeButton;
+    
+    // UIコンポーネント - STAモード
     TextView* m_ssidTextView;
     TextView* m_ipAddressTextView;
     TextView* m_macAddressTextView;
     TextView* m_signalStrengthTextView;
+    
+    // UIコンポーネント - APモード
+    TextView* m_modeTextView;
+    TextView* m_apSSIDTextView;
+    TextView* m_apIPTextView;
+    ButtonFragment* m_toggleModeButton;
     
     // 更新間隔の管理
     unsigned long m_lastUpdateTime;
@@ -51,11 +59,24 @@ private:
     enum {
         ID_NONE = 0,
         ID_BUTTON_HOME,
+        ID_BUTTON_TOGGLE_MODE,
         ID_TEXT_SSID,
         ID_TEXT_IP_ADDRESS,
         ID_TEXT_MAC_ADDRESS,
-        ID_TEXT_SIGNAL_STRENGTH
+        ID_TEXT_SIGNAL_STRENGTH,
+        ID_TEXT_MODE,
+        ID_TEXT_AP_SSID,
+        ID_TEXT_AP_IP
     };
+    
+    // モード切替処理
+    void toggleWiFiMode();
+    
+    // STAモード用の情報表示
+    void updateSTAModeInfo();
+    
+    // APモード用の情報表示
+    void updateAPModeInfo();
 };
 
 #endif // NETWORK_SETTINGS_ACTIVITY_H
