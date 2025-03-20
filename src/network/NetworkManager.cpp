@@ -36,11 +36,11 @@ bool NetworkManager::begin() {
     }
     
     // コンパイル時の設定に基づいてモードを強制的に設定
-#ifdef WIFI_MODE_AP
+#ifdef LUMI_WIFI_MODE_AP
     Serial.println("Compiled for AP mode");
     _currentMode = (WiFiMode_t)2; // WIFI_AP = 2
     return startAP();
-#elif defined(WIFI_MODE_STA)
+#elif defined(LUMI_WIFI_MODE_STA)
     Serial.println("Compiled for STA mode");
     _currentMode = (WiFiMode_t)1; // WIFI_STA = 1
     return connect();
