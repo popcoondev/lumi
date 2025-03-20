@@ -15,6 +15,7 @@ namespace framework {
  * @brief Activity state enumeration
  */
 enum class ActivityState {
+    UNCREATED,  // Activity has not been created
     CREATED,    // Activity has been created but not started
     STARTED,    // Activity has been started
     RESUMED,    // Activity is running and visible to the user
@@ -146,7 +147,7 @@ public:
 
 protected:
     std::string m_name;                                // Activity name
-    ActivityState m_state = ActivityState::CREATED;    // Current activity state
+    ActivityState m_state = ActivityState::UNCREATED;    // Current activity state
     std::vector<Fragment*> m_fragments;                // List of fragments
     std::unordered_map<std::string, Fragment*> m_taggedFragments; // Map of tagged fragments
     
@@ -159,7 +160,9 @@ protected:
 
 // Inline implementation of constructor
 inline Activity::Activity(uint32_t id, const std::string& name)
-    : Component(id), m_name(name) {}
+    : Component(id), m_name(name) {
+        setState(ActivityState::UNCREATED);
+    }
 
 // Inline implementation of destructor
 inline Activity::~Activity() {

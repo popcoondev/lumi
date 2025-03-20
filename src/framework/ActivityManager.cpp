@@ -54,6 +54,12 @@ bool ActivityManager::startActivity(const std::string& name) {
     Serial.print("ActivityManager::startActivity - New activity state: ");
     Serial.println(static_cast<int>(state));
     
+    if (state == ActivityState::UNCREATED) {
+        Serial.print("ActivityManager::startActivity - Creating activity: ");
+        Serial.println(name.c_str());
+        m_currentActivity->onCreate();
+    }
+
     if (state == ActivityState::CREATED || state == ActivityState::STOPPED) {
         Serial.print("ActivityManager::startActivity - Starting activity: ");
         Serial.println(name.c_str());
