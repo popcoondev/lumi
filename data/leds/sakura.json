@@ -1,0 +1,72 @@
+{
+    "name": "Sakura",
+    "type": "custom",
+    "parameters": {
+      "loop": true,
+      "stepDelay": 300,
+      "colorHSV": {
+        "h": { "min": 230, "max": 250 },
+        "s": { "min": 40, "max": 70 },
+        "v": { "min": 230, "max": 255 }
+      },
+      "effects": {
+        "fade": {
+          "enabled": true,
+          "mode": "out",
+          "duration": 400
+        },
+        "blur": {
+          "enabled": true,
+          "intensity": 2,
+          "duration": 300
+        }
+      }
+    },
+    "steps": [
+      {
+        "faceSelection": {
+          "mode": "random",
+          "range": { "min": 0, "max": 7 },
+          "count": 1
+        },
+        "duration": 300
+      },
+      {
+        "faceSelection": {
+          "mode": "random",
+          "range": { "min": 0, "max": 7 },
+          "count": 2
+        },
+        "duration": 250
+      },
+      {
+        "faceSelection": {
+          "mode": "random",
+          "range": { "min": 0, "max": 7 },
+          "count": 3
+        },
+        "duration": 300
+      },
+      {
+        "faceSelection": {
+          "mode": "random",
+          "range": { "min": 0, "max": 7 },
+          "count": 1
+        },
+        "duration": 350
+      },
+      {
+        "faceSelection": {
+          "mode": "random",
+          "range": { "min": 0, "max": 7 },
+          "count": 2
+        },
+        "duration": 300
+      },
+      {
+        "faces": [],
+        "duration": 400
+      }
+    ]
+  }
+  

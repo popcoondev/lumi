@@ -337,10 +337,10 @@ void WebServerManager::handleJsonPatternControl(AsyncWebServerRequest *request, 
                     errorMessage = "Step " + String(i) + " is missing faceSelection or faces";
                     break;
                 }
-                // facesを使用する場合はcolorHSVが不要な場合がある
-                if (!step.containsKey("colorHSV") && !step.containsKey("faces")) {
+                // facesもfaceSelectionも指定されておらず、かつcolorHSVも指定されていない場合のみエラー
+                if (!step.containsKey("colorHSV") && !step.containsKey("faces") && !step.containsKey("faceSelection")) {
                     isValid = false;
-                    errorMessage = "Step " + String(i) + " is missing colorHSV";
+                    errorMessage = "Step " + String(i) + " is missing colorHSV and face selection method";
                     break;
                 }
                 if (!step.containsKey("duration")) {

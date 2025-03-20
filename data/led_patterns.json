@@ -1,6 +1,10 @@
 {
   "patterns": [
     {
+      "name": "桜がひらひら舞い散る",
+      "file": "/led_patterns/sakura.json"
+    },
+    {
       "name": "Sequential",
       "file": "/led_patterns/sequential.json"
     },

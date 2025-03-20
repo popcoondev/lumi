@@ -483,7 +483,6 @@ void OctaController::processLEDControlActivityState() {
 }
 
 void OctaController::processScreenSaverActivityState() {
-    Serial.println("Processing ScreenSaverActivity state");
     
     // スクリーンセーバーの更新処理を追加
     if (screenSaverActivity->isPlaying()) {
