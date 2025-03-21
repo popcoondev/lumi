@@ -9,9 +9,14 @@ LEDControlActivity::LEDControlActivity()
       m_nextButton(nullptr),
       m_homeButton(nullptr),
       m_modeButton(nullptr),
+      m_fpsToggleButton(nullptr),
+      m_fps30Button(nullptr),
+      m_fps60Button(nullptr),
+      m_fps120Button(nullptr),
       m_isPlaying(false),
       m_isJsonPattern(false),
-      m_currentJsonPatternIndex(0)
+      m_currentJsonPatternIndex(0),
+      m_lastFpsUpdateTime(0)
 {
 }
 
@@ -21,6 +26,10 @@ LEDControlActivity::~LEDControlActivity() {
     delete m_nextButton;
     delete m_homeButton;
     delete m_modeButton;
+    delete m_fpsToggleButton;
+    delete m_fps30Button;
+    delete m_fps60Button;
+    delete m_fps120Button;
 }
 
 bool LEDControlActivity::onCreate() {
@@ -35,19 +44,35 @@ bool LEDControlActivity::onCreate() {
     m_homeButton = new ButtonFragment(ID_BUTTON_HOME);
     m_modeButton = new ButtonFragment(ID_BUTTON_MODE);
     
+    // FPS制御関連のボタン
+    m_fpsToggleButton = new ButtonFragment(ID_BUTTON_FPS_TOGGLE);
+    m_fps30Button = new ButtonFragment(ID_BUTTON_FPS_30);
+    m_fps60Button = new ButtonFragment(ID_BUTTON_FPS_60);
+    m_fps120Button = new ButtonFragment(ID_BUTTON_FPS_120);
+    
     // ButtonFragment の作成
     m_playPauseButton->onCreate();
     m_prevButton->onCreate();
     m_nextButton->onCreate();
     m_homeButton->onCreate();
     m_modeButton->onCreate();
+    m_fpsToggleButton->onCreate();
+    m_fps30Button->onCreate();
+    m_fps60Button->onCreate();
+    m_fps120Button->onCreate();
     
     // ボタンの位置とサイズを設定 - サイズを大きくして視認性を向上
-    m_playPauseButton->setDisplayArea(120, 100, 80, 40);
-    m_prevButton->setDisplayArea(20, 100, 80, 40);
-    m_nextButton->setDisplayArea(220, 100, 80, 40);
+    m_playPauseButton->setDisplayArea(120, 80, 80, 40);
+    m_prevButton->setDisplayArea(20, 80, 80, 40);
+    m_nextButton->setDisplayArea(220, 80, 80, 40);
     m_homeButton->setDisplayArea(120, 220, 80, 40);
-    m_modeButton->setDisplayArea(120, 160, 80, 40);
+    m_modeButton->setDisplayArea(120, 140, 80, 40);
+    
+    // FPS制御ボタンの位置とサイズを設定
+    m_fpsToggleButton->setDisplayArea(220, 180, 80, 30);
+    m_fps30Button->setDisplayArea(20, 180, 50, 30);
+    m_fps60Button->setDisplayArea(80, 180, 50, 30);
+    m_fps120Button->setDisplayArea(140, 180, 50, 30);
     
     // ボタンのスタイル設定 - 色を変更して視認性を向上
     m_playPauseButton->setLabel("Play");
@@ -74,6 +99,27 @@ bool LEDControlActivity::onCreate() {
     m_modeButton->setColor(TFT_PURPLE, TFT_LIGHTGREY);
     m_modeButton->setFontSize(1.5);
     m_modeButton->setType(BUTTON_TYPE_TEXT);
+    
+    // FPS制御ボタンのスタイル設定
+    m_fpsToggleButton->setLabel("FPS: ON");
+    m_fpsToggleButton->setColor(TFT_CYAN, TFT_LIGHTGREY);
+    m_fpsToggleButton->setFontSize(1.2);
+    m_fpsToggleButton->setType(BUTTON_TYPE_TEXT);
+    
+    m_fps30Button->setLabel("30");
+    m_fps30Button->setColor(TFT_DARKGREY, TFT_LIGHTGREY);
+    m_fps30Button->setFontSize(1.2);
+    m_fps30Button->setType(BUTTON_TYPE_TEXT);
+    
+    m_fps60Button->setLabel("60");
+    m_fps60Button->setColor(TFT_DARKGREY, TFT_LIGHTGREY);
+    m_fps60Button->setFontSize(1.2);
+    m_fps60Button->setType(BUTTON_TYPE_TEXT);
+    
+    m_fps120Button->setLabel("120");
+    m_fps120Button->setColor(TFT_DARKGREY, TFT_LIGHTGREY);
+    m_fps120Button->setFontSize(1.2);
+    m_fps120Button->setType(BUTTON_TYPE_TEXT);
     
     // クリックハンドラの設定
     m_playPauseButton->setClickHandler([this]() {
@@ -109,12 +155,33 @@ bool LEDControlActivity::onCreate() {
         togglePatternMode();
     });
     
+    // FPS制御ボタンのクリックハンドラ
+    m_fpsToggleButton->setClickHandler([this]() {
+        toggleFpsControl();
+    });
+    
+    m_fps30Button->setClickHandler([this]() {
+        setFps(30);
+    });
+    
+    m_fps60Button->setClickHandler([this]() {
+        setFps(60);
+    });
+    
+    m_fps120Button->setClickHandler([this]() {
+        setFps(120);
+    });
+    
     // Fragmentの追加
     addFragment(m_playPauseButton, "playPauseButton");
     addFragment(m_prevButton, "prevButton");
     addFragment(m_nextButton, "nextButton");
     addFragment(m_homeButton, "homeButton");
     addFragment(m_modeButton, "modeButton");
+    addFragment(m_fpsToggleButton, "fpsToggleButton");
+    addFragment(m_fps30Button, "fps30Button");
+    addFragment(m_fps60Button, "fps60Button");
+    addFragment(m_fps120Button, "fps120Button");
     
     return true;
 }
@@ -134,6 +201,23 @@ bool LEDControlActivity::onResume() {
     // 状態を初期化
     m_isPlaying = false;
     m_playPauseButton->setLabel("Play");
+    
+    // FPS制御の状態を初期化
+    if (m_ledManager) {
+        // FPSボタンの状態を更新
+        uint16_t currentFps = m_ledManager->getTargetFps();
+        bool fpsEnabled = m_ledManager->isFpsControlEnabled();
+        
+        m_fpsToggleButton->setLabel(fpsEnabled ? "FPS: ON" : "FPS: OFF");
+        
+        // 現在のFPSに合わせてボタンの色を更新
+        m_fps30Button->setColor(currentFps == 30 ? TFT_CYAN : TFT_DARKGREY, TFT_LIGHTGREY);
+        m_fps60Button->setColor(currentFps == 60 ? TFT_CYAN : TFT_DARKGREY, TFT_LIGHTGREY);
+        m_fps120Button->setColor(currentFps == 120 ? TFT_CYAN : TFT_DARKGREY, TFT_LIGHTGREY);
+    }
+    
+    // FPS更新タイマーをリセット
+    m_lastFpsUpdateTime = millis();
     
     // 画面を描画
     draw();
@@ -188,9 +272,16 @@ void LEDControlActivity::draw() {
     m_nextButton->draw();
     m_homeButton->draw();
     m_modeButton->draw();
+    m_fpsToggleButton->draw();
+    m_fps30Button->draw();
+    m_fps60Button->draw();
+    m_fps120Button->draw();
     
     // パターン情報を表示
     updatePatternInfo();
+    
+    // FPS情報を表示
+    updateFpsInfo();
 }
 
 void LEDControlActivity::updatePatternInfo() {
@@ -204,7 +295,7 @@ void LEDControlActivity::updatePatternInfo() {
     // モードに応じたパターン情報を表示
     M5.Lcd.setTextSize(1.5);
     M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
-    M5.Lcd.setCursor(10, 160);
+    M5.Lcd.setCursor(10, 120);
     
     if (m_isJsonPattern) {
         // JSONパターンモード
@@ -214,7 +305,7 @@ void LEDControlActivity::updatePatternInfo() {
             
             // パターン番号を表示
             M5.Lcd.setTextSize(1);
-            M5.Lcd.setCursor(10, 180);
+            M5.Lcd.setCursor(10, 140);
             M5.Lcd.print("JSON Pattern " + String(m_currentJsonPatternIndex + 1) + 
                         " of " + String(m_ledManager->getJsonPatternCount()) + "     ");
         } else {
@@ -223,7 +314,7 @@ void LEDControlActivity::updatePatternInfo() {
             
             // パターン番号を表示
             M5.Lcd.setTextSize(1);
-            M5.Lcd.setCursor(10, 180);
+            M5.Lcd.setCursor(10, 140);
             M5.Lcd.print("No JSON patterns available     ");
         }
     } else {
@@ -232,9 +323,28 @@ void LEDControlActivity::updatePatternInfo() {
         
         // パターン番号を表示
         M5.Lcd.setTextSize(1);
-        M5.Lcd.setCursor(10, 180);
+        M5.Lcd.setCursor(10, 140);
         M5.Lcd.print("Pattern " + String(m_ledManager->getCurrentPatternIndex() + 1) + 
                     " of " + String(m_ledManager->getPatternCount()) + "     ");
+    }
+}
+
+void LEDControlActivity::updateFpsInfo() {
+    if (!m_ledManager) return;
+    
+    // 1秒ごとにFPS情報を更新
+    unsigned long currentTime = millis();
+    if (currentTime - m_lastFpsUpdateTime >= 1000) {
+        m_lastFpsUpdateTime = currentTime;
+        
+        // FPS情報を表示
+        M5.Lcd.setTextSize(1);
+        M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+        M5.Lcd.setCursor(10, 200);
+        
+        String fpsStatus = "Target FPS: " + String(m_ledManager->getTargetFps());
+        fpsStatus += "  Actual FPS: " + String(m_ledManager->getActualFps());
+        M5.Lcd.print(fpsStatus + "     ");
     }
 }
 
@@ -366,4 +476,61 @@ void LEDControlActivity::togglePatternMode() {
     
     // パターン情報を更新
     updatePatternInfo();
+}
+
+void LEDControlActivity::toggleFpsControl() {
+    if (!m_ledManager) return;
+    
+    // FPS制御の有効/無効を切り替え
+    bool currentState = m_ledManager->isFpsControlEnabled();
+    m_ledManager->enableFpsControl(!currentState);
+    
+    // ボタンのラベルを更新
+    m_fpsToggleButton->setLabel(m_ledManager->isFpsControlEnabled() ? "FPS: ON" : "FPS: OFF");
+    m_fpsToggleButton->draw();
+    
+    // 再生中のパターンがあれば、一度停止して再開する（設定を反映するため）
+    if (m_isPlaying) {
+        m_ledManager->stopPattern();
+        
+        if (m_isJsonPattern) {
+            m_ledManager->runJsonPatternByIndex(m_currentJsonPatternIndex);
+        } else {
+            m_ledManager->runPattern(m_ledManager->getCurrentPatternIndex());
+        }
+    }
+    
+    // FPS情報を更新
+    updateFpsInfo();
+}
+
+void LEDControlActivity::setFps(uint16_t fps) {
+    if (!m_ledManager) return;
+    
+    // FPSを設定
+    m_ledManager->setTargetFps(fps);
+    
+    // ボタンの色を更新
+    m_fps30Button->setColor(fps == 30 ? TFT_CYAN : TFT_DARKGREY, TFT_LIGHTGREY);
+    m_fps60Button->setColor(fps == 60 ? TFT_CYAN : TFT_DARKGREY, TFT_LIGHTGREY);
+    m_fps120Button->setColor(fps == 120 ? TFT_CYAN : TFT_DARKGREY, TFT_LIGHTGREY);
+    
+    // ボタンを再描画
+    m_fps30Button->draw();
+    m_fps60Button->draw();
+    m_fps120Button->draw();
+    
+    // 再生中のパターンがあれば、一度停止して再開する（設定を反映するため）
+    if (m_isPlaying) {
+        m_ledManager->stopPattern();
+        
+        if (m_isJsonPattern) {
+            m_ledManager->runJsonPatternByIndex(m_currentJsonPatternIndex);
+        } else {
+            m_ledManager->runPattern(m_ledManager->getCurrentPatternIndex());
+        }
+    }
+    
+    // FPS情報を更新
+    updateFpsInfo();
 }

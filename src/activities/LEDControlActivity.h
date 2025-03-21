@@ -36,19 +36,31 @@ private:
     ButtonFragment* m_homeButton;
     ButtonFragment* m_modeButton; // パターンモード切替ボタン
     
+    // FPS制御関連のボタン
+    ButtonFragment* m_fpsToggleButton;
+    ButtonFragment* m_fps30Button;
+    ButtonFragment* m_fps60Button;
+    ButtonFragment* m_fps120Button;
+    
     bool m_isPlaying;
     bool m_isJsonPattern; // JSONパターンモードかどうか
     int m_currentJsonPatternIndex; // 現在のJSONパターンインデックス
+    
+    // FPS表示用のタイマー
+    unsigned long m_lastFpsUpdateTime;
     
     // コールバック関数
     std::function<void()> onHomeRequested;
     
     // ヘルパーメソッド
     void updatePatternInfo();
+    void updateFpsInfo();
     void togglePlayPause();
     void nextPattern();
     void prevPattern();
     void togglePatternMode(); // パターンモード（通常/JSON）の切り替え
+    void toggleFpsControl(); // FPS制御の有効/無効を切り替え
+    void setFps(uint16_t fps); // FPSを設定
     
     // UIコンポーネント用のID定数
     enum {
@@ -57,7 +69,11 @@ private:
         ID_BUTTON_PREV,
         ID_BUTTON_NEXT,
         ID_BUTTON_HOME,
-        ID_BUTTON_MODE
+        ID_BUTTON_MODE,
+        ID_BUTTON_FPS_TOGGLE,
+        ID_BUTTON_FPS_30,
+        ID_BUTTON_FPS_60,
+        ID_BUTTON_FPS_120
     };
 };
 

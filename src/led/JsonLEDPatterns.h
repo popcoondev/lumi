@@ -325,7 +325,7 @@ public:
 // JSONパターンの基底クラス
 class JsonLedPattern {
 public:
-    JsonLedPattern() : m_name("JSON Pattern") {}
+    JsonLedPattern() : m_name("JSON Pattern"), m_isFirstFrame(true), m_currentStep(0), m_patternStartTime(0) {}
     virtual ~JsonLedPattern() {}
     
     // JSONからパターンを解析するメソッド
@@ -338,11 +338,45 @@ public:
     // パターン名を取得
     virtual String getName() { return m_name; }
     
-    // パターンを実行するメソッド
+    // パターンを実行するメソッド（従来の実装）
     virtual void run(CRGB* leds, int numLeds, int ledOffset, int numFaces, int duration) = 0;
+    
+    // フレームベースの実行メソッド（FPS制御用）
+    virtual bool runSingleFrame(CRGB* leds, int numLeds, int ledOffset, int numFaces) {
+        // 初回フレームの場合は初期化
+        if (m_isFirstFrame) {
+            m_patternStartTime = millis();
+            m_currentStep = 0;
+            m_isFirstFrame = false;
+        }
+        
+        // デフォルト実装（派生クラスでオーバーライド）
+        // 単純に全LEDを消灯
+        for (int i = 0; i < numLeds; i++) {
+            leds[i] = CRGB::Black;
+        }
+        FastLED.show();
+        
+        return false; // パターン未完了
+    }
+    
+    // 状態をリセット
+    virtual void resetFrameState() {
+        m_isFirstFrame = true;
+        m_currentStep = 0;
+        m_patternStartTime = 0;
+    }
+    
+    // パターンがループするかどうかを返す
+    virtual bool isLooping() const {
+        return false; // デフォルトではループしない
+    }
     
 protected:
     String m_name;
+    bool m_isFirstFrame;
+    int m_currentStep;
+    unsigned long m_patternStartTime;
 };
 
 // カスタムJSONパターンの実装
@@ -375,6 +409,9 @@ public:
         unsigned long startTime = millis();
         int stepIndex = 0;
         
+        // 状態をリセット
+        resetFrameState();
+        
         do {
             for (stepIndex = 0; stepIndex < m_steps.size(); stepIndex++) {
                 // 実行時間チェック
@@ -392,6 +429,41 @@ public:
                 }
             }
         } while (m_params.loop && (duration == 0 || millis() - startTime < (unsigned long)duration));
+    }
+    
+    // フレームベースの実行メソッド
+    bool runSingleFrame(CRGB* leds, int numLeds, int ledOffset, int numFaces) override {
+        // 初回フレームの場合は初期化
+        if (m_isFirstFrame) {
+            m_patternStartTime = millis();
+            m_currentStep = 0;
+            m_isFirstFrame = false;
+        }
+        
+        // 現在のステップを実行
+        if (m_currentStep < m_steps.size()) {
+            executeStep(leds, numLeds, ledOffset, numFaces, m_steps[m_currentStep]);
+            
+            // 次のステップへ
+            m_currentStep++;
+            
+            // 全ステップ完了したかチェック
+            if (m_currentStep >= m_steps.size()) {
+                if (m_params.loop) {
+                    // ループする場合は最初に戻る
+                    m_currentStep = 0;
+                    return false; // パターン継続
+                } else {
+                    return true; // パターン完了
+                }
+            }
+        }
+        
+        return false; // パターン継続
+    }
+    
+    bool isLooping() const override {
+        return m_params.loop;
     }
     
 private:

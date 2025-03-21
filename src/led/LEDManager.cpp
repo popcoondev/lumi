@@ -10,6 +10,11 @@ LEDManager::LEDManager() {
     ledTaskHandle = nullptr;
     isTaskRunning = false;
     
+    // FPS制御関連の初期化
+    m_targetFps = 30; // デフォルト30fps
+    m_fpsController.setTargetFps(m_targetFps);
+    m_fpsControlEnabled = true;
+    
     // JSONパターン関連の初期化
     m_isJsonPattern = false;
     m_currentJsonPatternIndex = 0;
@@ -72,18 +77,33 @@ void LEDManager::begin(int pin, int numLeds, int ledOffset) {
 void LEDManager::ledTaskWrapper(void* parameter) {
     LEDManager* manager = static_cast<LEDManager*>(parameter);
     
-    while (true) {
-        // 現在選択されているパターンを実行
-        manager->patterns[manager->currentPatternIndex]->run(
+    unsigned long startTime = millis();
+    unsigned long duration = 5000; // 5秒間実行
+    
+    // パターンをリセット
+    manager->patterns[manager->currentPatternIndex]->reset();
+    
+    while (millis() - startTime < duration) {
+        // FPS制御が有効な場合はフレーム開始
+        if (manager->m_fpsControlEnabled) {
+            manager->m_fpsController.beginFrame();
+        }
+        
+        // パターン処理の1フレーム分を実行
+        manager->patterns[manager->currentPatternIndex]->runFrame(
             manager->leds,
             manager->numLeds,
             manager->ledOffset,
-            manager->numFaces,
-            5000 // 各パターン5秒間実行
+            manager->numFaces
         );
         
-        // // パターン実行後、自動的に一時停止
-        // vTaskSuspend(NULL);
+        // FPS制御が有効な場合はフレーム終了（自動的に適切な遅延が適用される）
+        if (manager->m_fpsControlEnabled) {
+            manager->m_fpsController.endFrame();
+        } else {
+            // FPS制御が無効な場合は従来の固定遅延
+            vTaskDelay(50 / portTICK_PERIOD_MS);
+        }
     }
     
     vTaskDelete(NULL);
@@ -189,20 +209,76 @@ bool LEDManager::isPatternRunning() {
     return isTaskRunning && ledTaskHandle != nullptr;
 }
 
+// FPS制御関連のメソッド
+void LEDManager::setTargetFps(uint16_t fps) {
+    m_targetFps = fps;
+    m_fpsController.setTargetFps(fps);
+    Serial.printf("LEDManager: Target FPS set to %d\n", fps);
+}
+
+uint16_t LEDManager::getTargetFps() const {
+    return m_targetFps;
+}
+
+uint16_t LEDManager::getActualFps() const {
+    return m_fpsController.getActualFps();
+}
+
+void LEDManager::enableFpsControl(bool enable) {
+    m_fpsControlEnabled = enable;
+    Serial.printf("LEDManager: FPS control %s\n", enable ? "enabled" : "disabled");
+}
+
+bool LEDManager::isFpsControlEnabled() const {
+    return m_fpsControlEnabled;
+}
+
 // JSONパターンタスクラッパー
 void LEDManager::jsonPatternTaskWrapper(void* parameter) {
     LEDManager* manager = static_cast<LEDManager*>(parameter);
     
-    // JSONパターンを実行
+    // JSONパターンを取得
     JsonLedPattern* pattern = manager->m_jsonPatternManager.getPatternByIndex(manager->m_currentJsonPatternIndex);
     if (pattern) {
-        pattern->run(
-            manager->leds,
-            manager->numLeds,
-            manager->ledOffset,
-            manager->numFaces,
-            0  // 無限実行（停止要求があるまで）
-        );
+        // パターン状態をリセット
+        pattern->resetFrameState();
+        
+        if (manager->m_fpsControlEnabled) {
+            // FPS制御が有効な場合はフレームベースで実行
+            bool patternComplete = false;
+            
+            while (manager->isTaskRunning && !patternComplete) {
+                manager->m_fpsController.beginFrame();
+                
+                // JSONパターンの1フレーム分を実行
+                patternComplete = pattern->runSingleFrame(
+                    manager->leds,
+                    manager->numLeds,
+                    manager->ledOffset,
+                    manager->numFaces
+                );
+                
+                // パターンが完了し、ループしない場合は終了
+                if (patternComplete && !pattern->isLooping()) {
+                    break;
+                } else if (patternComplete) {
+                    // ループする場合は状態をリセット
+                    pattern->resetFrameState();
+                    patternComplete = false;
+                }
+                
+                manager->m_fpsController.endFrame();
+            }
+        } else {
+            // FPS制御が無効な場合は従来通り実行
+            pattern->run(
+                manager->leds,
+                manager->numLeds,
+                manager->ledOffset,
+                manager->numFaces,
+                0  // 無限実行（停止要求があるまで）
+            );
+        }
     }
     
     // タスク終了時にフラグをリセット
