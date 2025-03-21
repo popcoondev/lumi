@@ -4,6 +4,8 @@
 #include "../framework/Activity.h"
 #include "../framework/ActivityManager.h"
 #include <functional>
+#include <M5Unified.h>
+#include <M5GFX.h>
 
 class ScreenSaverActivity : public framework::Activity {
 public:
@@ -55,6 +57,9 @@ private:
     unsigned long m_transitionStartTime;
     static const unsigned long PATTERN_DURATION = 10000;   // 各パターン表示時間（10秒）
     static const unsigned long TRANSITION_DURATION = 1000;   // 切替移行時間（1秒）
+    
+    // オフスクリーンバッファ用のM5Canvas
+    M5Canvas* m_canvas;
 
     // 各パターン描画（α値付き：0.0〜1.0）
     void drawPattern1(float alpha);

@@ -17,11 +17,17 @@ ScreenSaverActivity::ScreenSaverActivity()
       m_prevPatternIndex(0),
       m_inTransition(false),
       m_lastPatternChangeTime(0),
-      m_transitionStartTime(0)
+      m_transitionStartTime(0),
+      m_canvas(nullptr)
 {
 }
 
 ScreenSaverActivity::~ScreenSaverActivity() {
+    // キャンバスのクリーンアップ
+    if (m_canvas != nullptr) {
+        delete m_canvas;
+        m_canvas = nullptr;
+    }
 }
 
 bool ScreenSaverActivity::onCreate() {
@@ -36,6 +42,13 @@ bool ScreenSaverActivity::onStart() {
 
 bool ScreenSaverActivity::onResume() {
     if (!Activity::onResume()) return false;
+    
+    // M5Canvasの初期化
+    if (m_canvas == nullptr) {
+        m_canvas = new M5Canvas(&M5.Lcd);
+        m_canvas->createSprite(320, 240);  // 画面サイズに合わせる
+    }
+    
     m_startTime = millis();
     m_lastUpdateTime = m_startTime;
     m_animationProgress = 0.0f;
@@ -61,6 +74,13 @@ bool ScreenSaverActivity::onResume() {
 void ScreenSaverActivity::onPause() {
     Activity::onPause();
     stopScreenSaver();
+    
+    // キャンバスのクリーンアップ
+    if (m_canvas != nullptr) {
+        m_canvas->deleteSprite();
+        delete m_canvas;
+        m_canvas = nullptr;
+    }
 }
 
 void ScreenSaverActivity::onStop() {
@@ -117,8 +137,11 @@ void ScreenSaverActivity::setPlaying(bool playing) {
 
 // ===== 描画・更新 =====
 void ScreenSaverActivity::draw() {
-    // 画面全体を黒でクリア
-    M5.Lcd.fillScreen(TFT_BLACK);
+    if (m_canvas == nullptr) return;
+    
+    // キャンバスを黒でクリア
+    m_canvas->fillScreen(TFT_BLACK);
+    
     unsigned long currentTime = millis();
     if (m_inTransition) {
         // 移行中はαブレンドして前パターンと新パターンを描画
@@ -148,6 +171,9 @@ void ScreenSaverActivity::draw() {
             case 4: drawPattern5(1.0f); break;
         }
     }
+    
+    // キャンバスを画面に転送
+    m_canvas->pushSprite(0, 0);
 }
 
 void ScreenSaverActivity::update() {
@@ -216,11 +242,13 @@ uint16_t ScreenSaverActivity::getDynamicColor(float offset) {
     uint8_t r = 128 + 127 * sin((m_animationProgress + offset) * PI * 2);
     uint8_t g = 128 + 127 * sin((m_animationProgress + offset + 0.33f) * PI * 2);
     uint8_t b = 128 + 127 * sin((m_animationProgress + offset + 0.66f) * PI * 2);
-    return M5.Lcd.color565(r, g, b);
+    return m_canvas->color565(r, g, b);
 }
 
 // ===== Pattern1: スプラッシュアニメーション風（八角形＋中央テキスト "Lumi"） =====
 void ScreenSaverActivity::drawPattern1(float alpha) {
+    if (m_canvas == nullptr) return;
+    
     int centerX = 160;
     int centerY = 120;
     int baseSize = 60;
@@ -236,7 +264,7 @@ void ScreenSaverActivity::drawPattern1(float alpha) {
         float y1 = centerY + size * sin(angleStep * (2 * i - 1));
         float x2 = centerX + size * cos(angleStep * (2 * i + 1));
         float y2 = centerY + size * sin(angleStep * (2 * i + 1));
-        M5.Lcd.drawLine(x1, y1, x2, y2, color);
+        m_canvas->drawLine(x1, y1, x2, y2, color);
     }
     // 内側の八角形（70%のサイズ）
     int innerSize = size * 0.7;
@@ -245,17 +273,19 @@ void ScreenSaverActivity::drawPattern1(float alpha) {
         float y1 = centerY + innerSize * sin(angleStep * (2 * i - 1));
         float x2 = centerX + innerSize * cos(angleStep * (2 * i + 1));
         float y2 = centerY + innerSize * sin(angleStep * (2 * i + 1));
-        M5.Lcd.drawLine(x1, y1, x2, y2, color);
+        m_canvas->drawLine(x1, y1, x2, y2, color);
     }
     // 中央テキスト
-    M5.Lcd.setTextSize(2);
-    M5.Lcd.setTextColor(color);
-    M5.Lcd.setTextDatum(MC_DATUM);
-    M5.Lcd.drawString("Lumi", centerX, centerY);
+    m_canvas->setTextSize(2);
+    m_canvas->setTextColor(color);
+    m_canvas->setTextDatum(MC_DATUM);
+    m_canvas->drawString("Lumi", centerX, centerY);
 }
 
 // ===== Pattern2: オクタゴン展開（中心から大小のオクタゴンが連続して現れる） =====
 void ScreenSaverActivity::drawPattern2(float alpha) {
+    if (m_canvas == nullptr) return;
+    
     int centerX = 160, centerY = 120;
     const int sides = 8;
     // 6段階のオクタゴンを描画
@@ -276,9 +306,9 @@ void ScreenSaverActivity::drawPattern2(float alpha) {
          // オクタゴンのアウトラインを2回描画して太く見せる
          for (int j = 0; j < sides; j++) {
               int next = (j + 1) % sides;
-              M5.Lcd.drawLine(vertices[j][0], vertices[j][1],
+              m_canvas->drawLine(vertices[j][0], vertices[j][1],
                               vertices[next][0], vertices[next][1], color);
-              M5.Lcd.drawLine(vertices[j][0] + 1, vertices[j][1] + 1,
+              m_canvas->drawLine(vertices[j][0] + 1, vertices[j][1] + 1,
                               vertices[next][0] + 1, vertices[next][1] + 1, color);
          }
     }
@@ -286,35 +316,41 @@ void ScreenSaverActivity::drawPattern2(float alpha) {
 
 // ===== Pattern3: ランダムライン成長（画面上のランダムな地点から、ランダム方向へ伸びるライン） =====
 void ScreenSaverActivity::drawPattern3(float alpha) {
+    if (m_canvas == nullptr) return;
+    
     uint16_t color = dimColor(getDynamicColor(0.2f), alpha);
     for (int i = 0; i < NUM_LINES; i++) {
          int x0 = m_lineStartX[i];
          int y0 = m_lineStartY[i];
          int x1 = x0 + (int)(m_lineLength[i] * cos(m_lineAngle[i]));
          int y1 = y0 + (int)(m_lineLength[i] * sin(m_lineAngle[i]));
-         M5.Lcd.drawLine(x0, y0, x1, y1, color);
+         m_canvas->drawLine(x0, y0, x1, y1, color);
     }
 }
 
 // ===== Pattern4: パースペクティブグリッド（全画面利用・ビート感付き） =====
 void ScreenSaverActivity::drawPattern4(float alpha) {
+    if (m_canvas == nullptr) return;
+    
     // ビート感：sin波によるパルス
     float beat = 0.5f + 0.5f * sin(m_animationProgress * 4 * PI);
     uint16_t color = dimColor(getDynamicColor(0.3f), alpha * beat);
     // 横方向グリッド：画面全体（上下均等に）
     for (int i = 1; i < 10; i++) {
          int y = i * 240 / 10;
-         M5.Lcd.drawLine(0, y, 320, y, color);
+         m_canvas->drawLine(0, y, 320, y, color);
     }
     // 縦方向グリッド：画面全体
     for (int i = 0; i <= 10; i++) {
          int x = i * 320 / 10;
-         M5.Lcd.drawLine(x, 0, x, 240, color);
+         m_canvas->drawLine(x, 0, x, 240, color);
     }
 }
 
 // ===== Pattern5: 画面全体ウェーブパターン（ウェーブ感強調） =====
 void ScreenSaverActivity::drawPattern5(float alpha) {
+    if (m_canvas == nullptr) return;
+    
     // 複数の波線を重ねて描画（画面全体をカバー）
     for (int wave = 0; wave < 4; wave++) {
          float phaseShift = wave * PI / 4;
@@ -324,7 +360,7 @@ void ScreenSaverActivity::drawPattern5(float alpha) {
          for (int x = 0; x <= 320; x += 2) {
               int y = (int)(120 + 60 * sin(x * 0.03f + m_animationProgress * 2 * PI + phaseShift)
                             + 30 * sin(m_animationProgress * PI + wave));
-              M5.Lcd.drawLine(prevX, prevY, x, y, color);
+              m_canvas->drawLine(prevX, prevY, x, y, color);
               prevX = x;
               prevY = y;
          }
