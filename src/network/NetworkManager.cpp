@@ -11,6 +11,7 @@ NetworkManager::NetworkManager() {
     _apHidden = false;
     _apMaxConnections = 4;
     _currentMode = (WiFiMode_t)1; // WIFI_STA = 1
+    _mdnsInitialized = false;
 }
 
 NetworkManager::~NetworkManager() {
@@ -19,6 +20,12 @@ NetworkManager::~NetworkManager() {
         WiFi.disconnect(true);
     } else if (_currentMode == (WiFiMode_t)2) { // WIFI_AP = 2
         WiFi.softAPdisconnect(true);
+    }
+    
+    // mDNSが初期化されていれば終了
+    if (_mdnsInitialized) {
+        MDNS.end();
+        _mdnsInitialized = false;
     }
 }
 
@@ -110,6 +117,8 @@ void NetworkManager::update() {
         // 接続状態の更新
         _isConnected = (WiFi.status() == WL_CONNECTED);
     }
+    
+    // ESP32のmDNSは自動的に更新されるため、明示的なupdate()呼び出しは不要
 }
 
 bool NetworkManager::updateConfig(const String& ssid, const String& password) {
@@ -246,6 +255,27 @@ bool NetworkManager::saveWiFiConfig() {
 }
 
 // APモード関連のメソッド実装
+bool NetworkManager::startMDNS(const char* hostname) {
+    if (_mdnsInitialized) {
+        return true; // 既に初期化済み
+    }
+    
+    if (MDNS.begin(hostname)) {
+        Serial.println("mDNS responder started");
+        Serial.print("Hostname: ");
+        Serial.println(hostname);
+        
+        // HTTPサービスを登録
+        MDNS.addService("http", "tcp", 80);
+        
+        _mdnsInitialized = true;
+        return true;
+    }
+    
+    Serial.println("Error setting up mDNS responder!");
+    return false;
+}
+
 bool NetworkManager::startAP() {
     // APモードを設定
     WiFi.mode(WIFI_AP);
@@ -260,6 +290,10 @@ bool NetworkManager::startAP() {
         Serial.println(_apSSID);
         Serial.print("AP IP address: ");
         Serial.println(WiFi.softAPIP());
+        
+        // mDNSを開始
+        startMDNS("lumi");
+        
         return true;
     } else {
         Serial.println("Failed to start AP!");
@@ -269,6 +303,12 @@ bool NetworkManager::startAP() {
 
 bool NetworkManager::stopAP() {
     if (_currentMode == (WiFiMode_t)2) { // WIFI_AP = 2
+        // mDNSが初期化されていれば終了
+        if (_mdnsInitialized) {
+            MDNS.end();
+            _mdnsInitialized = false;
+        }
+        
         // APモードからSTAモードに切り替え
         WiFi.softAPdisconnect(true);
         WiFi.mode(WIFI_STA);
@@ -293,6 +333,12 @@ WiFiMode_t NetworkManager::getCurrentMode() {
 bool NetworkManager::setMode(WiFiMode_t mode) {
     if (mode == _currentMode) {
         return true; // 既に設定されているモードと同じ
+    }
+    
+    // APモードからSTAモードに切り替える場合、mDNSを終了
+    if (_currentMode == (WiFiMode_t)2 && mode == (WiFiMode_t)1 && _mdnsInitialized) {
+        MDNS.end();
+        _mdnsInitialized = false;
     }
     
     // モードに応じて処理を分岐
@@ -320,8 +366,14 @@ bool NetworkManager::updateAPConfig(const String& ssid, const String& password, 
     
     // 現在APモードの場合は再起動
     if (_currentMode == (WiFiMode_t)2) { // WIFI_AP = 2
+        // mDNSが初期化されていれば終了
+        if (_mdnsInitialized) {
+            MDNS.end();
+            _mdnsInitialized = false;
+        }
+        
         WiFi.softAPdisconnect(true);
-        return startAP();
+        return startAP(); // startAP内でmDNSも再起動される
     }
     
     return true;

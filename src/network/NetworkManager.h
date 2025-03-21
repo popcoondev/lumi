@@ -6,6 +6,7 @@
 #include <WiFiType.h>
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
+#include <ESPmDNS.h>
 
 class NetworkManager {
 private:
@@ -26,6 +27,9 @@ private:
 
     // WiFi設定ファイルのパス
     const char* _configPath = "/wifi_config.json";
+    
+    // mDNSが初期化されているかのフラグ
+    bool _mdnsInitialized;
     
     // WiFi設定をSPIFFSから読み込む
     bool loadWiFiConfig();
@@ -66,6 +70,9 @@ public:
     WiFiMode_t getCurrentMode();
     bool setMode(WiFiMode_t mode);
     bool updateAPConfig(const String& ssid, const String& password, int channel = 1, bool hidden = false, int maxConnections = 4);
+    
+    // mDNS関連のメソッド
+    bool startMDNS(const char* hostname);
     
     // WiFi設定をSPIFFSに保存する
     bool saveWiFiConfig();
