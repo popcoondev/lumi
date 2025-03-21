@@ -20,7 +20,7 @@ LEDManager::LEDManager() {
     m_currentJsonPatternIndex = 0;
     
     // パターンの初期化
-    patternCount = 13; // 全パターン数
+    patternCount = 14; // 全パターン数（FpsTestPatternを追加）
     patterns = new LedPattern*[patternCount];
     patterns[0] = new SequentialPattern();
     patterns[1] = new OnOffPattern();
@@ -35,6 +35,7 @@ LEDManager::LEDManager() {
     patterns[10] = new FireFlickerPattern();
     patterns[11] = new CometPattern();
     patterns[12] = new IndividualRandomPattern();
+    patterns[13] = new FpsTestPattern(); // FPS管理テスト用パターンを追加
     
     currentPatternIndex = 0;
 }
@@ -78,12 +79,22 @@ void LEDManager::ledTaskWrapper(void* parameter) {
     LEDManager* manager = static_cast<LEDManager*>(parameter);
     
     unsigned long startTime = millis();
-    unsigned long duration = 5000; // 5秒間実行
+    unsigned long duration = 0; // 無限実行（停止要求があるまで）
+    unsigned long lastFpsLogTime = millis(); // FPSログ用タイマー
+    int frameCount = 0; // フレームカウンター
     
     // パターンをリセット
     manager->patterns[manager->currentPatternIndex]->reset();
     
-    while (millis() - startTime < duration) {
+    // パターン開始時のログ
+    Serial.printf("LEDManager: Starting pattern '%s' with %s FPS control (target: %d fps)\n",
+                 manager->patterns[manager->currentPatternIndex]->getName().c_str(),
+                 manager->m_fpsControlEnabled ? "enabled" : "disabled",
+                 manager->m_targetFps);
+    
+    while ((duration == 0 || millis() - startTime < duration) && manager->isTaskRunning) {
+        unsigned long frameStartTime = micros(); // フレーム開始時間
+        
         // FPS制御が有効な場合はフレーム開始
         if (manager->m_fpsControlEnabled) {
             manager->m_fpsController.beginFrame();
@@ -97,6 +108,23 @@ void LEDManager::ledTaskWrapper(void* parameter) {
             manager->numFaces
         );
         
+        // フレームカウンターを更新
+        frameCount++;
+        
+        // 1秒ごとにFPS情報をログ出力
+        unsigned long currentTime = millis();
+        if (currentTime - lastFpsLogTime >= 1000) {
+            float actualFps = frameCount * 1000.0f / (currentTime - lastFpsLogTime);
+            Serial.printf("LEDManager: FPS = %.2f (target: %d, control: %s)\n",
+                         actualFps, manager->m_targetFps,
+                         manager->m_fpsControlEnabled ? "enabled" : "disabled");
+            lastFpsLogTime = currentTime;
+            frameCount = 0;
+        }
+        
+        // フレーム処理時間を計測
+        unsigned long frameProcessingTime = micros() - frameStartTime;
+        
         // FPS制御が有効な場合はフレーム終了（自動的に適切な遅延が適用される）
         if (manager->m_fpsControlEnabled) {
             manager->m_fpsController.endFrame();
@@ -105,6 +133,13 @@ void LEDManager::ledTaskWrapper(void* parameter) {
             vTaskDelay(50 / portTICK_PERIOD_MS);
         }
     }
+    
+    // タスク終了時のログ
+    Serial.println("LEDManager: Pattern task completed");
+    
+    // タスク終了時にフラグをリセット
+    manager->isTaskRunning = false;
+    manager->ledTaskHandle = nullptr;
     
     vTaskDelete(NULL);
 }
@@ -243,11 +278,23 @@ void LEDManager::jsonPatternTaskWrapper(void* parameter) {
         // パターン状態をリセット
         pattern->resetFrameState();
         
+        // パターン開始時のログ
+        Serial.printf("LEDManager: Starting JSON pattern '%s' with %s FPS control (target: %d fps)\n",
+                     pattern->getName().c_str(),
+                     manager->m_fpsControlEnabled ? "enabled" : "disabled",
+                     manager->m_targetFps);
+        
+        // FPS測定用の変数
+        unsigned long lastFpsLogTime = millis();
+        int frameCount = 0;
+        
         if (manager->m_fpsControlEnabled) {
             // FPS制御が有効な場合はフレームベースで実行
             bool patternComplete = false;
             
             while (manager->isTaskRunning && !patternComplete) {
+                unsigned long frameStartTime = micros(); // フレーム開始時間
+                
                 manager->m_fpsController.beginFrame();
                 
                 // JSONパターンの1フレーム分を実行
@@ -258,6 +305,20 @@ void LEDManager::jsonPatternTaskWrapper(void* parameter) {
                     manager->numFaces
                 );
                 
+                // フレームカウンターを更新
+                frameCount++;
+                
+                // 1秒ごとにFPS情報をログ出力
+                unsigned long currentTime = millis();
+                if (currentTime - lastFpsLogTime >= 1000) {
+                    float actualFps = frameCount * 1000.0f / (currentTime - lastFpsLogTime);
+                    Serial.printf("LEDManager: JSON Pattern FPS = %.2f (target: %d, control: %s)\n",
+                                 actualFps, manager->m_targetFps,
+                                 manager->m_fpsControlEnabled ? "enabled" : "disabled");
+                    lastFpsLogTime = currentTime;
+                    frameCount = 0;
+                }
+                
                 // パターンが完了し、ループしない場合は終了
                 if (patternComplete && !pattern->isLooping()) {
                     break;
@@ -266,6 +327,9 @@ void LEDManager::jsonPatternTaskWrapper(void* parameter) {
                     pattern->resetFrameState();
                     patternComplete = false;
                 }
+                
+                // フレーム処理時間を計測
+                unsigned long frameProcessingTime = micros() - frameStartTime;
                 
                 manager->m_fpsController.endFrame();
             }
@@ -281,9 +345,14 @@ void LEDManager::jsonPatternTaskWrapper(void* parameter) {
         }
     }
     
+    // タスク終了時のログ
+    Serial.println("LEDManager: JSON Pattern task completed");
+    
     // タスク終了時にフラグをリセット
     manager->isTaskRunning = false;
     manager->m_isJsonPattern = false;
+    manager->ledTaskHandle = nullptr;
+    
     vTaskDelete(NULL);
 }
 

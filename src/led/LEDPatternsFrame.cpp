@@ -178,3 +178,62 @@ void FireFlickerPattern::runFrame(CRGB* leds, int numLeds, int ledOffset, int nu
     }
     FastLED.show();
 }
+
+// FpsTestPatternの実装
+void FpsTestPattern::run(CRGB* leds, int numLeds, int ledOffset, int numFaces, int duration) {
+    // 初期化
+    m_lastLogTime = millis();
+    m_frameCounter = 0;
+    m_hue = 0;
+    
+    // 親クラスのrun()メソッドを呼び出す（runFrame()を使用）
+    LedPattern::run(leds, numLeds, ledOffset, numFaces, duration);
+}
+
+// FpsTestPatternのフレームベース実装
+void FpsTestPattern::runFrame(CRGB* leds, int numLeds, int ledOffset, int numFaces) {
+    // 初回フレームの場合は初期化
+    if (m_isFirstFrame) {
+        m_patternStartTime = millis();
+        m_lastLogTime = millis();
+        m_frameCounter = 0;
+        m_hue = 0;
+        m_isFirstFrame = false;
+        
+        // 初期状態をログ出力
+        Serial.println("FpsTestPattern: Starting FPS test");
+        Serial.println("FpsTestPattern: This pattern will show a rainbow effect with FPS logging");
+    }
+    
+    // フレームカウンターを更新
+    m_frameCounter++;
+    
+    // 1秒ごとにFPS情報をログ出力
+    unsigned long currentTime = millis();
+    if (currentTime - m_lastLogTime >= 1000) {
+        float fps = m_frameCounter * 1000.0f / (currentTime - m_lastLogTime);
+        Serial.printf("FpsTestPattern: FPS = %.2f (frames: %d, time: %lu ms)\n", 
+                     fps, m_frameCounter, currentTime - m_lastLogTime);
+        m_lastLogTime = currentTime;
+        m_frameCounter = 0;
+    }
+    
+    // 各面に対して色相を変化させながら色を適用
+    for (int i = 0; i < numFaces; i++) {
+        int idx1 = ledOffset + (i * 2);
+        int idx2 = ledOffset + (i * 2) + 1;
+        
+        // 各面に異なる色相を適用（色相環を一周）
+        uint8_t faceHue = m_hue + (i * 256 / numFaces);
+        CRGB color = CHSV(faceHue, 255, 255);
+        
+        leds[idx1] = color;
+        leds[idx2] = color;
+    }
+    
+    // 色相を徐々に変化させる
+    m_hue++;
+    
+    // LEDを更新
+    FastLED.show();
+}

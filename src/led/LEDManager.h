@@ -231,6 +231,20 @@ public:
     String getName() override { return "Individual Random"; }
 };
 
+// FPS管理テスト用のパターン
+class FpsTestPattern : public LedPattern {
+private:
+    unsigned long m_lastLogTime;
+    int m_frameCounter;
+    uint8_t m_hue;
+    
+public:
+    FpsTestPattern() : m_lastLogTime(0), m_frameCounter(0), m_hue(0) {}
+    void run(CRGB* leds, int numLeds, int ledOffset, int numFaces, int duration) override;
+    void runFrame(CRGB* leds, int numLeds, int ledOffset, int numFaces) override;
+    String getName() override { return "FPS Test"; }
+};
+
 class LEDManager {
 private:
     CRGB* leds;
