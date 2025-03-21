@@ -2,7 +2,7 @@
 #include <M5Unified.h>
 
 CalibrationActivity::CalibrationActivity()
-    : Activity(0, "CalibrationActivity"),
+    : Activity(700, "CalibrationActivity"), // Use a unique ID for this activity
       m_faceDetector(nullptr),
       m_imuSensor(nullptr),
       m_uiManager(nullptr),

@@ -465,6 +465,9 @@ void OctaController::processCalibrationActivityState() {
 }
 
 void OctaController::processLEDControlActivityState() {
+    // デバッグログ追加
+    Serial.println("OctaController::processLEDControlActivityState() - Processing touch events");
+    
     // M5.Touchの状態を取得
     auto touch = M5.Touch.getDetail();
     bool isPressed = touch.isPressed();
@@ -472,13 +475,30 @@ void OctaController::processLEDControlActivityState() {
     bool wasReleased = touch.wasReleased();
     
     if (wasPressed || isPressed || wasReleased) {
+        // デバッグログ追加
+        Serial.println("OctaController: Touch detected - isPressed=" + String(isPressed) + 
+                       ", wasPressed=" + String(wasPressed) + 
+                       ", wasReleased=" + String(wasReleased) + 
+                       ", x=" + String(touch.x) + ", y=" + String(touch.y));
+        
         framework::TouchAction action;
         if (wasPressed) action = framework::TouchAction::DOWN;
         else if (wasReleased) action = framework::TouchAction::UP;
         else action = framework::TouchAction::MOVE;
         
+        // デバッグログ追加
+        Serial.println("OctaController: Creating TouchEvent with action=" + String((int)action) + 
+                       ", x=" + String(touch.x) + ", y=" + String(touch.y));
+        
         framework::TouchEvent touchEvent(action, touch.x, touch.y);
-        ledControlActivity->handleEvent(touchEvent);
+        
+        // デバッグログ追加
+        Serial.println("OctaController: Forwarding event to ledControlActivity->handleEvent()");
+        
+        bool handled = ledControlActivity->handleEvent(touchEvent);
+        
+        // デバッグログ追加
+        Serial.println("OctaController: Event handled by LEDControlActivity: " + String(handled ? "true" : "false"));
     }
 }
 

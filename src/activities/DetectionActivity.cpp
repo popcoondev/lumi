@@ -2,7 +2,7 @@
 #include <M5Unified.h>
 
 DetectionActivity::DetectionActivity()
-    : Activity(0, "DetectionActivity"),
+    : Activity(600, "DetectionActivity"), // Use a unique ID for this activity
       m_ledManager(nullptr),
       m_faceDetector(nullptr),
       m_imuSensor(nullptr),

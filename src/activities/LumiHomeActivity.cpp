@@ -11,7 +11,7 @@ uint16_t crgbToRGB565(CRGB color) {
 }
 
 LumiHomeActivity::LumiHomeActivity()
-    : Activity(0, "LumiHomeActivity"),
+    : Activity(300, "LumiHomeActivity"), // Use a unique ID for this activity
       m_settingsButton(nullptr),
       m_resetButton(nullptr),
       m_bottomLeftButton(nullptr),

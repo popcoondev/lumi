@@ -7,7 +7,7 @@
 
 // ===== コンストラクタ／ライフサイクル =====
 ScreenSaverActivity::ScreenSaverActivity()
-    : Activity(0, "ScreenSaverActivity"),
+    : Activity(200, "ScreenSaverActivity"), // Use a unique ID for this activity
       m_activityManager(nullptr),
       m_startTime(0),
       m_lastUpdateTime(0),

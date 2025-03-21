@@ -1,4 +1,5 @@
 #include "ButtonFragment.h"
+#include "../framework/Activity.h"
 
 ButtonFragment::ButtonFragment(uint32_t id)
     : Fragment(id), 
@@ -30,7 +31,8 @@ void ButtonFragment::onDestroy() {
 
 bool ButtonFragment::handleEvent(const framework::Event& event) {    
     int eventID = (int)event.getType();
-    Serial.println("ButtonFragment::handleEvent - Event received, getType = " + String(eventID));
+    Serial.println("ButtonFragment::handleEvent - Button ID=" + String(getId()) + 
+                   ", Label='" + m_label + "', Event type=" + String(eventID));
     
     // Check if base class handles the event
     if (Fragment::handleEvent(event)) {
@@ -75,18 +77,28 @@ bool ButtonFragment::handleEvent(const framework::Event& event) {
                 // Touch up within button area - trigger click
                 Serial.println("  Touch UP within button area");
                 if (m_pressed) {
-                    Serial.println("  Button was pressed, triggering click");
+                    Serial.println("  Button ID=" + String(getId()) + ", Label='" + m_label + "' was pressed, triggering click");
                     m_pressed = false;
                     m_button.setPressed(false);
                     draw();
                     
-                    // Send button click event
-                    framework::ButtonEvent buttonEvent(framework::ButtonAction::CLICK, getId());
+                    // Get parent activity ID if available
+                    uint32_t activityId = 0;
+                    // Check if parent component is an Activity by checking if its ID matches any Activity ID
+                    // This avoids using dynamic_cast which requires RTTI
+                    if (m_parent && m_parent->getId() >= 100 && m_parent->getId() % 100 == 0) {
+                        // Parent is likely an Activity (IDs 100, 200, 300, etc. are reserved for Activities)
+                        activityId = m_parent->getId();
+                    }
+                    
+                    // Send button click event with activity ID
+                    framework::ButtonEvent buttonEvent(framework::ButtonAction::CLICK, getId(), activityId);
+                    Serial.println("  Creating ButtonEvent with activityId=" + String(activityId));
                     framework::EventBus::getInstance().postEvent(buttonEvent);
                     
                     // Call click handler if set
                     if (m_clickHandler) {
-                        Serial.println("  Calling click handler");
+                        Serial.println("  Calling click handler for Button ID=" + String(getId()) + ", Label='" + m_label + "'");
                         m_clickHandler();
                     } else {
                         Serial.println("  No click handler set");

@@ -3,7 +3,7 @@
 #include <WiFiType.h>
 
 NetworkSettingsActivity::NetworkSettingsActivity()
-    : Activity(0, "NetworkSettingsActivity"),
+    : Activity(500, "NetworkSettingsActivity"), // Use a unique ID for this activity
       m_networkManager(nullptr),
       m_homeButton(nullptr),
       m_ssidTextView(nullptr),

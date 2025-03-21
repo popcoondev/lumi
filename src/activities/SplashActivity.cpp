@@ -2,7 +2,7 @@
 #include <M5Unified.h>
 
 SplashActivity::SplashActivity()
-    : Activity(0, "SplashActivity"),
+    : Activity(800, "SplashActivity"), // Use a unique ID for this activity
       m_startTime(0),
       m_lastUpdateTime(0),
       m_animationProgress(0.0f),

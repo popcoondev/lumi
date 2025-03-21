@@ -229,8 +229,9 @@ public:
      * @brief Constructor with button action
      * @param action The button action
      * @param buttonId The button ID
+     * @param activityId The activity ID that generated this event (0 = global)
      */
-    ButtonEvent(ButtonAction action = ButtonAction::PRESS, uint32_t buttonId = 0);
+    ButtonEvent(ButtonAction action = ButtonAction::PRESS, uint32_t buttonId = 0, uint32_t activityId = 0);
     
     /**
      * @brief Get the button action
@@ -257,6 +258,18 @@ public:
     void setButtonId(uint32_t buttonId) { m_buttonId = buttonId; }
     
     /**
+     * @brief Get the activity ID
+     * @return The activity ID
+     */
+    uint32_t getActivityId() const { return m_activityId; }
+    
+    /**
+     * @brief Set the activity ID
+     * @param activityId The new activity ID to set
+     */
+    void setActivityId(uint32_t activityId) { m_activityId = activityId; }
+    
+    /**
      * @brief Get a string representation of the event
      * @return String representation
      */
@@ -265,11 +278,12 @@ public:
 private:
     ButtonAction m_action;  // Button action
     uint32_t m_buttonId;    // Button ID
+    uint32_t m_activityId;  // Activity ID that generated this event
 };
 
 // Inline implementation of constructor
-inline ButtonEvent::ButtonEvent(ButtonAction action, uint32_t buttonId)
-    : Event(EventType::BUTTON), m_action(action), m_buttonId(buttonId) {}
+inline ButtonEvent::ButtonEvent(ButtonAction action, uint32_t buttonId, uint32_t activityId)
+    : Event(EventType::BUTTON), m_action(action), m_buttonId(buttonId), m_activityId(activityId) {}
 
 // Inline implementation of toString
 inline std::string ButtonEvent::toString() const {
@@ -281,7 +295,9 @@ inline std::string ButtonEvent::toString() const {
         case ButtonAction::LONG_PRESS: actionStr = "LONG_PRESS"; break;
         default: actionStr = "UNKNOWN"; break;
     }
-    return "ButtonEvent{action=" + actionStr + ", buttonId=" + std::to_string(m_buttonId) + 
+    return "ButtonEvent{action=" + actionStr + 
+           ", buttonId=" + std::to_string(m_buttonId) + 
+           ", activityId=" + std::to_string(m_activityId) + 
            ", " + Event::toString() + "}";
 }
 

@@ -2,7 +2,7 @@
 #include <M5Unified.h>
 
 SettingsActivity::SettingsActivity()
-    : Activity(0, "SettingsActivity"),
+    : Activity(400, "SettingsActivity"), // Use a unique ID for this activity
       m_detectionButton(nullptr),
       m_calibrationButton(nullptr),
       m_ledControlButton(nullptr),

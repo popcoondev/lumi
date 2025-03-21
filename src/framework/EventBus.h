@@ -4,6 +4,7 @@
 #include "Event.h"
 #include "Component.h"
 #include <unordered_map>
+#include <Arduino.h>
 #include <vector>
 #include <functional>
 #include <mutex>
@@ -138,6 +139,17 @@ inline void EventBus::destroyInstance() {
 inline bool EventBus::postEvent(const Event& event) {
     bool handled = false;
     
+    // Check if this is a button event with activity ID
+    uint32_t targetActivityId = 0;
+    bool isButtonEvent = false;
+    
+    if (event.getType() == EventType::BUTTON) {
+        const ButtonEvent& buttonEvent = static_cast<const ButtonEvent&>(event);
+        targetActivityId = buttonEvent.getActivityId();
+        isButtonEvent = true;
+        Serial.println("EventBus::postEvent - ButtonEvent with activityId=" + String(targetActivityId));
+    }
+    
     // First try custom handlers
     auto handlerIt = m_handlers.find(event.getType());
     if (handlerIt != m_handlers.end() && handlerIt->second) {
@@ -152,6 +164,20 @@ inline bool EventBus::postEvent(const Event& event) {
     if (subscribersIt != m_subscribers.end()) {
         for (auto component : subscribersIt->second) {
             if (component && component->isEnabled()) {
+                // For button events, check if component is an Activity with matching ID
+                if (isButtonEvent && targetActivityId != 0) {
+                    // Check if component is an Activity by checking if its ID matches any Activity ID
+                    // This avoids using dynamic_cast which requires RTTI
+                    if (component->getId() >= 100 && component->getId() % 100 == 0) {
+                        // Component is likely an Activity (IDs 100, 200, 300, etc. are reserved for Activities)
+                        if (component->getId() != targetActivityId) {
+                            Serial.println("EventBus::postEvent - Skipping activity " + String(component->getId()) + 
+                                          " for button event with activityId=" + String(targetActivityId));
+                            continue; // Skip this component if it's an activity with non-matching ID
+                        }
+                    }
+                }
+                
                 if (component->handleEvent(event)) {
                     handled = true;
                     if (event.isConsumed()) {
@@ -165,6 +191,20 @@ inline bool EventBus::postEvent(const Event& event) {
     // Finally try global subscribers
     for (auto component : m_globalSubscribers) {
         if (component && component->isEnabled()) {
+            // For button events, check if component is an Activity with matching ID
+            if (isButtonEvent && targetActivityId != 0) {
+                // Check if component is an Activity by checking if its ID matches any Activity ID
+                // This avoids using dynamic_cast which requires RTTI
+                if (component->getId() >= 100 && component->getId() % 100 == 0) {
+                    // Component is likely an Activity (IDs 100, 200, 300, etc. are reserved for Activities)
+                    if (component->getId() != targetActivityId) {
+                        Serial.println("EventBus::postEvent - Skipping global activity " + String(component->getId()) + 
+                                      " for button event with activityId=" + String(targetActivityId));
+                        continue; // Skip this component if it's an activity with non-matching ID
+                    }
+                }
+            }
+            
             if (component->handleEvent(event)) {
                 handled = true;
                 if (event.isConsumed()) {

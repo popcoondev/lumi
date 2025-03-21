@@ -20,7 +20,7 @@ public:
         if (json.is<JsonObject>()) {
             // 範囲指定の場合
             JsonObject obj = json.as<JsonObject>();
-            if (obj.containsKey("min") && obj.containsKey("max")) {
+            if (obj["min"].is<int>() && obj["max"].is<int>()) {
                 min = obj["min"].as<int>();
                 max = obj["max"].as<int>();
                 fixed = false;
@@ -78,9 +78,15 @@ public:
     }
     
     void fromJson(const JsonObject& json) {
-        if (json.containsKey("h")) h.fromJson(json["h"]);
-        if (json.containsKey("s")) s.fromJson(json["s"]);
-        if (json.containsKey("v")) v.fromJson(json["v"]);
+        if (json["h"].is<JsonVariant>()) {
+            h.fromJson(json["h"]);
+        }
+        if (json["s"].is<JsonVariant>()) {
+            s.fromJson(json["s"]);
+        }
+        if (json["v"].is<JsonVariant>()) {
+            v.fromJson(json["v"]);
+        }
     }
     
     CHSV getColor() const {
@@ -109,14 +115,14 @@ public:
     FaceSelection() : mode(Mode::ALL), count(0) {}
     
     void fromJson(const JsonObject& json) {
-        if (json.containsKey("mode")) {
+        if (json["mode"].is<String>()) {
             String modeStr = json["mode"].as<String>();
             if (modeStr == "random") {
                 mode = Mode::RANDOM;
-                if (json.containsKey("range")) {
+                if (json["range"].is<JsonVariant>()) {
                     range.fromJson(json["range"]);
                 }
-                if (json.containsKey("count")) {
+                if (json["count"].is<int>()) {
                     count = json["count"];
                 }
             } else if (modeStr == "sequential") {
@@ -189,11 +195,11 @@ public:
     FadeEffect() : enabled(false), mode(Mode::BOTH) {}
     
     void fromJson(const JsonObject& json) {
-        if (json.containsKey("enabled")) {
+        if (json["enabled"].is<bool>()) {
             enabled = json["enabled"];
         }
         
-        if (json.containsKey("mode")) {
+        if (json["mode"].is<String>()) {
             String modeStr = json["mode"].as<String>();
             if (modeStr == "in") {
                 mode = Mode::IN;
@@ -204,7 +210,7 @@ public:
             }
         }
         
-        if (json.containsKey("duration")) {
+        if (json["duration"].is<JsonVariant>()) {
             duration.fromJson(json["duration"]);
         }
     }
@@ -219,15 +225,15 @@ public:
     BlurEffect() : enabled(false) {}
     
     void fromJson(const JsonObject& json) {
-        if (json.containsKey("enabled")) {
+        if (json["enabled"].is<bool>()) {
             enabled = json["enabled"];
         }
         
-        if (json.containsKey("intensity")) {
+        if (json["intensity"].is<JsonVariant>()) {
             intensity.fromJson(json["intensity"]);
         }
         
-        if (json.containsKey("duration")) {
+        if (json["duration"].is<JsonVariant>()) {
             duration.fromJson(json["duration"]);
         }
     }
@@ -242,11 +248,11 @@ public:
     Effects() {}
     
     void fromJson(const JsonObject& json) {
-        if (json.containsKey("fade")) {
+        if (json["fade"].is<JsonObject>()) {
             fade.fromJson(json["fade"]);
         }
         
-        if (json.containsKey("blur")) {
+        if (json["blur"].is<JsonObject>()) {
             blur.fromJson(json["blur"]);
         }
     }
@@ -262,7 +268,7 @@ public:
     
     void fromJson(const JsonObject& json) {
         // 面の選択
-        if (json.containsKey("faces")) {
+        if (json["faces"].is<JsonArray>()) {
             JsonArray facesArray = json["faces"];
             for (JsonVariant face : facesArray) {
                 faces.push_back(face.as<int>());
@@ -272,17 +278,17 @@ public:
             hasFaces = false;
         }
         
-        if (json.containsKey("faceSelection")) {
+        if (json["faceSelection"].is<JsonObject>()) {
             faceSelection.fromJson(json["faceSelection"]);
         }
         
         // 色の設定
-        if (json.containsKey("colorHSV")) {
+        if (json["colorHSV"].is<JsonObject>()) {
             colorHSV.fromJson(json["colorHSV"]);
         }
         
         // 持続時間
-        if (json.containsKey("duration")) {
+        if (json["duration"].is<JsonVariant>()) {
             duration.fromJson(json["duration"]);
         }
     }
@@ -299,19 +305,19 @@ public:
     GlobalParameters() : loop(false) {}
     
     void fromJson(const JsonObject& json) {
-        if (json.containsKey("loop")) {
+        if (json["loop"].is<bool>()) {
             loop = json["loop"];
         }
         
-        if (json.containsKey("stepDelay")) {
+        if (json["stepDelay"].is<JsonVariant>()) {
             stepDelay.fromJson(json["stepDelay"]);
         }
         
-        if (json.containsKey("colorHSV")) {
+        if (json["colorHSV"].is<JsonObject>()) {
             defaultColor.fromJson(json["colorHSV"]);
         }
         
-        if (json.containsKey("effects")) {
+        if (json["effects"].is<JsonObject>()) {
             effects.fromJson(json["effects"]);
         }
     }
@@ -330,7 +336,7 @@ public:
     
     // JSONからパターンを解析するメソッド
     virtual void parseJson(const JsonObject& json) {
-        if (json.containsKey("name")) {
+        if (json["name"].is<String>()) {
             m_name = json["name"].as<String>();
         }
     }
@@ -390,12 +396,12 @@ public:
         JsonLedPattern::parseJson(json);
         
         // グローバルパラメータの解析
-        if (json.containsKey("parameters")) {
+        if (json["parameters"].is<JsonObject>()) {
             m_params.fromJson(json["parameters"]);
         }
         
         // ステップの解析
-        if (json.containsKey("steps")) {
+        if (json["steps"].is<JsonArray>()) {
             JsonArray stepsArray = json["steps"];
             for (JsonObject stepObj : stepsArray) {
                 PatternStep step;
@@ -648,7 +654,7 @@ public:
     
     JsonLedPattern* createPattern(const JsonObject& json) {
         String type = "custom";
-        if (json.containsKey("type")) {
+        if (json["type"].is<String>()) {
             type = json["type"].as<String>();
         }
         
@@ -722,7 +728,7 @@ public:
         }
         
         // パターン配列の処理
-        if (doc.containsKey("patterns") && doc["patterns"].is<JsonArray>()) {
+        if (doc["patterns"].is<JsonArray>()) {
             JsonArray patternsArray = doc["patterns"];
             int index = 0;
             int patternCount = patternsArray.size();
@@ -731,24 +737,24 @@ public:
             
             for (JsonObject patternObj : patternsArray) {
                 // パターンの基本情報をログに出力
-                if (patternObj.containsKey("name")) {
+                if (patternObj["name"].is<String>()) {
                     Serial.println("Processing pattern: " + patternObj["name"].as<String>());
                 } else {
                     Serial.println("Processing unnamed pattern #" + String(index + 1));
                 }
                 
                 // パターンの必須フィールドを検証
-                if (!patternObj.containsKey("type")) {
+                if (!patternObj["type"].is<String>()) {
                     Serial.println("Pattern is missing required field: type");
                     continue;
                 }
                 
-                if (!patternObj.containsKey("parameters")) {
+                if (!patternObj["parameters"].is<JsonObject>()) {
                     Serial.println("Pattern is missing required field: parameters");
                     continue;
                 }
                 
-                if (!patternObj.containsKey("steps") || !patternObj["steps"].is<JsonArray>()) {
+                if (!patternObj["steps"].is<JsonArray>()) {
                     Serial.println("Pattern is missing or has invalid field: steps");
                     continue;
                 }
@@ -769,7 +775,7 @@ public:
                     Serial.println("Unknown exception while creating pattern");
                 }
             }
-        } else if (doc.containsKey("name") && doc.containsKey("type")) {
+        } else if (doc["name"].is<String>() && doc["type"].is<String>()) {
             // 単一のパターンとして処理（配列でない場合）
             Serial.println("Processing single pattern JSON");
             

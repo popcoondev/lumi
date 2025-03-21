@@ -2,7 +2,7 @@
 #include <M5Unified.h>
 
 LEDControlActivity::LEDControlActivity()
-    : Activity(0, "LEDControlActivity"),
+    : Activity(100, "LEDControlActivity"), // Use a unique ID for this activity
       m_ledManager(nullptr),
       m_playPauseButton(nullptr),
       m_prevButton(nullptr),
@@ -61,18 +61,18 @@ bool LEDControlActivity::onCreate() {
     m_fps60Button->onCreate();
     m_fps120Button->onCreate();
     
-    // ボタンの位置とサイズを設定 - サイズを大きくして視認性を向上
-    m_playPauseButton->setDisplayArea(120, 80, 80, 40);
-    m_prevButton->setDisplayArea(20, 80, 80, 40);
-    m_nextButton->setDisplayArea(220, 80, 80, 40);
-    m_homeButton->setDisplayArea(120, 220, 80, 40);
-    m_modeButton->setDisplayArea(120, 140, 80, 40);
+    // ボタンの位置とサイズを設定 - 重なりを解消し視認性を向上
+    m_playPauseButton->setDisplayArea(120, 70, 80, 40);
+    m_prevButton->setDisplayArea(20, 70, 80, 40);
+    m_nextButton->setDisplayArea(220, 70, 80, 40);
+    m_homeButton->setDisplayArea(120, 190, 80, 40);
+    m_modeButton->setDisplayArea(120, 130, 80, 40);
     
-    // FPS制御ボタンの位置とサイズを設定
-    m_fpsToggleButton->setDisplayArea(220, 180, 80, 30);
-    m_fps30Button->setDisplayArea(20, 180, 50, 30);
-    m_fps60Button->setDisplayArea(80, 180, 50, 30);
-    m_fps120Button->setDisplayArea(140, 180, 50, 30);
+    // FPS制御ボタンの位置とサイズを設定 - 間隔を広げて操作性を向上
+    m_fpsToggleButton->setDisplayArea(230, 190, 80, 30);
+    m_fps30Button->setDisplayArea(10, 190, 60, 30);
+    m_fps60Button->setDisplayArea(80, 190, 60, 30);
+    m_fps120Button->setDisplayArea(150, 190, 60, 30);
     
     // ボタンのスタイル設定 - 色を変更して視認性を向上
     m_playPauseButton->setLabel("Play");
@@ -244,8 +244,13 @@ void LEDControlActivity::onDestroy() {
 }
 
 bool LEDControlActivity::handleEvent(const framework::Event& event) {
+    // デバッグログ追加
+    Serial.println("LEDControlActivity: handleEvent() - Event type=" + 
+                   String((int)event.getType()));
+    
     // 基底クラスのイベント処理
     if (Activity::handleEvent(event)) {
+        Serial.println("LEDControlActivity: Event handled by Activity base class");
         return true;
     }
     
@@ -292,10 +297,10 @@ void LEDControlActivity::updatePatternInfo() {
         statusText = "Pattern: ";
     }
     
-    // モードに応じたパターン情報を表示
+    // モードに応じたパターン情報を表示 - ボタンと重ならないように位置調整
     M5.Lcd.setTextSize(1.5);
     M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
-    M5.Lcd.setCursor(10, 120);
+    M5.Lcd.setCursor(10, 110);
     
     if (m_isJsonPattern) {
         // JSONパターンモード
@@ -303,27 +308,27 @@ void LEDControlActivity::updatePatternInfo() {
             String patternName = m_ledManager->getJsonPatternName(m_currentJsonPatternIndex);
             M5.Lcd.print(statusText + patternName + "     ");
             
-            // パターン番号を表示
+            // パターン番号を表示 - 位置調整
             M5.Lcd.setTextSize(1);
-            M5.Lcd.setCursor(10, 140);
+            M5.Lcd.setCursor(10, 125);
             M5.Lcd.print("JSON Pattern " + String(m_currentJsonPatternIndex + 1) + 
                         " of " + String(m_ledManager->getJsonPatternCount()) + "     ");
         } else {
             // JSONパターンがない場合
             M5.Lcd.print(statusText + "None" + "     ");
             
-            // パターン番号を表示
+            // パターン番号を表示 - 位置調整
             M5.Lcd.setTextSize(1);
-            M5.Lcd.setCursor(10, 140);
+            M5.Lcd.setCursor(10, 125);
             M5.Lcd.print("No JSON patterns available     ");
         }
     } else {
         // 通常パターンモード
         M5.Lcd.print(statusText + m_ledManager->getCurrentPatternName() + "     ");
         
-        // パターン番号を表示
+        // パターン番号を表示 - 位置調整
         M5.Lcd.setTextSize(1);
-        M5.Lcd.setCursor(10, 140);
+        M5.Lcd.setCursor(10, 125);
         M5.Lcd.print("Pattern " + String(m_ledManager->getCurrentPatternIndex() + 1) + 
                     " of " + String(m_ledManager->getPatternCount()) + "     ");
     }
@@ -337,10 +342,10 @@ void LEDControlActivity::updateFpsInfo() {
     if (currentTime - m_lastFpsUpdateTime >= 1000) {
         m_lastFpsUpdateTime = currentTime;
         
-        // FPS情報を表示
+        // FPS情報を表示 - ボタンと重ならないように位置調整
         M5.Lcd.setTextSize(1);
         M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
-        M5.Lcd.setCursor(10, 200);
+        M5.Lcd.setCursor(10, 230);
         
         String fpsStatus = "Target FPS: " + String(m_ledManager->getTargetFps());
         fpsStatus += "  Actual FPS: " + String(m_ledManager->getActualFps());
@@ -363,10 +368,10 @@ void LEDControlActivity::togglePlayPause() {
                 m_playPauseButton->setLabel("Pause");
                 m_isPlaying = true;
             } else {
-                // JSONパターンがない場合
+                // JSONパターンがない場合 - エラーメッセージの位置調整
                 M5.Lcd.setTextSize(1);
                 M5.Lcd.setTextColor(TFT_RED, TFT_BLACK);
-                M5.Lcd.setCursor(10, 200);
+                M5.Lcd.setCursor(10, 230);
                 M5.Lcd.print("No JSON patterns available");
                 return;
             }
@@ -386,19 +391,37 @@ void LEDControlActivity::togglePlayPause() {
 }
 
 void LEDControlActivity::nextPattern() {
+    // デバッグログ追加
+    Serial.println("LEDControlActivity: nextPattern() called - isJsonPattern=" + 
+                   String(m_isJsonPattern ? "true" : "false"));
+    
     if (m_isJsonPattern) {
         // JSONパターンモード
         if (m_ledManager->getJsonPatternCount() > 0) {
+            // デバッグログ追加
+            Serial.println("LEDControlActivity: JSON pattern count=" + 
+                           String(m_ledManager->getJsonPatternCount()));
+            Serial.println("LEDControlActivity: Current JSON pattern index=" + 
+                           String(m_currentJsonPatternIndex));
+            
             // 次のJSONパターンインデックスを計算
             m_currentJsonPatternIndex = (m_currentJsonPatternIndex + 1) % m_ledManager->getJsonPatternCount();
+            
+            // デバッグログ追加
+            Serial.println("LEDControlActivity: New JSON pattern index=" + 
+                           String(m_currentJsonPatternIndex));
             
             if (m_isPlaying) {
                 m_ledManager->stopPattern();
                 m_ledManager->runJsonPatternByIndex(m_currentJsonPatternIndex);
             }
+        } else {
+            // デバッグログ追加
+            Serial.println("LEDControlActivity: No JSON patterns available");
         }
     } else {
         // 通常パターンモード
+        Serial.println("LEDControlActivity: Calling m_ledManager->nextPattern()");
         m_ledManager->nextPattern();
         
         if (m_isPlaying) {
@@ -412,19 +435,37 @@ void LEDControlActivity::nextPattern() {
 }
 
 void LEDControlActivity::prevPattern() {
+    // デバッグログ追加
+    Serial.println("LEDControlActivity: prevPattern() called - isJsonPattern=" + 
+                   String(m_isJsonPattern ? "true" : "false"));
+    
     if (m_isJsonPattern) {
         // JSONパターンモード
         if (m_ledManager->getJsonPatternCount() > 0) {
+            // デバッグログ追加
+            Serial.println("LEDControlActivity: JSON pattern count=" + 
+                           String(m_ledManager->getJsonPatternCount()));
+            Serial.println("LEDControlActivity: Current JSON pattern index=" + 
+                           String(m_currentJsonPatternIndex));
+            
             // 前のJSONパターンインデックスを計算
             m_currentJsonPatternIndex = (m_currentJsonPatternIndex - 1 + m_ledManager->getJsonPatternCount()) % m_ledManager->getJsonPatternCount();
+            
+            // デバッグログ追加
+            Serial.println("LEDControlActivity: New JSON pattern index=" + 
+                           String(m_currentJsonPatternIndex));
             
             if (m_isPlaying) {
                 m_ledManager->stopPattern();
                 m_ledManager->runJsonPatternByIndex(m_currentJsonPatternIndex);
             }
+        } else {
+            // デバッグログ追加
+            Serial.println("LEDControlActivity: No JSON patterns available");
         }
     } else {
         // 通常パターンモード
+        Serial.println("LEDControlActivity: Calling m_ledManager->prevPattern()");
         m_ledManager->prevPattern();
         
         if (m_isPlaying) {
@@ -438,6 +479,10 @@ void LEDControlActivity::prevPattern() {
 }
 
 void LEDControlActivity::togglePatternMode() {
+    // デバッグログ追加
+    Serial.println("LEDControlActivity: togglePatternMode() - Switching to " + 
+                   String(m_isJsonPattern ? "Built-in" : "JSON") + " mode");
+    
     // 再生中なら停止
     if (m_isPlaying) {
         m_ledManager->stopPattern();
@@ -448,6 +493,10 @@ void LEDControlActivity::togglePatternMode() {
     
     // モード切替
     m_isJsonPattern = !m_isJsonPattern;
+    
+    // デバッグログ追加
+    Serial.println("LEDControlActivity: Mode switched to " + 
+                   String(m_isJsonPattern ? "JSON" : "Built-in"));
     
     if (m_isJsonPattern) {
         // JSONパターンモードに切替
@@ -460,10 +509,10 @@ void LEDControlActivity::togglePatternMode() {
             m_ledManager->runJsonPatternByIndex(m_currentJsonPatternIndex);
             m_ledManager->stopPattern();
         } else {
-            // JSONパターンがない場合
+            // JSONパターンがない場合 - エラーメッセージの位置調整
             M5.Lcd.setTextSize(1);
             M5.Lcd.setTextColor(TFT_RED, TFT_BLACK);
-            M5.Lcd.setCursor(10, 200);
+            M5.Lcd.setCursor(10, 230);
             M5.Lcd.print("No JSON patterns available");
         }
     } else {
