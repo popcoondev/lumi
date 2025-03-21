@@ -1,0 +1,41 @@
+{
+  "name": "FPS Test Extreme",
+  "type": "sequence",
+  "parameters": {
+    "loop": true,
+    "brightness": 255
+  },
+  "steps": [
+    {
+      "type": "rainbow",
+      "duration": 5000,
+      "parameters": {
+        "speed": 20,
+        "saturation": 255,
+        "brightness": 255,
+        "comment": "超高速更新（約200FPS相当）- システム限界テスト"
+      }
+    },
+    {
+      "type": "strobe",
+      "duration": 3000,
+      "parameters": {
+        "color": "#FFFFFF",
+        "speed": 20,
+        "comment": "超高速ストロボ - 1ms単位の制御精度テスト"
+      }
+    },
+    {
+      "type": "custom",
+      "duration": 3000,
+      "parameters": {
+        "frames": [
+          {"color": "#FF0000", "duration": 1},
+          {"color": "#00FF00", "duration": 1},
+          {"color": "#0000FF", "duration": 1}
+        ],
+        "comment": "1ms単位のフレーム切り替え - 最小遅延テスト"
+      }
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "name": "FPS Test Advanced",
+  "type": "sequence",
+  "parameters": {
+    "loop": true,
+    "brightness": 255
+  },
+  "steps": [
+    {
+      "type": "rainbow",
+      "duration": 3000,
+      "parameters": {
+        "speed": 10,
+        "saturation": 255,
+        "brightness": 255,
+        "comment": "高速更新（約100FPS相当）"
+      }
+    },
+    {
+      "type": "rainbow",
+      "duration": 3000,
+      "parameters": {
+        "speed": 5,
+        "saturation": 255,
+        "brightness": 255,
+        "comment": "中速更新（約60FPS相当）"
+      }
+    },
+    {
+      "type": "rainbow",
+      "duration": 3000,
+      "parameters": {
+        "speed": 2,
+        "saturation": 255,
+        "brightness": 255,
+        "comment": "低速更新（約30FPS相当）"
+      }
+    }
+  ]
+}

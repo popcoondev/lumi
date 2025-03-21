@@ -1,0 +1,19 @@
+{
+  "name": "FPS Test JSON",
+  "type": "sequence",
+  "parameters": {
+    "loop": true,
+    "brightness": 255
+  },
+  "steps": [
+    {
+      "type": "rainbow",
+      "duration": 50,
+      "parameters": {
+        "speed": 5,
+        "saturation": 255,
+        "brightness": 255
+      }
+    }
+  ]
+}

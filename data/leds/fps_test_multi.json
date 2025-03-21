@@ -1,0 +1,48 @@
+{
+  "name": "FPS Test Multi-Pattern",
+  "type": "sequence",
+  "parameters": {
+    "loop": true,
+    "brightness": 255
+  },
+  "steps": [
+    {
+      "type": "rainbow",
+      "duration": 2000,
+      "parameters": {
+        "speed": 5,
+        "saturation": 255,
+        "brightness": 255,
+        "comment": "虹色パターン - 色相の変化が滑らかさを確認しやすい"
+      }
+    },
+    {
+      "type": "pulse",
+      "duration": 2000,
+      "parameters": {
+        "color": "#FFFFFF",
+        "speed": 5,
+        "comment": "パルスパターン - 明るさの変化が滑らかさを確認しやすい"
+      }
+    },
+    {
+      "type": "chase",
+      "duration": 2000,
+      "parameters": {
+        "color": "#00FF00",
+        "speed": 5,
+        "direction": "forward",
+        "comment": "チェイスパターン - 動きの滑らかさを確認しやすい"
+      }
+    },
+    {
+      "type": "strobe",
+      "duration": 2000,
+      "parameters": {
+        "color": "#FFFFFF",
+        "speed": 10,
+        "comment": "ストロボパターン - 高速点滅でFPSの影響を確認しやすい"
+      }
+    }
+  ]
+}
