@@ -1,41 +1,84 @@
 {
   "name": "FPS Test Extreme",
-  "type": "sequence",
+  "type": "custom",
   "parameters": {
     "loop": true,
-    "brightness": 255
+    "stepDelay": 1,
+    "effects": {
+      "fade": {
+        "enabled": false
+      },
+      "blur": {
+        "enabled": false
+      }
+    }
   },
   "steps": [
     {
-      "type": "rainbow",
-      "duration": 5000,
-      "parameters": {
-        "speed": 20,
-        "saturation": 255,
-        "brightness": 255,
-        "comment": "超高速更新（約200FPS相当）- システム限界テスト"
-      }
+      "faceSelection": {
+        "mode": "all"
+      },
+      "colorHSV": {
+        "h": { "min": 0, "max": 255 },
+        "s": 255,
+        "v": 255
+      },
+      "duration": 5000
     },
     {
-      "type": "strobe",
-      "duration": 3000,
-      "parameters": {
-        "color": "#FFFFFF",
-        "speed": 20,
-        "comment": "超高速ストロボ - 1ms単位の制御精度テスト"
-      }
+      "faceSelection": {
+        "mode": "all"
+      },
+      "colorHSV": {
+        "h": 0,
+        "s": 0,
+        "v": 255
+      },
+      "duration": 1
     },
     {
-      "type": "custom",
-      "duration": 3000,
-      "parameters": {
-        "frames": [
-          {"color": "#FF0000", "duration": 1},
-          {"color": "#00FF00", "duration": 1},
-          {"color": "#0000FF", "duration": 1}
-        ],
-        "comment": "1ms単位のフレーム切り替え - 最小遅延テスト"
-      }
+      "faceSelection": {
+        "mode": "all"
+      },
+      "colorHSV": {
+        "h": 0,
+        "s": 0,
+        "v": 0
+      },
+      "duration": 1
+    },
+    {
+      "faceSelection": {
+        "mode": "all"
+      },
+      "colorHSV": {
+        "h": 0,
+        "s": 255,
+        "v": 255
+      },
+      "duration": 1
+    },
+    {
+      "faceSelection": {
+        "mode": "all"
+      },
+      "colorHSV": {
+        "h": 85,
+        "s": 255,
+        "v": 255
+      },
+      "duration": 1
+    },
+    {
+      "faceSelection": {
+        "mode": "all"
+      },
+      "colorHSV": {
+        "h": 170,
+        "s": 255,
+        "v": 255
+      },
+      "duration": 1
     }
   ]
 }

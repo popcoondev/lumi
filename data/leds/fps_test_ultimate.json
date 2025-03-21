@@ -1,9 +1,9 @@
 {
-  "name": "FPS Test Multi-Pattern",
+  "name": "FPS Test Ultimate",
   "type": "custom",
   "parameters": {
     "loop": true,
-    "stepDelay": 10,
+    "stepDelay": 1,
     "effects": {
       "fade": {
         "enabled": false
@@ -19,55 +19,66 @@
         "mode": "all"
       },
       "colorHSV": {
-        "h": { "min": 0, "max": 255 },
+        "h": 0,
         "s": 255,
         "v": 255
       },
-      "duration": 2000
+      "duration": 1
     },
     {
       "faceSelection": {
         "mode": "all"
       },
       "colorHSV": {
-        "h": 0,
-        "s": 0,
-        "v": { "min": 0, "max": 255 }
+        "h": 42,
+        "s": 255,
+        "v": 255
       },
-      "duration": 2000
+      "duration": 1
     },
     {
       "faceSelection": {
-        "mode": "sequential"
+        "mode": "all"
       },
       "colorHSV": {
         "h": 85,
         "s": 255,
         "v": 255
       },
-      "duration": 2000
+      "duration": 1
     },
     {
       "faceSelection": {
         "mode": "all"
       },
       "colorHSV": {
-        "h": 0,
-        "s": 0,
+        "h": 127,
+        "s": 255,
         "v": 255
       },
-      "duration": 100
+      "duration": 1
     },
     {
       "faceSelection": {
         "mode": "all"
       },
       "colorHSV": {
-        "h": 0,
-        "s": 0,
-        "v": 0
+        "h": 170,
+        "s": 255,
+        "v": 255
       },
-      "duration": 100
+      "duration": 1
+    },
+    {
+      "faceSelection": {
+        "mode": "all"
+      },
+      "colorHSV": {
+        "h": 212,
+        "s": 255,
+        "v": 255
+      },
+      "duration": 1
     }
   ]
 }

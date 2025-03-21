@@ -1,19 +1,29 @@
 {
   "name": "FPS Test JSON",
-  "type": "sequence",
+  "type": "custom",
   "parameters": {
     "loop": true,
-    "brightness": 255
+    "stepDelay": 1,
+    "effects": {
+      "fade": {
+        "enabled": false
+      },
+      "blur": {
+        "enabled": false
+      }
+    }
   },
   "steps": [
     {
-      "type": "rainbow",
-      "duration": 50,
-      "parameters": {
-        "speed": 5,
-        "saturation": 255,
-        "brightness": 255
-      }
+      "faceSelection": {
+        "mode": "all"
+      },
+      "colorHSV": {
+        "h": { "min": 0, "max": 255 },
+        "s": 255,
+        "v": 255
+      },
+      "duration": 1
     }
   ]
 }
