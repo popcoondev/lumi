@@ -1,72 +1,96 @@
 {
-    "name": "Sakura",
-    "type": "custom",
-    "parameters": {
-      "loop": true,
-      "stepDelay": 300,
+  "name": "Sakura",
+  "type": "custom",
+  "parameters": {
+    "loop": true,
+    "stepDelay": 100,
+    "colorHSV": {
+      "h": { "min": 240, "max": 255 },
+      "s": { "min": 100, "max": 150 },
+      "v": { "min": 230, "max": 255 }
+    },
+    "effects": {
+      "fade": {
+        "enabled": true,
+        "mode": "out",
+        "duration": 200
+      },
+      "blur": {
+        "enabled": true,
+        "intensity": 3,
+        "duration": 100
+      }
+    }
+  },
+  "steps": [
+    {
+      "faceSelection": {
+        "mode": "random",
+        "range": { "min": 0, "max": 7 },
+        "count": 1
+      },
       "colorHSV": {
-        "h": { "min": 230, "max": 250 },
-        "s": { "min": 40, "max": 70 },
+        "h": { "min": 240, "max": 255 },
+        "s": { "min": 100, "max": 150 },
         "v": { "min": 230, "max": 255 }
       },
-      "effects": {
-        "fade": {
-          "enabled": true,
-          "mode": "out",
-          "duration": 400
-        },
-        "blur": {
-          "enabled": true,
-          "intensity": 2,
-          "duration": 300
-        }
-      }
+      "duration": 100
     },
-    "steps": [
-      {
-        "faceSelection": {
-          "mode": "random",
-          "range": { "min": 0, "max": 7 },
-          "count": 1
-        },
-        "duration": 300
+    {
+      "faceSelection": {
+        "mode": "random",
+        "range": { "min": 0, "max": 7 },
+        "count": 2
       },
-      {
-        "faceSelection": {
-          "mode": "random",
-          "range": { "min": 0, "max": 7 },
-          "count": 2
-        },
-        "duration": 250
+      "colorHSV": {
+        "h": { "min": 240, "max": 255 },
+        "s": { "min": 100, "max": 150 },
+        "v": { "min": 230, "max": 255 }
       },
-      {
-        "faceSelection": {
-          "mode": "random",
-          "range": { "min": 0, "max": 7 },
-          "count": 3
-        },
-        "duration": 300
+      "duration": 100
+    },
+    {
+      "faceSelection": {
+        "mode": "random",
+        "range": { "min": 0, "max": 7 },
+        "count": 3
       },
-      {
-        "faceSelection": {
-          "mode": "random",
-          "range": { "min": 0, "max": 7 },
-          "count": 1
-        },
-        "duration": 350
+      "colorHSV": {
+        "h": { "min": 240, "max": 255 },
+        "s": { "min": 100, "max": 150 },
+        "v": { "min": 230, "max": 255 }
       },
-      {
-        "faceSelection": {
-          "mode": "random",
-          "range": { "min": 0, "max": 7 },
-          "count": 2
-        },
-        "duration": 300
+      "duration": 100
+    },
+    {
+      "faceSelection": {
+        "mode": "random",
+        "range": { "min": 0, "max": 7 },
+        "count": 1
       },
-      {
-        "faces": [],
-        "duration": 400
-      }
-    ]
-  }
-  
+      "colorHSV": {
+        "h": { "min": 240, "max": 255 },
+        "s": { "min": 100, "max": 150 },
+        "v": { "min": 230, "max": 255 }
+      },
+      "duration": 100
+    },
+    {
+      "faceSelection": {
+        "mode": "random",
+        "range": { "min": 0, "max": 7 },
+        "count": 2
+      },
+      "colorHSV": {
+        "h": { "min": 240, "max": 255 },
+        "s": { "min": 100, "max": 150 },
+        "v": { "min": 230, "max": 255 }
+      },
+      "duration": 100
+    },
+    {
+      "faces": [],
+      "duration": 200
+    }
+  ]
+}

@@ -7,7 +7,7 @@
     "colorHSV": {
       "h": 0,
       "s": 0,
-      "v": 100
+      "v": { "min": 0, "max": 255 }
     },
     "effects": {
       "fade": {
@@ -25,7 +25,35 @@
       "faceSelection": {
         "mode": "all"
       },
+      "colorHSV": {
+        "h": 0,
+        "s": 0,
+        "v": { "min": 0, "max": 100 }
+      },
+      "duration": 3000
+    },
+    {
+      "faceSelection": {
+        "mode": "all"
+      },
+      "colorHSV": {
+        "h": 0,
+        "s": 0,
+        "v": { "min": 100, "max": 150 }
+      },
+      "duration": 3000
+    },
+    {
+      "faceSelection": {
+        "mode": "all"
+      },
+      "colorHSV": {
+        "h": 0,
+        "s": 0,
+        "v": { "min": 150, "max": 255 }
+      },
       "duration": 3000
     }
+    
   ]
 }

@@ -3,12 +3,7 @@
   "type": "custom",
   "parameters": {
     "loop": true,
-    "stepDelay": 300,
-    "colorHSV": {
-      "h": 0,
-      "s": 0,
-      "v": 100
-    },
+    "stepDelay": 100,
     "effects": {
       "fade": {
         "enabled": false
@@ -21,35 +16,75 @@
   "steps": [
     {
       "faces": [0],
-      "duration": 300
+      "colorHSV": {
+        "h": 160,
+        "s": 255,
+        "v": 255
+      },
+      "duration": 100
     },
     {
       "faces": [1],
-      "duration": 300
+      "colorHSV": {
+        "h": 170,
+        "s": 255,
+        "v": 255
+      },
+      "duration": 100
     },
     {
       "faces": [2],
-      "duration": 300
+      "colorHSV": {
+        "h": 180,
+        "s": 255,
+        "v": 255
+      },
+      "duration": 100
     },
     {
       "faces": [3],
-      "duration": 300
+      "colorHSV": {
+        "h": 190,
+        "s": 255,
+        "v": 255
+      },
+      "duration": 100
     },
     {
       "faces": [4],
-      "duration": 300
+      "colorHSV": {
+        "h": 200,
+        "s": 255,
+        "v": 255
+      },
+      "duration": 100
     },
     {
       "faces": [5],
-      "duration": 300
+      "colorHSV": {
+        "h": 210,
+        "s": 255,
+        "v": 255
+      },
+      "duration": 100
     },
     {
       "faces": [6],
-      "duration": 300
+      "colorHSV": {
+        "h": 220,
+        "s": 255,
+        "v": 255
+      },
+      "duration": 100
     },
     {
       "faces": [7],
-      "duration": 300
+      "colorHSV": {
+        "h": 230,
+        "s": 255,
+        "v": 255
+      },
+      "duration": 100
     }
   ]
 }

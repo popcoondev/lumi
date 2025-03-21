@@ -3,29 +3,27 @@
   "type": "custom",
   "parameters": {
     "loop": true,
-    "stepDelay": 50,
-    "colorHSV": {
-      "h": 160,
-      "s": 255,
-      "v": { "min": 50, "max": 255 }
-    },
+    "stepDelay": 100,
     "effects": {
       "fade": {
         "enabled": false
       },
       "blur": {
-        "enabled": true,
-        "intensity": 3,
-        "duration": 50
+        "enabled": false
       }
     }
   },
   "steps": [
     {
       "faceSelection": {
-        "mode": "sequential"
+        "mode": "all"
       },
-      "duration": 5000
+      "colorHSV": {
+        "h": 240,
+        "s": 255,
+        "v": 255
+      },
+      "duration": 500
     }
   ]
 }

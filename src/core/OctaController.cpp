@@ -466,7 +466,7 @@ void OctaController::processCalibrationActivityState() {
 
 void OctaController::processLEDControlActivityState() {
     // デバッグログ追加
-    Serial.println("OctaController::processLEDControlActivityState() - Processing touch events");
+    // Serial.println("OctaController::processLEDControlActivityState() - Processing touch events");
     
     // M5.Touchの状態を取得
     auto touch = M5.Touch.getDetail();

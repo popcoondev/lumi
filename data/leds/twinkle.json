@@ -3,15 +3,17 @@
   "type": "custom",
   "parameters": {
     "loop": true,
-    "stepDelay": 100,
+    "stepDelay": 50,
     "colorHSV": {
-      "h": 0,
-      "s": 0,
-      "v": { "min": 50, "max": 255 }
+      "h": { "min": 0, "max": 255 },
+      "s": { "min": 200, "max": 255 },
+      "v": { "min": 200, "max": 255 }
     },
     "effects": {
       "fade": {
-        "enabled": false
+        "enabled": true,
+        "mode": "both",
+        "duration": 50
       },
       "blur": {
         "enabled": false
@@ -23,33 +25,53 @@
       "faceSelection": {
         "mode": "random",
         "range": { "min": 0, "max": 7 },
-        "count": 4
+        "count": 3
       },
-      "duration": 100
+      "colorHSV": {
+        "h": { "min": 0, "max": 60 },
+        "s": 255,
+        "v": 255
+      },
+      "duration": 50
     },
     {
       "faceSelection": {
         "mode": "random",
         "range": { "min": 0, "max": 7 },
-        "count": 4
+        "count": 3
       },
-      "duration": 100
+      "colorHSV": {
+        "h": { "min": 60, "max": 120 },
+        "s": 255,
+        "v": 255
+      },
+      "duration": 50
     },
     {
       "faceSelection": {
         "mode": "random",
         "range": { "min": 0, "max": 7 },
-        "count": 4
+        "count": 3
       },
-      "duration": 100
+      "colorHSV": {
+        "h": { "min": 120, "max": 180 },
+        "s": 255,
+        "v": 255
+      },
+      "duration": 50
     },
     {
       "faceSelection": {
         "mode": "random",
         "range": { "min": 0, "max": 7 },
-        "count": 4
+        "count": 3
       },
-      "duration": 100
+      "colorHSV": {
+        "h": { "min": 180, "max": 240 },
+        "s": 255,
+        "v": 255
+      },
+      "duration": 50
     }
   ]
 }

@@ -3,13 +3,15 @@
   "type": "custom",
   "parameters": {
     "loop": true,
-    "stepDelay": 50,
+    "stepDelay": 10,
     "effects": {
       "fade": {
         "enabled": false
       },
       "blur": {
-        "enabled": false
+        "enabled": true,
+        "intensity": 2,
+        "duration": 50
       }
     }
   },

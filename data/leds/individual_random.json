@@ -3,7 +3,7 @@
   "type": "custom",
   "parameters": {
     "loop": true,
-    "stepDelay": 100,
+    "stepDelay": 50,
     "colorHSV": {
       "h": { "min": 0, "max": 255 },
       "s": { "min": 200, "max": 255 },
@@ -11,7 +11,9 @@
     },
     "effects": {
       "fade": {
-        "enabled": false
+        "enabled": true,
+        "mode": "both",
+        "duration": 50
       },
       "blur": {
         "enabled": false
@@ -23,9 +25,40 @@
       "faceSelection": {
         "mode": "random",
         "range": { "min": 0, "max": 7 },
-        "count": 4
+        "count": 3
       },
-      "duration": 100
+      "colorHSV": {
+        "h": { "min": 0, "max": 85 },
+        "s": 255,
+        "v": 255
+      },
+      "duration": 50
+    },
+    {
+      "faceSelection": {
+        "mode": "random",
+        "range": { "min": 0, "max": 7 },
+        "count": 3
+      },
+      "colorHSV": {
+        "h": { "min": 85, "max": 170 },
+        "s": 255,
+        "v": 255
+      },
+      "duration": 50
+    },
+    {
+      "faceSelection": {
+        "mode": "random",
+        "range": { "min": 0, "max": 7 },
+        "count": 3
+      },
+      "colorHSV": {
+        "h": { "min": 170, "max": 255 },
+        "s": 255,
+        "v": 255
+      },
+      "duration": 50
     }
   ]
 }

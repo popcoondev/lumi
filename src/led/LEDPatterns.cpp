@@ -96,21 +96,70 @@ void RandomPattern::run(CRGB* leds, int numLeds, int ledOffset, int numFaces, in
 // ウェーブパターンの実装
 void WavePattern::run(CRGB* leds, int numLeds, int ledOffset, int numFaces, int duration) {
     unsigned long startTime = millis();
+    uint8_t wavePos = 0;
+    
+    // 明るさのテーブルを直接定義（デバッグ用に明確な値を使用）
+    uint8_t brightnessTable[8] = {255, 220, 180, 140, 100, 140, 180, 220};
+    
+    Serial.println("WavePattern: Starting pattern");
+    Serial.printf("WavePattern: numLeds=%d, ledOffset=%d, numFaces=%d\n", numLeds, ledOffset, numFaces);
+    
+    // 最初に全LEDを消灯して状態を確認
+    for (int i = 0; i < numLeds; i++) {
+        leds[i] = CRGB::Black;
+    }
+    FastLED.show();
+    Serial.println("WavePattern: All LEDs set to black");
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+    
+    // テスト用に全LEDを白色に点灯
+    for (int i = 0; i < numLeds; i++) {
+        leds[i] = CRGB::White;
+    }
+    FastLED.show();
+    Serial.println("WavePattern: All LEDs set to white for testing");
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+    
     while (millis() - startTime < duration) {
+        // デバッグ出力
+        Serial.println("WavePattern: Updating LEDs");
+        
+        // 各フェイスの明るさを更新
         for (int i = 0; i < numFaces; i++) {
             int idx1 = ledOffset + (i * 2);
             int idx2 = ledOffset + (i * 2) + 1;
-            float phase = (millis() / 100.0) + (i * M_PI / 4);
-            uint8_t brightnessVal = (uint8_t)(((sin(phase) + 1.0) / 2.0) * 255);
-            CRGB baseColor = CRGB::Blue;
-            CRGB modulatedColor = baseColor;
-            modulatedColor.nscale8_video(brightnessVal);
-            leds[idx1] = modulatedColor;
-            leds[idx2] = modulatedColor;
+            
+            // インデックスの範囲チェック
+            if (idx1 >= numLeds || idx2 >= numLeds) {
+                Serial.printf("WavePattern: Index out of range - idx1=%d, idx2=%d, numLeds=%d\n", idx1, idx2, numLeds);
+                continue;
+            }
+            
+            // 現在の位置に基づいて明るさを取得
+            int brightnessIndex = (i + wavePos) % 8;
+            uint8_t brightnessVal = brightnessTable[brightnessIndex];
+            
+            // デバッグ出力
+            Serial.printf("WavePattern: Face %d (idx1=%d, idx2=%d): Brightness %d\n", i, idx1, idx2, brightnessVal);
+            
+            // 青色をベースに明るさを適用
+            CRGB color = CRGB::Blue;
+            color.nscale8_video(brightnessVal);
+            
+            leds[idx1] = color;
+            leds[idx2] = color;
         }
+        
         FastLED.show();
-        vTaskDelay(50 / portTICK_PERIOD_MS);
+        
+        // 波の位置を更新
+        wavePos = (wavePos + 1) % 8;
+        
+        // 更新頻度
+        vTaskDelay(100 / portTICK_PERIOD_MS);
     }
+    
+    Serial.println("WavePattern: Pattern completed");
 }
 
 // レインボーパターンの実装
